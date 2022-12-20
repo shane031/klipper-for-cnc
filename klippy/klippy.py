@@ -90,12 +90,17 @@ class Printer:
             raise self.config_error(
                 "Printer object '%s' already created" % (name,))
         self.objects[name] = obj
+    
     def lookup_object(self, name, default=configfile.sentinel):
+        # NOTE: get an object from the objects Dict.
+        #       Objects are added by the 'load_object'
+        #       method below.
         if name in self.objects:
             return self.objects[name]
         if default is configfile.sentinel:
             raise self.config_error("Unknown config object '%s'" % (name,))
         return default
+    
     def lookup_objects(self, module=None):
         if module is None:
             return list(self.objects.items())
@@ -105,11 +110,29 @@ class Printer:
         if module in self.objects:
             return [(module, self.objects[module])] + objs
         return objs
+    
     def load_object(self, config, section, default=configfile.sentinel):
+        # NOTE: I believe that this function "loads" all python
+        #       files in the "extras/" directory, as objects in
+        #       this class.
+
+        # NOTE: sections already loaded are skipeed.
         if section in self.objects:
             return self.objects[section]
+
+        # NOTE: loading of "new" sections, starts with
+        #       splitting the section title: "extruder Voron"
+        #       is converted to a list ["extruder", "Voron"].
+        #       The first part of the name is always the Python
+        #       module of the extras directory, the second part
+        #       must be an ID or "key" for loading several modules
+        #       of the same kind.
         module_parts = section.split()
+        # NOTE: this is the first part of the section name,
+        #       that will match a module name.
         module_name = module_parts[0]
+
+        # NOTE: the path to the corresponding module is now built.
         py_name = os.path.join(os.path.dirname(__file__),
                                'extras', module_name + '.py')
         py_dirname = os.path.join(os.path.dirname(__file__),
@@ -118,7 +141,14 @@ class Printer:
             if default is not configfile.sentinel:
                 return default
             raise self.config_error("Unable to load module '%s'" % (section,))
+
+        # NOTE: Importing is probably done here,
+        #       using the external "importlib" module.
         mod = importlib.import_module('extras.' + module_name)
+
+        # NOTE: this part then runs the "loading" functions
+        #       usually defined at the end of each extras module.
+        #       The functions are named in a stereotyped way.
         init_func = 'load_config'
         if len(module_parts) > 1:
             init_func = 'load_config_prefix'
@@ -127,6 +157,10 @@ class Printer:
             if default is not configfile.sentinel:
                 return default
             raise self.config_error("Unable to load module '%s'" % (section,))
+        
+        # NOTE: Now the object returned by the modules init function
+        #       is saved to the "local" objects dict.
+        #       It is saved with a "section" name which i dont understand yet.
         self.objects[section] = init_func(config.getsection(section))
         return self.objects[section]
     def _read_config(self):
