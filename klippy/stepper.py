@@ -299,11 +299,24 @@ class PrinterRail:
         self.steppers = []
         self.endstops = []
         self.endstop_map = {}
+
+        # NOTE: Added comments to this function.
+        #       It creates a "stepper" object from the "PrinterStepper" function,
+        #       and adds it to the "self.steppers" list.
+        #       Internally, the PrinterStepper function instantiates an
+        #       "MCU_stepper" class, registers it in several modules,
+        #       and returns it.
+        #       It then handles the "setup" of the associated
+        #       endstop into an MCU_endstop class, and also adds
+        #       the stepper to this class.
         self.add_extra_stepper(config)
+        
+        # NOTE: this grabs the first "MCU_stepper" item in the list.
         mcu_stepper = self.steppers[0]
         self.get_name = mcu_stepper.get_name
         self.get_commanded_position = mcu_stepper.get_commanded_position
         self.calc_position_from_coord = mcu_stepper.calc_position_from_coord
+        
         # Primary endstop position
         mcu_endstop = self.endstops[0][0]
         if hasattr(mcu_endstop, "get_position_endstop"):
@@ -371,29 +384,73 @@ class PrinterRail:
     def add_extra_stepper(self, config):
         stepper = PrinterStepper(config, self.stepper_units_in_radians)
         self.steppers.append(stepper)
+
+        # NOTE: Check if self.endstops has been populated, 
+        #       initially its empty "[]".
+        #       If and endstop has been added,
+        #       and no 'endstop_pin' was defined in the config,
+        #       then "use the primary endstop".
         if self.endstops and config.get('endstop_pin', None) is None:
             # No endstop defined - use primary endstop
             self.endstops[0][0].add_stepper(stepper)
             return
+        
         endstop_pin = config.get('endstop_pin')
         printer = config.get_printer()
+
+        # NOTE: Get object from pins.py
         ppins = printer.lookup_object('pins')
-        pin_params = ppins.parse_pin(endstop_pin, True, True)
+
+        # NOTE: calls a PrinterPins method from pins.py,
+        #       which does "Pin to chip mapping".
+        #       It returns a dict with some properties.
+        pin_params = ppins.parse_pin(endstop_pin,
+                                     can_invert=True,
+                                     can_pullup=True)
+        
         # Normalize pin name
         pin_name = "%s:%s" % (pin_params['chip_name'], pin_params['pin'])
+        
+        
+        # NOTE: get() method from dict:
+        #       "Return the value for key if key is in the dictionary, else default."
+        endstop = self.endstop_map.get(pin_name, default=None)
+        
         # Look for already-registered endstop
-        endstop = self.endstop_map.get(pin_name, None)
         if endstop is None:
             # New endstop, register it
-            mcu_endstop = ppins.setup_pin('endstop', endstop_pin)
+            
+            # NOTE: I don't really get what this does yet.
+            #       It uses "lookup_pin" which registers an active pin.
+            #       It also calls the "setup_pin" method on a "chip" object. 
+            #       The chip object comes from a call to "register_chip" elsewhere.
+            #       In mcu.py, the MCU class passes itself to this method. 
+            #       So... the chips may be MCUs.
+            # NOTE: as commented in pins.py (L136), mcu_endstop is 
+            #       likely an instance of the MCU_endstop class,
+            #       as defined in "mcu.py".
+            mcu_endstop = ppins.setup_pin(pin_type='endstop', pin_desc=endstop_pin)
+            
+            # NOTE: I don't really get what this does yet.
+            #       Add the endstop to the "endstop_map" class dict.
             self.endstop_map[pin_name] = {'endstop': mcu_endstop,
                                           'invert': pin_params['invert'],
                                           'pullup': pin_params['pullup']}
+            
+            # NOTE: I don't really get what this does yet.
+            #       Add the endstop to the "endstops" class list.
             name = stepper.get_name(short=True)
             self.endstops.append((mcu_endstop, name))
+            
+            # Load the "query_endstops" module.
             query_endstops = printer.load_object(config, 'query_endstops')
+            # Register the endstop there.
             query_endstops.register_endstop(mcu_endstop, name)
         else:
+            # endstop already registered
+            # NOTE: check if the invert or pull-up pins were
+            #       configured differently, and raise an error
+            #       if they are.
             mcu_endstop = endstop['endstop']
             changed_invert = pin_params['invert'] != endstop['invert']
             changed_pullup = pin_params['pullup'] != endstop['pullup']
@@ -401,6 +458,11 @@ class PrinterRail:
                 raise error("Pinter rail %s shared endstop pin %s "
                             "must specify the same pullup/invert settings" % (
                                 self.get_name(), pin_name))
+        # NOTE: call the "add_stepper" method from the
+        #       MCU_endstop class, which in turn calls
+        #       the "trsync.add_stepper" method from the
+        #       MCU_trsync class, which simply appends
+        #       "stepper" object to a list of steppers.
         mcu_endstop.add_stepper(stepper)
     def setup_itersolve(self, alloc_func, *params):
         for stepper in self.steppers:
@@ -417,7 +479,7 @@ class PrinterRail:
 
 # Wrapper for dual stepper motor support
 def LookupMultiRail(config, need_position_minmax=True,
-                 default_position_endstop=None, units_in_radians=False):
+                    default_position_endstop=None, units_in_radians=False):
     rail = PrinterRail(config, need_position_minmax,
                        default_position_endstop, units_in_radians)
     for i in range(1, 99):

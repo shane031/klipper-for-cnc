@@ -569,7 +569,7 @@ class MCU:
         self._shutdown_clock = 0
         self._shutdown_msg = ""
         # Config building
-        printer.lookup_object('pins').register_chip(self._name, self)
+        printer.lookup_object('pins').register_chip(chip_name=self._name, chip=self)
         self._oid_count = 0
         self._config_callbacks = []
         self._config_cmds = []
