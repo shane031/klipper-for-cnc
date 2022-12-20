@@ -13,8 +13,10 @@ implement the necessary methods to be a toolhead object for homing moves
 and then register a custom homing command
 maybe 30 lines of python
 
-Q: where does this code go?
-A manual stepper is defined in "extras", perhaps loaded by this code: https://github.com/Klipper3d/klipper/blob/b026f1d2c975604a0ea7ff939f4c36ef3df80a41/klippy/klippy.py#L108
+Q: where does this code go? A manual stepper is defined in "extras", perhaps loaded by this code: https://github.com/Klipper3d/klipper/blob/b026f1d2c975604a0ea7ff939f4c36ef3df80a41/klippy/klippy.py#L108
+
+It's meant to go in a new file in extras.
+You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_endstop]).
 """
 import stepper, chelper
 
@@ -26,6 +28,10 @@ class ExtruderHoming:
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
         self.next_cmd_time = 0.
+        # Add rail definition from manual_stepper#L14
+        # TODO: What does PrinterRail read from "config"?
+        self.rail = stepper.PrinterRail(
+            config, need_position_minmax=False, default_position_endstop=0.)
         # Register commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
@@ -42,7 +48,9 @@ class ExtruderHoming:
     def cmd_HOME_EXTRUDER(self, gcmd):
         self.homing_accel = accel
         pos = [0., 0., 0., 0.]
-        endstops = [mcu_endstop]
+        # Instantiate a new endstop instance
+        # TODO: Is this correct? Done as in manual_stepper.py#L81
+        endstops = self.rail.get_endstops()
         phoming = self.printer.lookup_object('homing')
         phoming.manual_home(self, endstops, pos, speed, True, True)
     # Toolhead wrappers to support homing
