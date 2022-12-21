@@ -86,13 +86,19 @@ class ExtruderHoming:
         pos = [0., 0., 0., 0.]
         speed = 5.0
 
-        # TODO: Instantiate a new endstop instance from the
-        #       new PrinterRail subclass: "RailFromStepper".
-        endstops = self.rail.get_endstops()
+        # NOTE: get the endstops from the extruder's PrinterRail.
+        #       likely a list of tuples, each with an instance of 
+        #       MCU_endstop and a stepper name.
+        #       See PrinterRail at stepper.py.
+        endstops = self.rail.get_endstops()                 # [(mcu_endstop, name)]
         
-        # NOTE: this loads the Homing class, from "extras/".
-        phoming = self.printer.lookup_object('homing')
+        # NOTE: get a PrinterHoming class from extras
+        phoming = self.printer.lookup_object('homing')      # PrinterHoming
         
+        # NOTE: manual_home method from Homing. There is also
+        #       other methods for homing:
+        #       probing_move ???
+        #       cmd_G28: ???
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
                             triggered=True, 
@@ -129,6 +135,9 @@ class ExtruderHoming:
         #       in the regular way. However the ToolHead.drip_move does
         #       a lot more, in accordance with the commit linked above.
         # TODO: What should I do here?
+        #       The "move" method requires: move(print_time, move)
+        #       print_time: ???
+        #       move: ???
         self.extruder.move()
         # self.do_move(newpos[0], speed, self.homing_accel)
         pass

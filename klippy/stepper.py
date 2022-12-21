@@ -296,13 +296,20 @@ class PrinterRail:
                  default_position_endstop=None, units_in_radians=False):
         # Primary stepper and endstop
         self.stepper_units_in_radians = units_in_radians
+        
+        # NOTE: List of 
         self.steppers = []
+        
+        # NOTE: list of tuples with elements: (mcu_endstop, name)
+        #       mcu_endstop: likely an instance of MCU_endstop.
+        #       name: name of the associated stepper.
         self.endstops = []
+        
+        # TODO: not sure what this is yet.
         self.endstop_map = {}
 
-        # NOTE: Added comments to this function.
-        #       It creates a "stepper" object from the "PrinterStepper" function,
-        #       and adds it to the "self.steppers" list.
+        # NOTE: add_extra_stepper creates a "stepper" object from the
+        #       "PrinterStepper" function, and adds it to the "self.steppers" list.
         #       Internally, the PrinterStepper function instantiates an
         #       "MCU_stepper" class, registers it in several modules,
         #       and returns it.
@@ -435,15 +442,15 @@ class PrinterRail:
         if endstop is None:
             # New endstop, register it
             
-            # NOTE: I don't really get what this does yet.
-            #       It uses "lookup_pin" which registers an active pin.
+            # TODO: I don't really get what this does yet.
+            # NOTE: It uses "lookup_pin" which registers an active pin.
             #       It also calls the "setup_pin" method on a "chip" object. 
             #       The chip object comes from a call to "register_chip" elsewhere.
             #       In mcu.py, the MCU class passes itself to this method. 
             #       So... the chips may be MCUs.
-            # NOTE: as commented in pins.py (L136), mcu_endstop is 
-            #       likely an instance of the MCU_endstop class,
-            #       as defined in "mcu.py".
+            # NOTE: as commented in pins.py (L136), mcu_endstop declared
+            #       here is likely an instance of the MCU_endstop class
+            #       in "mcu.py".
             mcu_endstop = ppins.setup_pin(pin_type='endstop', pin_desc=endstop_pin)
             
             # NOTE: I don't really get what this does yet.
@@ -452,9 +459,9 @@ class PrinterRail:
                                           'invert': pin_params['invert'],
                                           'pullup': pin_params['pullup']}
             
-            # NOTE: I don't really get what this does yet.
-            #       Add the endstop to the "endstops" class list.
-            # NOTE: as commented above, mcu_endstop is likely
+            # TODO: I don't really get what this does yet.
+            # NOTE: Add the endstop to the "endstops" class list.
+            #       As commented above, mcu_endstop is likely
             #       an instance of the MCU_endstop class, as
             #       defined in "mcu.py".
             name = stepper.get_name(short=True)

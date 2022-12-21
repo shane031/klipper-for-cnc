@@ -284,13 +284,22 @@ class PrinterExtruder:
             return (self.instant_corner_v / abs(diff_r))**2
         return move.max_cruise_v2
     def move(self, print_time, move):
-        # NOTE: this method is called, at least, 
+        # NOTE: this PrinterExtruder.move method is called
         #       by the _process_moves method from ToolHead.
         #       In that call, the "print_time" is shared with
         #       the main XYZ stepper queue (sent to "trapq"),
         #       which is probably responsible for the synced
         #       motion of the extruder stepper and the XYZ 
         #       axes.
+        # NOTE: the "move" argument comes from a list of moves.
+        #       A "move" is appended to that list by calls to the "ToolHead.add_move" method.
+        #       The "add_move" method is called by the "ToolHead.move" method.
+        #       which creates the "move" object by instantiating a Move class,
+        #       with the following arguments:
+        #       - toolhead=self:                 the ToolHead class itself.
+        #       - start_pos=self.commanded_pos:  list of "initial" coordinates [0.0, 0.0, 0.0, 0.0]
+        #       - end_pos=newpos:                ???
+        #       - speed=speed:                   ???
         axis_r = move.axes_r[3]
         accel = move.accel * axis_r
         start_v = move.start_v * axis_r

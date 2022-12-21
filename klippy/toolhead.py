@@ -429,7 +429,10 @@ class ToolHead:
         self.kin.set_position(newpos, homing_axes)
         self.printer.send_event("toolhead:set_position")
     def move(self, newpos, speed):
-        move = Move(self, self.commanded_pos, newpos, speed)
+        move = Move(toolhead=self, 
+                    start_pos=self.commanded_pos,
+                    end_pos=newpos, 
+                    speed=speed)
         if not move.move_d:
             return
         if move.is_kinematic_move:
