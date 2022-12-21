@@ -320,7 +320,9 @@ class ExtruderHoming:
         #       RailFromStepper requires lots of homing parameters anyway,
         #       including: "homing_speed", "homing_retract_dist",
         #       "homing_positive_dir", and others.
+        #       For example: speed = self.rail.homing_speed
         pos = [0., 0., 0., 0.]
+        speed = 5.0
 
         # TODO: Instantiate a new endstop instance from the
         #       new PrinterRail subclass: "RailFromStepper".
