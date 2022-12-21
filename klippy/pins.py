@@ -128,12 +128,11 @@ class PrinterPins:
         can_invert = pin_type in ['endstop', 'digital_out', 'pwm']
         can_pullup = pin_type in ['endstop']
         pin_params = self.lookup_pin(pin_desc, can_invert, can_pullup)
-        # The following "setup_pin" method is likely from the MCU class.
-        # Other classes also define methods with the same name, including
-        # this one :/
-        # For "endstop" pin types, this "setup_pin" instantiates an 
+        # The following "setup_pin" method is likely from the MCU class (at mcu.py).
+        # Other classes also define methods with the same name, including this one :/
+        # For "endstop" pin types, this "setup_pin" instantiates a new
         # MCU_endstop class, passing it the "pin_params" argument shown 
-        # here directly, and returns it.
+        # here directly, and then returns it.
         # NOTE: it is likely that the following returns an instantiated
         #       MCU_endstop class, or similar, as defined in "mcu.py".
         return pin_params['chip'].setup_pin(pin_type, pin_params)
