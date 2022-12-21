@@ -131,7 +131,7 @@ class ExtruderHoming:
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
                             triggered=True, 
-                            check_trigger=True)
+                            check_triggered=True)
     
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
