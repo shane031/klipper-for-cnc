@@ -33,15 +33,14 @@ class RailFromStepper(stepper.PrinterRail):
         self.endstops = []
         self.endstop_map = {}
 
-        # NOTE: Added comments to this function.
-        #       It creates a "stepper" object from the "PrinterStepper" function,
-        #       and adds it to the "self.steppers" list.
-        #       Internally, the PrinterStepper function instantiates an
-        #       "MCU_stepper" class, registers it in several modules,
-        #       and returns it.
-        #       It then handles the "setup" of the associated
+        # NOTE: Reuse a "stepper" object from an Extruder,
+        #       and add it to the "self.steppers" list.
+        #       add_extra_stepper then handles the "setup" of the associated
         #       endstop into an MCU_endstop class, and also adds
         #       the stepper to this class.
+        # TODO:  In the original class, PrinterStepper function instantiates an
+        #       "MCU_stepper" class, registers it in several modules,
+        #       and returns it. This is omitted now.
         self.add_extra_stepper(config, stepper)
         
         # NOTE: this grabs the first "MCU_stepper" item in the list.
@@ -106,9 +105,6 @@ class RailFromStepper(stepper.PrinterRail):
             raise config.error(
                 "Invalid homing_positive_dir / position_endstop in '%s'"
                 % (config.get_name(),))
-    
-    def hola(self):
-        print("Hola!")
 
     # NOTE: overriding the default "add_extra_stepper" here.
     def add_extra_stepper(self, config, stepper):
@@ -118,6 +114,10 @@ class RailFromStepper(stepper.PrinterRail):
         by a stepper object provided in the arguments.
         The idea is to add an endstop to an extruder stepper.
         """
+        
+        # NOTE: for the record...
+        #stepper = PrinterStepper(config, self.stepper_units_in_radians)
+
         # NOTE: the "stepper" argument is supposed to be an extruder stepper.
         self.steppers.append(stepper)
 
