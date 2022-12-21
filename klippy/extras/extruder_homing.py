@@ -23,6 +23,13 @@ import stepper, chelper
 # TODO: trying to subclass PrinterRail, in order to provide the extruder
 #       stepper directly, instead of it creating a new one from a config.
 class RailFromStepper(stepper.PrinterRail):
+    """
+    PrinterRail subclass with a few modifications.
+    The add_extra_stepper method was modified to accept a stepper
+    argument, and use it instead of creating a new one from configs.
+    The idea is to use this class to add an endstop to an
+    extruder stepper.
+    """
     def __init__(self, config, stepper, 
                  need_position_minmax=True,
                  default_position_endstop=None,
@@ -237,6 +244,10 @@ class ExtruderHoming:
                                     need_position_minmax=False,
                                     default_position_endstop=0.)
 
+        # TODO: with a rail defined, i could try using 
+        #       the "Homing.home_rails" class/method instead.
+        #       Not sure about the difference.
+
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
@@ -293,7 +304,11 @@ class ExtruderHoming:
     #       The "help" string is usually defined along the method.
     cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop"
     def cmd_HOME_EXTRUDER(self, gcmd):
-        self.homing_accel = accel
+        
+        # TODO: check why mdwasp wrote this, since it is defined above,
+        #       and also not really used elsewhere in the code.
+        #self.homing_accel = accel
+
         # NOTE: manual_stepper uses "[movepos, 0., 0., 0.]" instead.
         #       The "movepos" is provided by the MOVE argument to the
         #       MANUAL_STEPPER command, and indicates the position to
@@ -301,12 +316,15 @@ class ExtruderHoming:
         #       it can stop before reaching "movepos".
         # TODO: What "movepos" should I use for this stepper?
         #       Why was "0" suggested?
+        # TODO: try replacing this with the value from the config file.
+        #       RailFromStepper requires lots of homing parameters anyway,
+        #       including: "homing_speed", "homing_retract_dist",
+        #       "homing_positive_dir", and others.
         pos = [0., 0., 0., 0.]
 
-        # TODO: Instantiate a new endstop instance
-        #       I tried something. Is this correct?
-        #       I did it as shown in manual_stepper.py#L81
-        #endstops = self.rail.get_endstops()
+        # TODO: Instantiate a new endstop instance from the
+        #       new PrinterRail subclass: "RailFromStepper".
+        endstops = self.rail.get_endstops()
         
         # NOTE: this loads the Homing class, from "extras/".
         phoming = self.printer.lookup_object('homing')
