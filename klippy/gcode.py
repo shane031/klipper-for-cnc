@@ -201,9 +201,9 @@ class GCodeDispatch:
                 self.printer.send_event("gcode:command_error")
                 if not need_ack:
                     raise
-            except:
+            except Exception as e:
                 msg = 'Internal error on command:"%s"' % (cmd,)
-                logging.exception(msg)
+                logging.exception(msg + str(e))
                 self.printer.invoke_shutdown(msg)
                 self._respond_error(msg)
                 if not need_ack:
