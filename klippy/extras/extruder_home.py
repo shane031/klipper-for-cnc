@@ -1,4 +1,4 @@
-# By mdwasp at Discord
+# By naikymen and mdwasp
 # https://discord.com/channels/627982902738681876/1046618170993160202/1046808809894588457
 """
 look at the chain of ManualStepper via PrinterRail
@@ -23,27 +23,14 @@ import stepper, chelper
 class ExtruderHoming:
     """
     ! WARNING EXPERIMENTAL UNTESTED
-    This class registers a command to home an extruder's stepper
-    using RailFromStepper (a modification of the PrinterRail class)
-    and a virtual toolhead (inspired by manual_stepper.py).
+    This class registers a command to home an extruder's stepper.
+    This is made possible due to a change in the Extruder class,
+    which can now add an endstop to the extruder stepper, if a
+    config parameter is provided.
     """
     def __init__(self, config):
         self.printer = config.get_printer()
-
-        extruder_name = config.get_name().split()[1]
-        
-        toolhead = self.printer.lookup_object("toolhead")
-        self.extruder = toolhead.get_extruder()
-        
-        self.extruder_stepper = self.extruder.extruder_stepper
-        self.stepper = self.extruder_stepper.stepper
-        self.steppers = [self.stepper]
-
-        # Create a "rail" from the extruder stepper.
-        self.rail = RailFromStepper(config=config, stepper=self.stepper,
-                                    need_position_minmax=False,
-                                    default_position_endstop=0.)
-
+        self.extruder_name = config.get_name().split()[1]
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
@@ -58,7 +45,7 @@ class ExtruderHoming:
         # Register commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
-                                   extruder_name, self.cmd_HOME_EXTRUDER,
+                                   self.extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
     
     # NOTE: a "do_enable" function is defined in manual_stepper.py
@@ -83,6 +70,18 @@ class ExtruderHoming:
     #       The "help" string is usually defined along the method.
     cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop"
     def cmd_HOME_EXTRUDER(self, gcmd):
+        
+        # NOTE: Get the toolhead and its extruder
+        toolhead = self.printer.lookup_object("toolhead")
+        self.extruder = toolhead.get_extruder()                 # PrinterExtruder
+        
+        # NOTE: Get the "rail" from the extruder stepper.
+        self.rail = self.extruder_stepper.rail                  # PrinterRail
+
+        # NOTE: Get the steppers
+        self.extruder_stepper = self.extruder.extruder_stepper  # ExtruderStepper
+        self.stepper = self.extruder_stepper.stepper            # PrinterStepper
+        self.steppers = [self.stepper]                          # [PrinterStepper]
 
         pos = [0., 0., 0., 0.]
         speed = 5.0
