@@ -97,7 +97,9 @@ class HomingMove:
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
         for mcu_endstop, name in self.endstops:
-            rest_time = self._calc_endstop_rate(mcu_endstop, movepos, speed)
+            rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
+                                                movepos=movepos, 
+                                                speed=speed)
             wait = mcu_endstop.home_start(print_time, ENDSTOP_SAMPLE_TIME,
                                           ENDSTOP_SAMPLE_COUNT, rest_time,
                                           triggered=triggered)

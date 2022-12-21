@@ -103,19 +103,20 @@ class ExtruderHoming:
         #       as a "virtual toolhead", similar to what is done in manual_stepper.
         #       The provided endstops are from the extruder PrinterRail.
         # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
-        #       The "HomingMove" class and its "homing_move" method use
+        #       The "HomingMove" class downstream methods use
         #       the following methods from a provided "toolhead" object:
         #       - flush_step_generation
-        #       - get_kinematics:       returning a "kin" object with methods:
-        #           - get_steppers:     returning a list of stepper objects.
-        #       - get_last_move_time:   returning "print_time" / "move_end_print_time"
+        #       - get_kinematics:           returning a "kin" object with methods:
+        #           - kin.get_steppers:     returning a list of stepper objects.
+        #           - kin.calc_position:    returning ???
+        #       - get_position:             returning "thpos" (toolhead position)
+        #       - get_last_move_time:       returning "print_time" (and later "move_end_print_time")
         #       - dwell
         #       - drip_move
         #       - set_position
-        #       Other methods using the toolhead object or derivatives are also called:
-        #       - calc_toolhead_pos:
-        #           - get_position:         returning "thpos"
-        #           - kin.calc_position:    returning ???
+        # NOTE: Other methods using the toolhead object or derivatives are also called:
+        #       - calc_toolhead_pos: This method receives a "movepos" argument, which is the "pos" list above.
+        #           - 
         # NOTE: Of these methods, the Extruder class defines none.
         # NOTE: The object returned by "get_kinematics" is
         #       required to have the following methods:
@@ -139,7 +140,7 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by 
         """
-        # TESTING: identical to manual_stepper
+        # TODO: What should I do here? Testing manual_stepper code directly.
         self.sync_print_time()
     
     def get_position(self):
@@ -147,15 +148,23 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by 
         """
-        # TODO: What should I do here?
-        # return [self.rail.get_commanded_position(), 0., 0., 0.]
+        # TODO: What should I do here? Testing manual_stepper code directly.
+        return [self.rail.get_commanded_position(), 0., 0., 0.]
         pass
+    
     def set_position(self, newpos, homing_axes=()):
         """
         Virtual toolhead method.
         Called by 
         """
         # TODO: What should I do here?
+        #       I am assuming that the "set_position" applies to steppers,
+        #       by tracing calls to the "set_position" method in MCU_stepper.
+        #       There, the "coords" argument is a list of at least 3 components:
+        #           [coord[0], coord[1], coord[2]]
+        #       I do not know why it needs three components for a steper object,
+        #       but from the "itersolve_set_position" code, they seem to be x,y,z 
+        #       components.
         # self.do_set_position(newpos[0])
         pass
 
@@ -164,7 +173,7 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by 
         """
-        # TESTING: identical to manual_stepper
+        # TODO: What should I do here? Testing manual_stepper code directly.
         self.sync_print_time()
         return self.next_cmd_time
     
@@ -173,7 +182,7 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by 
         """
-        # TESTING: identical to manual_stepper, may be irrelevant.
+        # TODO: What should I do here? Testing manual_stepper code directly.
         self.next_cmd_time += max(0., delay)
         pass
     
