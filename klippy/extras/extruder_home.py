@@ -76,14 +76,14 @@ class ExtruderHoming:
         # NOTE: Get the toolhead and its extruder
         self.toolhead = self.printer.lookup_object("toolhead")
         self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
-        
-        # NOTE: Get the "rail" from the extruder stepper.
-        self.rail = self.extruder_stepper.rail                  # PrinterRail
 
         # NOTE: Get the steppers
         self.extruder_stepper = self.extruder.extruder_stepper  # ExtruderStepper
         self.stepper = self.extruder_stepper.stepper            # PrinterStepper
         self.steppers = [self.stepper]                          # [PrinterStepper]
+
+        # NOTE: Get the "rail" from the extruder stepper.
+        self.rail = self.extruder_stepper.rail                  # PrinterRail
 
         pos = [0., 0., 0., 0.]
         speed = 5.0
