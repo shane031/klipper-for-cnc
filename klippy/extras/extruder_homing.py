@@ -39,7 +39,9 @@ class ExtruderHoming:
         # NOTE: The "lookup_object" method is from the Printer class (defined in klippy.py),
         #       it uses the full name to get objects (i.e. "extruder_stepper hola").
         self.extruder = self.printer.lookup_object(extruder_name)
-
+        self.extruder_stepper = self.extruder.extruder_stepper
+        self.stepper = self.extruder_stepper.stepper
+        self.steppers = [self.stepper]
         # NOTE: it is likely that a "SYNC_EXTRUDER_MOTION" has to be issued
         #       in order to home the different extruder/tool steppers.
         #       Unless a multi-extruder config is used (insetead of multiple extruder_steppers).
@@ -109,6 +111,32 @@ class ExtruderHoming:
         pos = [movepos, 0., 0., 0.]
         endstops = self.rail.get_endstops()
         phoming = self.printer.lookup_object('homing')
+        phoming.manual_home(toolhead=self, endstops=endstops,
+                            pos=pos, speed=speed,
+                            triggered=triggered, 
+                            check_trigger=check_trigger)
+    
+    # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
+    #       command, which will end up calling this method.
+    #       The "help" string is usually defined along the method.
+    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop"
+    def cmd_HOME_EXTRUDER(self, gcmd):
+        self.homing_accel = accel
+        # NOTE: manual_stepper uses "[movepos, 0., 0., 0.]" instead.
+        #       The "movepos" is provided by the MOVE argument to the
+        #       MANUAL_STEPPER command, and indicates the position to
+        #       which the stepper will move. If it reaches an endstop,
+        #       it can stop before reaching "movepos".
+        # TODO: What "movepos" should I use for this stepper?
+        #       Why was "0" suggested?
+        pos = [0., 0., 0., 0.]
+
+        # TODO: Instantiate a new endstop instance
+        #       I tried something. Is this correct?
+        #       I did it as shown in manual_stepper.py#L81
+        #endstops = self.rail.get_endstops()
+        
+        phoming = self.printer.lookup_object('homing')
         # NOTE: "manual_home" defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
         #       "endstops" and "toolhead" objects.
@@ -133,39 +161,54 @@ class ExtruderHoming:
         #       The manual_stepper methods actually do some stuff.
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
-                            triggered=triggered, 
-                            check_trigger=check_trigger)
-    
-    # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
-    #       command, which will end up calling this method.
-    #       The "help" string is usually defined along the method.
-    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop"
-    def cmd_HOME_EXTRUDER(self, gcmd):
-        self.homing_accel = accel
-        pos = [0., 0., 0., 0.]
-
-        # TODO: Instantiate a new endstop instance
-        #       I tried something. Is this correct?
-        #       I did it as shown in manual_stepper.py#L81
-        #endstops = self.rail.get_endstops()
-        
-        phoming = self.printer.lookup_object('homing')
-        phoming.manual_home(self, endstops, pos, speed, True, True)
+                            triggered=True, 
+                            check_trigger=True)
     
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
-        pass
+        # TESTING: identical to manual_stepper
+        self.sync_print_time()
+    
     def get_position(self):
+        # TODO: What should I do here?
+        # return [self.rail.get_commanded_position(), 0., 0., 0.]
         pass
     def set_position(self, newpos, homing_axes=()):
+        # TODO: What should I do here?
+        # self.do_set_position(newpos[0])
         pass
+
     def get_last_move_time(self):
-        pass
+        # TESTING: identical to manual_stepper
+        self.sync_print_time()
+        return self.next_cmd_time
+    
     def dwell(self, delay):
+        # TESTING: identical to manual_stepper, may be irrelevant.
+        self.next_cmd_time += max(0., delay)
         pass
+    
     def drip_move(self, newpos, speed, drip_completion):
+        # NOTE: some explanation on "drip" moves is available at:
+        #       https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
+        # NOTE: the manual_stepper class simply "moves" the stepper 
+        #       in the regular way. However the ToolHead.drip_move does
+        #       a lot more, in accordance with the commit linked above. 
+        self.extruder.move()
+        # self.do_move(newpos[0], speed, self.homing_accel)
         pass
+    
     def get_kinematics(self):
+        # TESTING: identical to manual_stepper
+        return self
+    
+    def get_steppers():
+        # TESTING: passes extruder stepper
+        return self.steppers
+    
+    def calc_position(self, stepper_positions):
+        # TODO: What should I do here?
+        # return [stepper_positions[self.rail.get_name()], 0., 0.]
         pass
 
 def load_config_prefix(config):

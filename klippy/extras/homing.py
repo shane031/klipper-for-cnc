@@ -104,12 +104,18 @@ class HomingMove:
             endstop_triggers.append(wait)
         all_endstop_trigger = multi_complete(self.printer, endstop_triggers)
         self.toolhead.dwell(HOMING_START_DELAY)
+        
         # Issue move
         error = None
         try:
+            # NOTE: the following command used to be:
+            #       >>> self.toolhead.move(movepos, speed)
+            #       Before the "drip" commit:
+            #       https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
             self.toolhead.drip_move(movepos, speed, all_endstop_trigger)
         except self.printer.command_error as e:
             error = "Error during homing move: %s" % (str(e),)
+        
         # Wait for endstops to trigger
         trigger_times = {}
         move_end_print_time = self.toolhead.get_last_move_time()
@@ -131,9 +137,11 @@ class HomingMove:
                           for sp in self.stepper_positions}
             trig_steps = {sp.stepper_name: sp.trig_pos - sp.start_pos
                           for sp in self.stepper_positions}
-            haltpos = trigpos = self.calc_toolhead_pos(kin_spos, trig_steps)
+            haltpos = trigpos = self.calc_toolhead_pos(kin_spos=kin_spos, 
+                                                       offsets=trig_steps)
             if trig_steps != halt_steps:
-                haltpos = self.calc_toolhead_pos(kin_spos, halt_steps)
+                haltpos = self.calc_toolhead_pos(kin_spos=kin_spos, 
+                                                 offsets=halt_steps)
         else:
             haltpos = trigpos = movepos
             over_steps = {sp.stepper_name: sp.halt_pos - sp.trig_pos
@@ -142,7 +150,8 @@ class HomingMove:
                 self.toolhead.set_position(movepos)
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
-                haltpos = self.calc_toolhead_pos(halt_kin_spos, over_steps)
+                haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
+                                                 offsets=over_steps)
         self.toolhead.set_position(haltpos)
         # Signal homing/probing move complete
         try:
