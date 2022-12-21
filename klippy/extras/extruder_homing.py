@@ -241,7 +241,16 @@ class ExtruderHoming:
         #       See: https://github.com/Klipper3d/klipper/blob/master/config/sample-multi-extruder.cfg
         # NOTE: The "lookup_object" method is from the Printer class (defined in klippy.py),
         #       it uses the full name to get objects (i.e. "extruder_stepper hola").
-        self.extruder = self.printer.lookup_object(extruder_name)
+        
+        # NOTE: "self.printer.lookup_object(extruder_name)" didn't work.
+        #       The extruder objects seem to be in the toolhead object, which
+        #       has a handy "get_extruder" method. It, however, will only get
+        #       the "active" extruder, I guess.
+        # TODO: code something get the proper extruder.
+        toolhead = self.printer.lookup_object("toolhead")
+        self.extruder = toolhead.get_extruder()
+        
+        # NOTE: now get the stepper from the extruder.
         self.extruder_stepper = self.extruder.extruder_stepper
         self.stepper = self.extruder_stepper.stepper
         self.steppers = [self.stepper]

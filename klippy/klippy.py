@@ -121,12 +121,14 @@ class Printer:
             return self.objects[section]
 
         # NOTE: loading of "new" sections, starts with
-        #       splitting the section title: "extruder Voron"
-        #       is converted to a list ["extruder", "Voron"].
+        #       splitting the section title: "manual_stepper syringeStepper"
+        #       is converted to a list ["manual_stepper", "syringeStepper"].
         #       The first part of the name is always the Python
         #       module of the extras directory, the second part
         #       must be an ID or "key" for loading several modules
         #       of the same kind.
+        # NOTE: Although multiple extruders can be defined, those use a 
+        #       different syntax: "extruder", "extruder1", etc. 
         module_parts = section.split()
         # NOTE: this is the first part of the section name,
         #       that will match a module name.
