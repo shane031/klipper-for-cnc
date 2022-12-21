@@ -97,8 +97,34 @@ class ExtruderHoming:
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
         
-        # NOTE: manual_home method from the Homing class.
-        #       There are also other methods for homing:
+        # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
+        #       The method instantiates a "HomingMove" class by passing it the
+        #       "endstops" and "toolhead" objects. Here, the "self" object is passed
+        #       as a "virtual toolhead", similar to what is done in manual_stepper.
+        #       The provided endstops are from the extruder PrinterRail.
+        # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
+        #       The "HomingMove" class and its "homing_move" method use
+        #       the following methods from a provided "toolhead" object:
+        #       - flush_step_generation
+        #       - get_kinematics:       returning a "kin" object with methods:
+        #           - get_steppers:     returning a list of stepper objects.
+        #       - get_last_move_time:   returning "print_time" / "move_end_print_time"
+        #       - dwell
+        #       - drip_move
+        #       - set_position
+        #       Other methods using the toolhead object or derivatives are also called:
+        #       - calc_toolhead_pos:
+        #           - get_position:         returning "thpos"
+        #           - kin.calc_position:    returning ???
+        # NOTE: Of these methods, the Extruder class defines none.
+        # NOTE: The object returned by "get_kinematics" is
+        #       required to have the following methods:
+        #       - get_steppers()
+        #       - calc_position(kin_spos)
+        # NOTE: The following command ends up calling the methods 
+        #       in this class. For example "drip_move" for moving
+        #       the extruder (towards the endstop, ideally).
+        # NOTE: There are also other methods for homing:
         #       - probing_move ???
         #       - cmd_G28: ???
         # TODO: consider using those alternative methods.
@@ -109,24 +135,44 @@ class ExtruderHoming:
     
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TESTING: identical to manual_stepper
         self.sync_print_time()
     
     def get_position(self):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TODO: What should I do here?
         # return [self.rail.get_commanded_position(), 0., 0., 0.]
         pass
     def set_position(self, newpos, homing_axes=()):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TODO: What should I do here?
         # self.do_set_position(newpos[0])
         pass
 
     def get_last_move_time(self):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TESTING: identical to manual_stepper
         self.sync_print_time()
         return self.next_cmd_time
     
     def dwell(self, delay):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TESTING: identical to manual_stepper, may be irrelevant.
         self.next_cmd_time += max(0., delay)
         pass
@@ -174,7 +220,8 @@ class ExtruderHoming:
     
     def drip_move(self, newpos, speed, drip_completion):
         """
-        This method is called by 
+        Virtual toolhead method.
+        Called by 
         """
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
         self.drip_move_toolhead(self, newpos, speed, drip_completion)
@@ -183,14 +230,26 @@ class ExtruderHoming:
         #self.drip_move_extruder(self, newpos, speed, drip_completion)
     
     def get_kinematics(self):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TESTING: identical to manual_stepper
         return self
     
     def get_steppers():
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TESTING: passes extruder stepper
         return self.steppers
     
     def calc_position(self, stepper_positions):
+        """
+        Virtual toolhead method.
+        Called by 
+        """
         # TODO: What should I do here?
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
