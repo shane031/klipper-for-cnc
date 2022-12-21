@@ -25,15 +25,25 @@ class ExtruderHoming:
         self.printer = config.get_printer()
 
         # NOTE: get the extruder name from the config heading: "[extruder_homing NAME_HERE]".
+        #       "NAME_HERE" can be "extruder", "extruder1", etc. (see discussion below).
         extruder_name = config.get_name().split()[1]
         
         # NOTE: get the extruder object by the specified name using "lookup_object".
         #       This means that a corresponding extruder must be in the config.
         #       The extruder section always looks like "[extruder]" with no secondary name.
-        #       This probably means that "extruder_name" will always be the same.
+        #       This probably means that "extruder_name" will always be the same: "extruder"
+        #       In fact, setting a name causes this error:
+        #           "Section 'extruder sarasa' is not a valid config section"
+        #       It seems, however, that extra extruders can be defined with no spaces: "[extruder1]"
+        #       See: https://github.com/Klipper3d/klipper/blob/master/config/sample-multi-extruder.cfg
         # NOTE: The "lookup_object" method is from the Printer class (defined in klippy.py),
         #       it uses the full name to get objects (i.e. "extruder_stepper hola").
         self.extruder = self.printer.lookup_object(extruder_name)
+
+        # NOTE: it is likely that a "SYNC_EXTRUDER_MOTION" has to be issued
+        #       in order to home the different extruder/tool steppers.
+        #       Unless a multi-extruder config is used (insetead of multiple extruder_steppers).
+        #       In that case, the "ACTIVATE_EXTRUDER" command must be used.
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
@@ -43,14 +53,19 @@ class ExtruderHoming:
         self.next_cmd_time = 0.
 
         # TODO: I added a rail definition from manual_stepper#L14
-        #       What does PrinterRail read from "config"?
-        self.rail = stepper.PrinterRail(
-            config, need_position_minmax=False, default_position_endstop=0.)
+        #       which uses PrinterRail as defined in manual_stepper.py
+        #       Is this the way to go? Shouldn't I use the extruder stepper?
+        #self.rail = stepper.PrinterRail(config, 
+        #                                need_position_minmax=False,
+        #                                default_position_endstop=0.)
         
-        # Register commands
-        # NOTE: this command will become available with the syntax:
+        # TODO: manual_stepper also loads the steppers from the rail
+        #self.steppers = self.rail.get_steppers() 
+        
+        # NOTE: The following command will become available with the syntax:
         #       "HOME_EXTRUDER EXTRUDER=extruder", the extruder name
         #        passed to the EXTRUDER argument might change.
+        # Register commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
                                    extruder_name, self.cmd_HOME_EXTRUDER,
@@ -78,7 +93,7 @@ class ExtruderHoming:
         # TODO: Instantiate a new endstop instance
         #       I tried something. Is this correct?
         #       I did it as shown in manual_stepper.py#L81
-        endstops = self.rail.get_endstops()
+        #endstops = self.rail.get_endstops()
         
         phoming = self.printer.lookup_object('homing')
         phoming.manual_home(self, endstops, pos, speed, True, True)

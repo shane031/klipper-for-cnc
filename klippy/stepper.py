@@ -379,9 +379,14 @@ class PrinterRail:
         return homing_info
     def get_steppers(self):
         return list(self.steppers)
+    
     def get_endstops(self):
+        # NOTE: as commented below, endstops in this list are 
+        #       likely instances of the MCU_endstop class.
         return list(self.endstops)
+    
     def add_extra_stepper(self, config):
+        # NOTE: 
         stepper = PrinterStepper(config, self.stepper_units_in_radians)
         self.steppers.append(stepper)
 
@@ -439,6 +444,9 @@ class PrinterRail:
             
             # NOTE: I don't really get what this does yet.
             #       Add the endstop to the "endstops" class list.
+            # NOTE: as commented above, mcu_endstop is likely
+            #       an instance of the MCU_endstop class, as
+            #       defined in "mcu.py".
             name = stepper.get_name(short=True)
             self.endstops.append((mcu_endstop, name))
             
@@ -464,6 +472,7 @@ class PrinterRail:
         #       MCU_trsync class, which simply appends
         #       "stepper" object to a list of steppers.
         mcu_endstop.add_stepper(stepper)
+    
     def setup_itersolve(self, alloc_func, *params):
         for stepper in self.steppers:
             stepper.setup_itersolve(alloc_func, *params)
