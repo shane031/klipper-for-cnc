@@ -32,6 +32,8 @@ class ExtruderHoming:
         self.printer = config.get_printer()
         self.extruder_name = config.get_name().split()[1]
 
+        self.toolhead = None
+
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
@@ -72,8 +74,8 @@ class ExtruderHoming:
     def cmd_HOME_EXTRUDER(self, gcmd):
         
         # NOTE: Get the toolhead and its extruder
-        toolhead = self.printer.lookup_object("toolhead")
-        self.extruder = toolhead.get_extruder()                 # PrinterExtruder
+        self.toolhead = self.printer.lookup_object("toolhead")
+        self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
         
         # NOTE: Get the "rail" from the extruder stepper.
         self.rail = self.extruder_stepper.rail                  # PrinterRail
@@ -128,19 +130,56 @@ class ExtruderHoming:
         self.next_cmd_time += max(0., delay)
         pass
     
-    def drip_move(self, newpos, speed, drip_completion):
+    def drip_move_extruder(self, newpos, speed, drip_completion):
+        """
+        This method is an alternative to implement "drip_move",
+        using the Extruder.move command. To use it instead of other
+        methods in this class, uncomment it in the "drip_move" method,
+        and comment the others.
+        """
+        # NOTE: Explanation of drip_move arguments:
+        #       - newpos: new position vector [0,0,0,0]
+        #       - speed:  ???
+        #       - drip_completion: ???
         # NOTE: some explanation on "drip" moves is available at:
         #       https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
         # NOTE: the manual_stepper class simply "moves" the stepper 
         #       in the regular way. However the ToolHead.drip_move does
         #       a lot more, in accordance with the commit linked above.
         # TODO: What should I do here?
-        #       The "move" method requires: move(print_time, move)
+        #       The "Extruder.move" method requires the following arguments:
         #       print_time: ???
         #       move: ???
         self.extruder.move()
         # self.do_move(newpos[0], speed, self.homing_accel)
-        pass
+
+    
+    def drip_move_toolhead(self, newpos, speed, drip_completion):
+        """
+        This method is an alternative to implement "drip_move",
+        using the ToolHead.manual_move command. To use it instead of other
+        methods in this class, uncomment it in the "drip_move" method,
+        and comment the others.
+        """
+        # NOTE: Explanation of drip_move arguments:
+        #       - newpos: new position vector [0,0,0,0]
+        #       - speed:  ???
+        #       - drip_completion: ???
+        # NOTE: The manual_move method allows "None" values to be passed,
+        #       allowing me not to worry about getting the current and new
+        #       coordinates for the homing move.
+        self.toolhead.manual_move(coord=[None, None, None, newpos[3]],
+                                  speed=speed)
+    
+    def drip_move(self, newpos, speed, drip_completion):
+        """
+        This method is called by 
+        """
+        # NOTE: option 1, use the "manual_move" method from the ToolHead class.
+        self.drip_move_toolhead(self, newpos, speed, drip_completion)
+        
+        # NOTE: option 2, use the "move" method from the Extruder class.
+        #self.drip_move_extruder(self, newpos, speed, drip_completion)
     
     def get_kinematics(self):
         # TESTING: identical to manual_stepper
