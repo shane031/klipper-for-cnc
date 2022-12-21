@@ -232,6 +232,11 @@ class ExtruderHoming:
         #       Unless a multi-extruder config is used (insetead of multiple extruder_steppers).
         #       In that case, the "ACTIVATE_EXTRUDER" command must be used.
 
+        # Create a "rail" from the extruder stepper.
+        self.rail = RailFromStepper(config=config, stepper=self.stepper,
+                                    need_position_minmax=False,
+                                    default_position_endstop=0.)
+
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
