@@ -237,7 +237,7 @@ class ExtruderHoming:
         # TESTING: identical to manual_stepper
         return self
     
-    def get_steppers():
+    def get_steppers(self):
         """
         Virtual toolhead method.
         Called by 
