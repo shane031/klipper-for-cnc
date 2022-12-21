@@ -136,7 +136,9 @@ class ExtruderHoming:
         #       I did it as shown in manual_stepper.py#L81
         #endstops = self.rail.get_endstops()
         
+        # NOTE: this loads the Homing class, from "extras/".
         phoming = self.printer.lookup_object('homing')
+        
         # NOTE: "manual_home" defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
         #       "endstops" and "toolhead" objects.
@@ -153,12 +155,13 @@ class ExtruderHoming:
         #       - drip_move
         #       - set_position
         # NOTE: Of these methods, the Extruder class defines nonte
-        # TODO: The object returned by "get_kinematics" is
+        # NOTE: The object returned by "get_kinematics" is
         #       required to have the following methods:
         #       - get_steppers()
         #       - calc_position(kin_spos)
-        # TODO: All of these are set to "pass" below. Should they?
-        #       The manual_stepper methods actually do some stuff.
+        # NOTE: The following command ends up calling the methods 
+        #       in this class. For example "drip_move" for moving
+        #       the extruder (towards the endstop, ideally).
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
                             triggered=True, 
@@ -193,7 +196,8 @@ class ExtruderHoming:
         #       https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
         # NOTE: the manual_stepper class simply "moves" the stepper 
         #       in the regular way. However the ToolHead.drip_move does
-        #       a lot more, in accordance with the commit linked above. 
+        #       a lot more, in accordance with the commit linked above.
+        # TODO: What should I do here?
         self.extruder.move()
         # self.do_move(newpos[0], speed, self.homing_accel)
         pass
@@ -208,6 +212,9 @@ class ExtruderHoming:
     
     def calc_position(self, stepper_positions):
         # TODO: What should I do here?
+        # NOTE: The get_name function is inherited from the
+        #       first stepper in the steppers list of the
+        #       PrinterRail class.
         # return [stepper_positions[self.rail.get_name()], 0., 0.]
         pass
 

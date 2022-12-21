@@ -313,7 +313,13 @@ class PrinterRail:
         
         # NOTE: this grabs the first "MCU_stepper" item in the list.
         mcu_stepper = self.steppers[0]
+        # NOTE: The get_name function is inherited from the
+        #       first stepper in the steppers list of the
+        #       PrinterRail class. It thus keeps only the first
+        #       one. I imagine something like this:
+        #       Keep "stepper_x" from ["stepper_x", "stepper_x1"]
         self.get_name = mcu_stepper.get_name
+        # TODO: I don't know what these do yet.
         self.get_commanded_position = mcu_stepper.get_commanded_position
         self.calc_position_from_coord = mcu_stepper.calc_position_from_coord
         
