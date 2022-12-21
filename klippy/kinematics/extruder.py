@@ -15,16 +15,28 @@ class ExtruderStepper:
         self.config_smooth_time = config.getfloat(
                 'pressure_advance_smooth_time', 0.040, above=0., maxval=.200)
         # Setup stepper
-        self.stepper = stepper.PrinterStepper(config)
         # NOTE: In the manual_stepper class, the "rail" is defined
         #       either from PrinterRail or PrinterStepper. The first
         #       is used when an endstop pin was configured.
+        # TODO: Try copy over that logic from ManualStepper:
+        if config.get('endstop_pin', None) is not None:
+            self.can_home = True
+            self.rail = stepper.PrinterRail(config)   # NOTE: excluded some arguments.
+            self.steppers = self.rail.get_steppers()  # NOTE: list of stepper objects.
+        else:
+            self.can_home = False
+            self.rail = stepper.PrinterStepper(config)
+            self.steppers = [self.rail]
+        # TODO: define here the extruder stepper.
+        self.stepper = self.steppers[0]
         # NOTE: steppers from PrinterRail are interanlly defined from PrinterStepper,
         #       and thus should be equivalent.
+        #self.stepper = stepper.PrinterStepper(config)
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
                                        ffi_lib.free)
         self.stepper.set_stepper_kinematics(self.sk_extruder)
+        
         # Register commands
         self.printer.register_event_handler("klippy:connect",
                                             self._handle_connect)
@@ -157,10 +169,12 @@ class ExtruderStepper:
 
 # Tracking for hotend heater, extrusion motion queue, and extruder stepper
 class PrinterExtruder:
+    # NOTE: this class is instantiated once per [extruder] section in the config.
     def __init__(self, config, extruder_num):
         self.printer = config.get_printer()
         self.name = config.get_name()
         self.last_position = 0.
+        
         # Setup hotend heater
         shared_heater = config.get('shared_heater', None)
         pheaters = self.printer.load_object(config, 'heaters')
@@ -170,6 +184,7 @@ class PrinterExtruder:
         else:
             config.deprecate('shared_heater')
             self.heater = pheaters.lookup_heater(shared_heater)
+        
         # Setup kinematic checks
         self.nozzle_diameter = config.getfloat('nozzle_diameter', above=0.)
         filament_diameter = config.getfloat(
@@ -193,11 +208,13 @@ class PrinterExtruder:
             'max_extrude_only_distance', 50., minval=0.)
         self.instant_corner_v = config.getfloat(
             'instantaneous_corner_velocity', 1., minval=0.)
+        
         # Setup extruder trapq (trapezoidal motion queue)
         ffi_main, ffi_lib = chelper.get_ffi()
         self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        
         # Setup extruder stepper
         # NOTE: an ExtruderStepper class is instantiated if no pins
         #       were defined in the extruder config section (step/dir/...).
@@ -205,8 +222,10 @@ class PrinterExtruder:
         if (config.get('step_pin', None) is not None
             or config.get('dir_pin', None) is not None
             or config.get('rotation_distance', None) is not None):
+            # TODO: it might be possible to add an endstop after this.
             self.extruder_stepper = ExtruderStepper(config)
             self.extruder_stepper.stepper.set_trapq(self.trapq)
+        
         # Register commands
         gcode = self.printer.lookup_object('gcode')
         if self.name == 'extruder':
