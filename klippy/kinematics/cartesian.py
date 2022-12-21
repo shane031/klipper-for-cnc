@@ -12,6 +12,8 @@ class CartKinematics:
         # Setup axis rails
         self.dual_carriage_axis = None
         self.dual_carriage_rails = []
+        # NOTE: a "PrinterRail" is setup by LookupMultiRail, per each 
+        #       of the three axis, including their corresponding endstops.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyz']
         for rail, axis in zip(self.rails, 'xyz'):

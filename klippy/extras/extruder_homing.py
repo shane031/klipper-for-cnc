@@ -246,7 +246,14 @@ class ExtruderHoming:
         #       The extruder objects seem to be in the toolhead object, which
         #       has a handy "get_extruder" method. It, however, will only get
         #       the "active" extruder, I guess.
-        # TODO: code something get the proper extruder.
+        # TODO: code something get the correct extruder.
+        # BUG:  This probably will never work at this part, this likely why
+        #       most "extras" lookup the toolhead in methods, not during init.
+        #       https://www.klipper3d.org/Code_Overview.html#adding-a-host-module
+        #       Note, though, that when a new module is instantiated, 
+        #       not all other printer objects will have been instantiated.
+        #       The "gcode" and "pins" modules will always be available, but 
+        #       for other modules it is a good idea to defer the lookup.
         toolhead = self.printer.lookup_object("toolhead")
         self.extruder = toolhead.get_extruder()
         

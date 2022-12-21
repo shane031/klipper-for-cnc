@@ -16,6 +16,11 @@ class ExtruderStepper:
                 'pressure_advance_smooth_time', 0.040, above=0., maxval=.200)
         # Setup stepper
         self.stepper = stepper.PrinterStepper(config)
+        # NOTE: In the manual_stepper class, the "rail" is defined
+        #       either from PrinterRail or PrinterStepper. The first
+        #       is used when an endstop pin was configured.
+        # NOTE: steppers from PrinterRail are interanlly defined from PrinterStepper,
+        #       and thus should be equivalent.
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
                                        ffi_lib.free)
