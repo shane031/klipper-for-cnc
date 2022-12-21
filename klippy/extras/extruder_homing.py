@@ -287,24 +287,6 @@ class ExtruderHoming:
             toolhead.dwell(self.next_cmd_time - print_time)
         else:
             self.next_cmd_time = print_time
-
-    # NOTE: defining the do_homing_move method from manual_stepper
-    #       at least for reference.
-    def do_homing_move(self, movepos, speed, accel, triggered, check_trigger):
-        
-        # NOTE: this does not apply.
-        # if not self.can_home:
-        #     raise self.printer.command_error(
-        #         "No endstop for this manual stepper")
-        
-        self.homing_accel = accel
-        pos = [movepos, 0., 0., 0.]
-        endstops = self.rail.get_endstops()
-        phoming = self.printer.lookup_object('homing')
-        phoming.manual_home(toolhead=self, endstops=endstops,
-                            pos=pos, speed=speed,
-                            triggered=triggered, 
-                            check_trigger=check_trigger)
     
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
