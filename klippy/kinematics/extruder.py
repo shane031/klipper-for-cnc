@@ -54,6 +54,10 @@ class ExtruderStepper:
         mcu_pos = self.stepper.get_past_mcu_position(print_time)
         return self.stepper.mcu_to_commanded_position(mcu_pos)
     def sync_to_extruder(self, extruder_name):
+        # NOTE: from the following I guess that the
+        #       "SYNC_STEPPER_TO_EXTRUDER" command 
+        #       mainly swaps the "trapq" movement queues,
+        #       using the "set_trapq" method from stepper.py
         toolhead = self.printer.lookup_object('toolhead')
         toolhead.flush_step_generation()
         if not extruder_name:
@@ -190,6 +194,8 @@ class PrinterExtruder:
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         # Setup extruder stepper
+        # NOTE: an ExtruderStepper class is instantiated if no pins
+        #       were defined in the extruder config section (step/dir/...).
         self.extruder_stepper = None
         if (config.get('step_pin', None) is not None
             or config.get('dir_pin', None) is not None
@@ -254,6 +260,13 @@ class PrinterExtruder:
             return (self.instant_corner_v / abs(diff_r))**2
         return move.max_cruise_v2
     def move(self, print_time, move):
+        # NOTE: this method is called, at least, 
+        #       by the _process_moves method from ToolHead.
+        #       In that call, the "print_time" is shared with
+        #       the main XYZ stepper queue (sent to "trapq"),
+        #       which is probably responsible for the synced
+        #       motion of the extruder stepper and the XYZ 
+        #       axes.
         axis_r = move.axes_r[3]
         accel = move.accel * axis_r
         start_v = move.start_v * axis_r
@@ -262,6 +275,11 @@ class PrinterExtruder:
         if axis_r > 0. and (move.axes_d[0] or move.axes_d[1]):
             can_pressure_advance = True
         # Queue movement (x is extruder movement, y is pressure advance flag)
+        # NOTE: the following "self.trapq" was setup during this class's init.
+        # TODO: after reading the code overview (https://www.klipper3d.org/Code_Overview.html)
+        #       I still don't know for sure _where_ in the code these queues of 
+        #       moves end up together. The only reasonable place left seems to be
+        #       in the "serialqueue.c" or nearby files.
         self.trapq_append(self.trapq, print_time,
                           move.accel_t, move.cruise_t, move.decel_t,
                           move.start_pos[3], 0., 0.,
@@ -304,6 +322,8 @@ class PrinterExtruder:
         self.printer.send_event("extruder:activate_extruder")
 
 # Dummy extruder class used when a printer has no extruder at all
+# NOTE: this dummy extruder class is used to initialize 
+#       ToolHead classes at ToolHead.py.
 class DummyExtruder:
     def __init__(self, printer):
         self.printer = printer

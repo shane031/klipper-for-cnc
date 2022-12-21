@@ -120,6 +120,11 @@ class ManualStepper:
     def get_kinematics(self):
         return self
     def get_steppers(self):
+        # NOTE: In homing.py, the "steppers" list is parsed
+        #       calling "get_name" and "get_step_dist" on each.
+        # NOTE: Extruder steppers donot have these methods,
+        #       but they have a proper stepper definition internally,
+        #       which can be accesed with "extruder_stepper.stepper".
         return self.steppers
     def calc_position(self, stepper_positions):
         return [stepper_positions[self.rail.get_name()], 0., 0.]

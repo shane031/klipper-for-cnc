@@ -386,7 +386,9 @@ class PrinterRail:
         return list(self.endstops)
     
     def add_extra_stepper(self, config):
-        # NOTE: 
+        # NOTE: use the PrinterStepper function to instantiate
+        #       a new MCU_stepper class, then register it in several modules,
+        #       and return it here.
         stepper = PrinterStepper(config, self.stepper_units_in_radians)
         self.steppers.append(stepper)
 

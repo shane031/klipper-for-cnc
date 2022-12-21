@@ -39,6 +39,14 @@ class HomingMove:
     def __init__(self, printer, endstops, toolhead=None):
         self.printer = printer
         self.endstops = endstops
+        # NOTE: the HomingMove class uses the following methods from a "toolhead" object:
+        #       get_position
+        #       get_kinematics
+        #       flush_step_generation
+        #       get_last_move_time
+        #       dwell
+        #       drip_move
+        #       set_position
         if toolhead is None:
             toolhead = printer.lookup_object('toolhead')
         self.toolhead = toolhead
@@ -69,11 +77,19 @@ class HomingMove:
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move
         self.printer.send_event("homing:homing_move_begin", self)
+        
         # Note start location
         self.toolhead.flush_step_generation()
+        # NOTE: the "get_kinematics" method is defined in the ToolHead 
+        #       class at "toolhead.py". It apparently returns the kinematics
+        #       object, as loaded from a module in the "kinematics/" directory,
+        #       during the class's __init__.
         kin = self.toolhead.get_kinematics()
+        # NOTE: this step calls the "get_steppers" method on the
+        #       provided kinematics.
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
+        
         self.stepper_positions = [ StepperPosition(s, name)
                                    for es, name in self.endstops
                                    for s in es.get_steppers() ]
@@ -232,7 +248,8 @@ class PrinterHoming:
                     triggered, check_triggered):
         hmove = HomingMove(self.printer, endstops, toolhead)
         try:
-            hmove.homing_move(pos, speed, triggered=triggered,
+            hmove.homing_move(movepos=pos, speed=speed,  # probe_pos=False  # default value
+                              triggered=triggered,
                               check_triggered=check_triggered)
         except self.printer.command_error:
             if self.printer.is_shutdown():

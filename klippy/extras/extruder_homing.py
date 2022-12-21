@@ -49,8 +49,16 @@ class ExtruderHoming:
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
 
-        # TODO: find out what this is.
+        # TODO: find out what this is. The same is used in manual_stepper.py
         self.next_cmd_time = 0.
+
+        # NOTE: there is a code section in manual_stepper.py about
+        #       "# Setup iterative solver", working with "trapq" stuff,
+        #       probably "C" code bindings.
+        #       Then the result of this setup is passed to the manual
+        #       stepper rail definition.
+        # NOTE: "trapq" probably means "trapezoid motion queue",
+        #       as stated in "toolhead.py".
 
         # TODO: I added a rail definition from manual_stepper#L14
         #       which uses PrinterRail as defined in manual_stepper.py
@@ -71,6 +79,12 @@ class ExtruderHoming:
                                    extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
     
+    # NOTE: a "do_enable" function is defined in manual_stepper.py
+    #       It is unlikely that this is needed here, as the Extruder
+    #       class may be managed in a different way.
+    #       The same goes for "do_move"
+    # TODO: consider defining "do_set_position" here as well.
+
     def sync_print_time(self):
         # NOTE: this function is likely making the "toolhead"
         #       wait for all moves to end before doing something
@@ -81,6 +95,46 @@ class ExtruderHoming:
             toolhead.dwell(self.next_cmd_time - print_time)
         else:
             self.next_cmd_time = print_time
+
+    # NOTE: defining the do_homing_move method from manual_stepper
+    #       at least for reference.
+    def do_homing_move(self, movepos, speed, accel, triggered, check_trigger):
+        
+        # NOTE: this does not apply.
+        # if not self.can_home:
+        #     raise self.printer.command_error(
+        #         "No endstop for this manual stepper")
+        
+        self.homing_accel = accel
+        pos = [movepos, 0., 0., 0.]
+        endstops = self.rail.get_endstops()
+        phoming = self.printer.lookup_object('homing')
+        # NOTE: "manual_home" defined in the PrinterHoming class (at homing.py).
+        #       The method instantiates a "HomingMove" class by passing it the
+        #       "endstops" and "toolhead" objects.
+        #       It then uses the "HomingMove.homing_move" method.
+        # NOTE: Here it is important that "self", which is passed as the "toolhead"
+        #       argument, has a "get_kinematics" method, which returns the appropriate
+        #       kinematics object; probably from an "Extruder" class.
+        # TODO: the HomingMove class uses the following methods from a "toolhead" object:
+        #       - get_position
+        #       - get_kinematics
+        #       - flush_step_generation
+        #       - get_last_move_time
+        #       - dwell
+        #       - drip_move
+        #       - set_position
+        # NOTE: Of these methods, the Extruder class defines nonte
+        # TODO: The object returned by "get_kinematics" is
+        #       required to have the following methods:
+        #       - get_steppers()
+        #       - calc_position(kin_spos)
+        # TODO: All of these are set to "pass" below. Should they?
+        #       The manual_stepper methods actually do some stuff.
+        phoming.manual_home(toolhead=self, endstops=endstops,
+                            pos=pos, speed=speed,
+                            triggered=triggered, 
+                            check_trigger=check_trigger)
     
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.

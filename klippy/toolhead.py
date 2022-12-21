@@ -21,8 +21,14 @@ class Move:
         self.timing_callbacks = []
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
+
+        # NOTE: compute the 4 components of the displacement vector.
         self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in (0, 1, 2, 3)]
+        
+        # NOTE: compute the euclidean magnitude of the displacement vector.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
+        
+        # TODO: this seems strange:
         if move_d < .000000001:
             # Extrude only move
             self.end_pos = (start_pos[0], start_pos[1], start_pos[2],
@@ -37,7 +43,11 @@ class Move:
             self.is_kinematic_move = False
         else:
             inv_move_d = 1. / move_d
+        
+        # NOTE: compute a ratio between each component of the displacement
+        #       vector and the total magnitude.
         self.axes_r = [d * inv_move_d for d in axes_d]
+        
         self.min_move_t = move_d / velocity
         # Junction speeds are tracked in velocity squared.  The
         # delta_v2 is the maximum amount of this squared-velocity that
@@ -173,7 +183,7 @@ class MoveQueue:
         if update_flush_count or not flush_count:
             return
         # Generate step times for all moves ready to be flushed
-        self.toolhead._process_moves(queue[:flush_count])
+        self.toolhead._process_moves(moves=queue[:flush_count])
         # Remove processed moves from the queue
         del queue[:flush_count]
     def add_move(self, move):
@@ -304,6 +314,9 @@ class ToolHead:
             self.printer.send_event("toolhead:sync_print_time",
                                     curtime, est_print_time, self.print_time)
     def _process_moves(self, moves):
+        # NOTE: this ToolHead method is called during the execution of 
+        #       the "flush" method in a "MoveQueue" class instance.
+        #       The "moves" argument receives a "queue" of moves _ready to be flushed_.
         # Resync print_time if necessary
         if self.special_queuing_state:
             if self.special_queuing_state != "Drip":
@@ -313,6 +326,10 @@ class ToolHead:
                 self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
             self._calc_print_time()
         # Queue moves into trapezoid motion queue (trapq)
+        # NOTE: the "trapq" is possibly something like a CFFI object.
+        #       From the following I infer that it is actually this
+        #       object the one responsible for sending commands to
+        #       the MCUs.
         next_move_time = self.print_time
         for move in moves:
             if move.is_kinematic_move:
@@ -323,7 +340,10 @@ class ToolHead:
                     move.axes_r[0], move.axes_r[1], move.axes_r[2],
                     move.start_v, move.cruise_v, move.accel)
             if move.axes_d[3]:
-                self.extruder.move(next_move_time, move)
+                # NOTE: the extruder stepper move is likely synced to the main
+                #       XYZ movement here, by sharing the "next_move_time"
+                #       parameter in the call.
+                self.extruder.move(print_time=next_move_time, move=move)
             next_move_time = (next_move_time + move.accel_t
                               + move.cruise_t + move.decel_t)
             for cb in move.timing_callbacks:
