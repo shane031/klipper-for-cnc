@@ -20,6 +20,191 @@ You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_end
 """
 import stepper, chelper
 
+# TODO: trying to subclass PrinterRail, in order to provide the extruder
+#       stepper directly, instead of it creating a new one from a config.
+class RailFromStepper(stepper.PrinterRail):
+    def __init__(self, config, stepper, 
+                 need_position_minmax=True,
+                 default_position_endstop=None,
+                 units_in_radians=False):
+        # Primary stepper and endstop
+        self.stepper_units_in_radians = units_in_radians
+        self.steppers = []
+        self.endstops = []
+        self.endstop_map = {}
+
+        # NOTE: Added comments to this function.
+        #       It creates a "stepper" object from the "PrinterStepper" function,
+        #       and adds it to the "self.steppers" list.
+        #       Internally, the PrinterStepper function instantiates an
+        #       "MCU_stepper" class, registers it in several modules,
+        #       and returns it.
+        #       It then handles the "setup" of the associated
+        #       endstop into an MCU_endstop class, and also adds
+        #       the stepper to this class.
+        self.add_extra_stepper(config, stepper)
+        
+        # NOTE: this grabs the first "MCU_stepper" item in the list.
+        mcu_stepper = self.steppers[0]
+        # NOTE: The get_name function is inherited from the
+        #       first stepper in the steppers list of the
+        #       PrinterRail class. It thus keeps only the first
+        #       one. I imagine something like this:
+        #       Keep "stepper_x" from ["stepper_x", "stepper_x1"]
+        self.get_name = mcu_stepper.get_name
+        # TODO: I don't know what these do yet.
+        self.get_commanded_position = mcu_stepper.get_commanded_position
+        self.calc_position_from_coord = mcu_stepper.calc_position_from_coord
+        
+        # Primary endstop position
+        mcu_endstop = self.endstops[0][0]
+        if hasattr(mcu_endstop, "get_position_endstop"):
+            self.position_endstop = mcu_endstop.get_position_endstop()
+        elif default_position_endstop is None:
+            self.position_endstop = config.getfloat('position_endstop')
+        else:
+            self.position_endstop = config.getfloat(
+                'position_endstop', default_position_endstop)
+        # Axis range
+        if need_position_minmax:
+            self.position_min = config.getfloat('position_min', 0.)
+            self.position_max = config.getfloat(
+                'position_max', above=self.position_min)
+        else:
+            self.position_min = 0.
+            self.position_max = self.position_endstop
+        if (self.position_endstop < self.position_min
+            or self.position_endstop > self.position_max):
+            raise config.error(
+                "position_endstop in section '%s' must be between"
+                " position_min and position_max" % config.get_name())
+        # Homing mechanics
+        self.homing_speed = config.getfloat('homing_speed', 5.0, above=0.)
+        self.second_homing_speed = config.getfloat(
+            'second_homing_speed', self.homing_speed/2., above=0.)
+        self.homing_retract_speed = config.getfloat(
+            'homing_retract_speed', self.homing_speed, above=0.)
+        self.homing_retract_dist = config.getfloat(
+            'homing_retract_dist', 5., minval=0.)
+        self.homing_positive_dir = config.getboolean(
+            'homing_positive_dir', None)
+        if self.homing_positive_dir is None:
+            axis_len = self.position_max - self.position_min
+            if self.position_endstop <= self.position_min + axis_len / 4.:
+                self.homing_positive_dir = False
+            elif self.position_endstop >= self.position_max - axis_len / 4.:
+                self.homing_positive_dir = True
+            else:
+                raise config.error(
+                    "Unable to infer homing_positive_dir in section '%s'"
+                    % (config.get_name(),))
+            config.getboolean('homing_positive_dir', self.homing_positive_dir)
+        elif ((self.homing_positive_dir
+               and self.position_endstop == self.position_min)
+              or (not self.homing_positive_dir
+                  and self.position_endstop == self.position_max)):
+            raise config.error(
+                "Invalid homing_positive_dir / position_endstop in '%s'"
+                % (config.get_name(),))
+    
+    def hola(self):
+        print("Hola!")
+
+    # NOTE: overriding the default "add_extra_stepper" here.
+    def add_extra_stepper(self, config, stepper):
+        """
+        This method overrides the original PrinterRail method.
+        The aim is to avoid creating a stepper, and replace that
+        by a stepper object provided in the arguments.
+        The idea is to add an endstop to an extruder stepper.
+        """
+        # NOTE: the "stepper" argument is supposed to be an extruder stepper.
+        self.steppers.append(stepper)
+
+        # NOTE: Check if self.endstops has been populated, initially its empty "[]".
+        #       If and endstop has been added, and no 'endstop_pin' was defined
+        #       in the config, then "use the primary endstop", and return immediately.
+        # NOTE: It should not be the case for the use of this subclass.
+        if self.endstops and config.get('endstop_pin', None) is None:
+            # No endstop defined - use primary endstop
+            self.endstops[0][0].add_stepper(stepper)
+            return
+        
+        endstop_pin = config.get('endstop_pin')
+        printer = config.get_printer()
+
+        # NOTE: Get object from pins.py
+        ppins = printer.lookup_object('pins')
+
+        # NOTE: calls a PrinterPins method from pins.py,
+        #       which does "Pin to chip mapping".
+        #       It returns a dict with some properties.
+        pin_params = ppins.parse_pin(endstop_pin,
+                                     can_invert=True,
+                                     can_pullup=True)
+        
+        # Normalize pin name
+        pin_name = "%s:%s" % (pin_params['chip_name'], pin_params['pin'])
+        
+        
+        # NOTE: get() method from dict:
+        #       "Return the value for key if key is in the dictionary, else default."
+        endstop = self.endstop_map.get(pin_name, default=None)
+        
+        # Look for already-registered endstop
+        if endstop is None:
+            # New endstop, register it
+            
+            # NOTE: I don't really get what this does yet.
+            #       It uses "lookup_pin" which registers an active pin.
+            #       It also calls the "setup_pin" method on a "chip" object. 
+            #       The chip object comes from a call to "register_chip" elsewhere.
+            #       In mcu.py, the MCU class passes itself to this method. 
+            #       So... the chips may be MCUs.
+            # NOTE: as commented in pins.py (L136), mcu_endstop is 
+            #       likely an instance of the MCU_endstop class,
+            #       as defined in "mcu.py".
+            mcu_endstop = ppins.setup_pin(pin_type='endstop', pin_desc=endstop_pin)
+            
+            # NOTE: I don't really get what this does yet.
+            #       Add the endstop to the "endstop_map" class dict.
+            self.endstop_map[pin_name] = {'endstop': mcu_endstop,
+                                          'invert': pin_params['invert'],
+                                          'pullup': pin_params['pullup']}
+            
+            # NOTE: I don't really get what this does yet.
+            #       Add the endstop to the "endstops" class list.
+            # NOTE: as commented above, mcu_endstop is likely
+            #       an instance of the MCU_endstop class, as
+            #       defined in "mcu.py".
+            name = stepper.get_name(short=True)
+            self.endstops.append((mcu_endstop, name))
+            
+            # Load the "query_endstops" module.
+            query_endstops = printer.load_object(config, 'query_endstops')
+            # Register the endstop there.
+            query_endstops.register_endstop(mcu_endstop, name)
+        else:
+            # endstop already registered
+            # NOTE: check if the invert or pull-up pins were
+            #       configured differently, and raise an error
+            #       if they are.
+            mcu_endstop = endstop['endstop']
+            changed_invert = pin_params['invert'] != endstop['invert']
+            changed_pullup = pin_params['pullup'] != endstop['pullup']
+            if changed_invert or changed_pullup:
+                raise error("Pinter rail %s shared endstop pin %s "
+                            "must specify the same pullup/invert settings" % (
+                                self.get_name(), pin_name))
+        # NOTE: call the "add_stepper" method from the
+        #       MCU_endstop class, which in turn calls
+        #       the "trsync.add_stepper" method from the
+        #       MCU_trsync class, which simply appends
+        #       "stepper" object to a list of steppers.
+        mcu_endstop.add_stepper(stepper)
+
+
+
 class ExtruderHoming:
     def __init__(self, config):
         self.printer = config.get_printer()
