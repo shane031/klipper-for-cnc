@@ -103,8 +103,8 @@ class ExtruderHoming:
         #       as a "virtual toolhead", similar to what is done in manual_stepper.
         #       The provided endstops are from the extruder PrinterRail.
         # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
-        #       The "HomingMove" class downstream methods use
-        #       the following methods from a provided "toolhead" object:
+        #       The "HomingMove" class downstream methods use the
+        #       following methods from a provided "toolhead" object:
         #       - flush_step_generation
         #       - get_kinematics:           returning a "kin" object with methods:
         #           - kin.get_steppers:     returning a list of stepper objects.
@@ -115,8 +115,8 @@ class ExtruderHoming:
         #       - drip_move
         #       - set_position
         # NOTE: Other methods using the toolhead object or derivatives are also called:
-        #       - calc_toolhead_pos: This method receives a "movepos" argument, which is the "pos" list above.
-        #           - 
+        #       -   calc_toolhead_pos: This method receives a "movepos" argument,
+        #           which is the "pos" list above.
         # NOTE: Of these methods, the Extruder class defines none.
         # NOTE: The object returned by "get_kinematics" is
         #       required to have the following methods:
@@ -155,7 +155,8 @@ class ExtruderHoming:
     def set_position(self, newpos, homing_axes=()):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.homing_move
         """
         # TODO: What should I do here?
         #       I am assuming that the "set_position" applies to steppers,
@@ -171,7 +172,8 @@ class ExtruderHoming:
     def get_last_move_time(self):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.homing_move
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         self.sync_print_time()
@@ -180,7 +182,8 @@ class ExtruderHoming:
     def dwell(self, delay):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.homing_move
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         self.next_cmd_time += max(0., delay)
@@ -230,7 +233,8 @@ class ExtruderHoming:
     def drip_move(self, newpos, speed, drip_completion):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.homing_move
         """
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
         self.drip_move_toolhead(self, newpos, speed, drip_completion)
@@ -241,7 +245,9 @@ class ExtruderHoming:
     def get_kinematics(self):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.calc_toolhead_pos
+            -   HomingMove.homing_move
         """
         # TESTING: identical to manual_stepper
         return self
@@ -249,7 +255,10 @@ class ExtruderHoming:
     def get_steppers(self):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.calc_toolhead_pos,
+            -   HomingMove.homing_move
+
         """
         # TESTING: passes extruder stepper
         return self.steppers
@@ -257,9 +266,10 @@ class ExtruderHoming:
     def calc_position(self, stepper_positions):
         """
         Virtual toolhead method.
-        Called by 
+        Called by HomingMove.calc_toolhead_pos
         """
-        # TODO: What should I do here?
+        # TODO: What should I do here? Testing manual_stepper code directly.
+        #       This is also very similar to the CartKinematics method.
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.

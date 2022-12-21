@@ -39,14 +39,17 @@ class HomingMove:
     def __init__(self, printer, endstops, toolhead=None):
         self.printer = printer
         self.endstops = endstops
-        # NOTE: the HomingMove class uses the following methods from a "toolhead" object:
-        #       get_position
-        #       get_kinematics
-        #       flush_step_generation
-        #       get_last_move_time
-        #       dwell
-        #       drip_move
-        #       set_position
+        # NOTE: The "HomingMove" class downstream methods use the
+        #       following methods from a provided "toolhead" object:
+        #       - flush_step_generation
+        #       - get_kinematics:           returning a "kin" object with methods:
+        #           - kin.get_steppers:     returning a list of stepper objects.
+        #           - kin.calc_position:    returning ???
+        #       - get_position:             returning "thpos" (toolhead position)
+        #       - get_last_move_time:       returning "print_time" (and later "move_end_print_time")
+        #       - dwell
+        #       - drip_move
+        #       - set_position
         if toolhead is None:
             toolhead = printer.lookup_object('toolhead')
         self.toolhead = toolhead
@@ -173,6 +176,7 @@ class HomingMove:
         return None
 
 # State tracking of homing requests
+# NOTE: used here only by the cmd_G28 method from PrinterHoming. 
 class Homing:
     def __init__(self, printer):
         self.printer = printer
