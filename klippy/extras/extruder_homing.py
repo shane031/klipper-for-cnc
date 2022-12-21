@@ -156,7 +156,9 @@ class RailFromStepper(stepper.PrinterRail):
         
         # NOTE: get() method from dict:
         #       "Return the value for key if key is in the dictionary, else default."
-        endstop = self.endstop_map.get(pin_name, default=None)
+        # NOTE: Though ".get" can take two arguments, and they have names in the docs,
+        #       using the names will produce errors.
+        endstop = self.endstop_map.get(pin_name, None)
         
         # Look for already-registered endstop
         if endstop is None:
