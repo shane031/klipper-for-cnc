@@ -97,10 +97,11 @@ class ExtruderHoming:
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
         
-        # NOTE: manual_home method from Homing. There is also
-        #       other methods for homing:
-        #       probing_move ???
-        #       cmd_G28: ???
+        # NOTE: manual_home method from the Homing class.
+        #       There are also other methods for homing:
+        #       - probing_move ???
+        #       - cmd_G28: ???
+        # TODO: consider using those alternative methods.
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
                             triggered=True, 
