@@ -150,7 +150,6 @@ class ExtruderHoming:
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         return [self.rail.get_commanded_position(), 0., 0., 0.]
-        pass
     
     def set_position(self, newpos, homing_axes=()):
         """
@@ -159,7 +158,7 @@ class ExtruderHoming:
             -   HomingMove.homing_move
         """
         # TODO: What should I do here?
-        #       I am assuming that the "set_position" applies to steppers,
+        # NOTE: I am assuming that the "set_position" applies to steppers,
         #       by tracing calls to the "set_position" method in MCU_stepper.
         #       There, the "coords" argument is a list of at least 3 components:
         #           [coord[0], coord[1], coord[2]]
@@ -187,7 +186,6 @@ class ExtruderHoming:
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         self.next_cmd_time += max(0., delay)
-        pass
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
@@ -273,8 +271,7 @@ class ExtruderHoming:
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.
-        # return [stepper_positions[self.rail.get_name()], 0., 0.]
-        pass
+        return [stepper_positions[self.rail.get_name()], 0., 0.]
 
 def load_config_prefix(config):
     return ExtruderHoming(config)
