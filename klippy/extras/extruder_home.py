@@ -255,7 +255,7 @@ class ExtruderHoming:
         extra = 0.0
         e_newpos = newpos[3] + extra
         coord = [None, None, None, e_newpos]
-        print(f"\n\nMoving {self.extrudername} to {str(coord)} for homing.\n\n")
+        print(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
