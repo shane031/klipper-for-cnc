@@ -255,7 +255,7 @@ class ExtruderHoming:
         extra = 0.0
         e_newpos = newpos[3] + extra
         coord = [None, None, None, e_newpos]
-        logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")
+        logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
@@ -279,8 +279,8 @@ class ExtruderHoming:
             -   calc_toolhead_pos
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
-        pos = [0., 0., 0., self.rail.get_commanded_position()]
-        logging.info(f"\n\n get_position: {str(pos)}\n\n")
+        pos = [0., 0., 0., self.rail.get_commanded_position()]  # Can be [0.0, 0.0, 0.0, 0.0]
+        logging.info(f"\n\nget_position: {str(pos)}\n\n")
         return pos
     
     def set_position(self, newpos, homing_axes=()):
