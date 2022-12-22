@@ -202,6 +202,10 @@ class ExtruderHoming:
         #       - https://github.com/Klipper3d/klipper/commit/dd34768e3afb6b5aa46885109182973d88df10b7
         #       Here the drip_move is _not_ used, and we thus require the
         #       extended dwell time, thereby ignoring the delay argument.
+        
+        # NOTE: The original value of 0.250 did not work,
+        #       so it was increased by a nice amount,
+        #       and now... It works! OMG :D
         HOMING_DELAY = 2.0
         self.toolhead.dwell(HOMING_DELAY)
     
