@@ -127,10 +127,10 @@ class ExtruderHoming:
         # NOTE: this function is likely making the "toolhead"
         #       wait for all moves to end before doing something
         #       else. Perhaps it will be called by "manual_home" below.
-        toolhead = self.printer.lookup_object('toolhead')
-        print_time = toolhead.get_last_move_time()
+        #toolhead = self.printer.lookup_object('toolhead')
+        print_time = self.toolhead.get_last_move_time()
         if self.next_cmd_time > print_time:
-            toolhead.dwell(self.next_cmd_time - print_time)
+            self.toolhead.dwell(self.next_cmd_time - print_time)
         else:
             self.next_cmd_time = print_time
 
@@ -183,9 +183,10 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        self.sync_print_time()
-        return self.next_cmd_time
+        # self.sync_print_time()
+        # return self.next_cmd_time
+        # TODO: What should I do here? Using toolhead method.
+        return self.toolhead.get_last_move_time()
     
     def dwell(self, delay):
         """
@@ -193,7 +194,7 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
-        # TODO: What should I do here?
+        # TODO: What should I do here? Using toolhead method.
         #self.next_cmd_time += max(0., delay)
         # NOTE: once upon a time, there was no "drip_move" for homing.
         #       so a "dwell" was added to give an old RPi2 enough time
@@ -207,7 +208,7 @@ class ExtruderHoming:
         # NOTE: The original value of 0.250 did not work,
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D
-        HOMING_DELAY = 2.0
+        HOMING_DELAY = 4.0
         self.toolhead.dwell(HOMING_DELAY)
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
@@ -226,7 +227,7 @@ class ExtruderHoming:
         # NOTE: the manual_stepper class simply "moves" the stepper 
         #       in the regular way. However the ToolHead.drip_move does
         #       a lot more, in accordance with the commit linked above.
-        # TODO: What should I do here?
+        # TODO: What should I do here? What should the Move argument be?
         #       The "Extruder.move" method requires the following arguments:
         #       print_time: ???
         #       move: ???
@@ -270,7 +271,8 @@ class ExtruderHoming:
             -   HomingMove.calc_toolhead_pos
             -   HomingMove.homing_move
         """
-        # TESTING: identical to manual_stepper
+        # TEST: identical to manual_stepper, 
+        #       methods for a "virtual kin" are defined here.
         return self
     
     def get_steppers(self):
@@ -281,7 +283,7 @@ class ExtruderHoming:
             -   HomingMove.homing_move
 
         """
-        # TESTING: passes extruder stepper
+        # TEST: passes extruder stepper
         return self.steppers
     
     def calc_position(self, stepper_positions):
