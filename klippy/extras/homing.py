@@ -113,11 +113,12 @@ class HomingMove:
         # Issue move
         error = None
         try:
-            # NOTE: the following command used to be:
-            #       >>> self.toolhead.move(movepos, speed)
-            #       Before the "drip" commit:
-            #       https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
-            self.toolhead.drip_move(movepos, speed, all_endstop_trigger)
+            # NOTE: Before the "drip" commit, the following command 
+            #       used to be: self.toolhead.move(movepos, speed)
+            #       See: https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
+            self.toolhead.drip_move(newpos=movepos, 
+                                    speed=speed, 
+                                    drip_completion=all_endstop_trigger)
         except self.printer.command_error as e:
             error = "Error during homing move: %s" % (str(e),)
         

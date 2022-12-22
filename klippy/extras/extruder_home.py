@@ -184,8 +184,9 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        self.next_cmd_time += max(0., delay)
+        # TODO: What should I do here?
+        #self.next_cmd_time += max(0., delay)
+        self.toolhead.dwell(delay)
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
