@@ -194,7 +194,16 @@ class ExtruderHoming:
         """
         # TODO: What should I do here?
         #self.next_cmd_time += max(0., delay)
-        self.toolhead.dwell(delay)
+        # NOTE: once upon a time, there was no "drip_move" for homing.
+        #       so a "dwell" was added to give an old RPi2 enough time
+        #       to compute stuff:
+        #       - https://github.com/Klipper3d/klipper/commit/78f4c25a14099564cf731bdaf5b97492a3a6fb47
+        #       When the drip move was introduced, the dwell was significantly reduced:
+        #       - https://github.com/Klipper3d/klipper/commit/dd34768e3afb6b5aa46885109182973d88df10b7
+        #       Here the drip_move is _not_ used, and we thus require the
+        #       extended dwell time, thereby ignoring the delay argument.
+        HOMING_DELAY = 0.250
+        self.toolhead.dwell(HOMING_DELAY)
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
