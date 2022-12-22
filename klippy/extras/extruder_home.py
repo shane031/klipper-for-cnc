@@ -27,6 +27,10 @@ class ExtruderHoming:
     This is made possible due to a change in the Extruder class,
     which can now add an endstop to the extruder stepper, if a
     config parameter is provided.
+
+    The "toolhead" passed to the PrinterHoming.manual_home method
+    is not entirely "virtual". All methods are defined here, but
+    some of them call the methods of the actual toolhead.
     """
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -148,7 +152,9 @@ class ExtruderHoming:
     def get_position(self):
         """
         Virtual toolhead method.
-        Called by 
+        Called by :
+            -   _calc_endstop_rate
+            -   calc_toolhead_pos
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         return [self.rail.get_commanded_position(), 0., 0., 0.]
@@ -238,10 +244,10 @@ class ExtruderHoming:
             -   HomingMove.homing_move
         """
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
-        self.drip_move_toolhead(self, newpos, speed, drip_completion)
+        self.drip_move_toolhead(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
-        #self.drip_move_extruder(self, newpos, speed, drip_completion)
+        #self.drip_move_extruder(newpos, speed, drip_completion)
     
     def get_kinematics(self):
         """
