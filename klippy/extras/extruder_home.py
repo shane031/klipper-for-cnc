@@ -18,7 +18,7 @@ Q: where does this code go? A manual stepper is defined in "extras", perhaps loa
 It's meant to go in a new file in extras.
 You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_endstop]).
 """
-import stepper, chelper
+import stepper, chelper, logging
 
 class ExtruderHoming:
     """
@@ -186,7 +186,7 @@ class ExtruderHoming:
         # self.sync_print_time()
         # return self.next_cmd_time
         lmt = self.toolhead.get_last_move_time()
-        print(f"\n\nLast move time: {str(lmt)}\n\n")
+        logging.info(f"\n\nLast move time: {str(lmt)}\n\n")
         return lmt
     
     def dwell(self, delay):
@@ -210,9 +210,9 @@ class ExtruderHoming:
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D
         HOMING_DELAY = 4.0
-        print(f"\n\nDwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
+        logging.info(f"\n\nDwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
         self.toolhead.dwell(HOMING_DELAY)
-        print(f"\n\nDone sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
+        logging.info(f"\n\nDone sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
@@ -255,7 +255,7 @@ class ExtruderHoming:
         extra = 0.0
         e_newpos = newpos[3] + extra
         coord = [None, None, None, e_newpos]
-        print(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")
+        logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
@@ -280,7 +280,7 @@ class ExtruderHoming:
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         pos = [0., 0., 0., self.rail.get_commanded_position()]
-        print(f"\n\n get_position: {str(pos)}\n\n")
+        logging.info(f"\n\n get_position: {str(pos)}\n\n")
         return pos
     
     def set_position(self, newpos, homing_axes=()):
@@ -313,7 +313,7 @@ class ExtruderHoming:
         # NOTE: calc_toolhead_pos only uses the first three elements of this list,
         #       a fourth item  would be ignored.
         pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        print(f"\n\n get_position: {str(pos)}\n\n")
+        logging.info(f"\n\n get_position: {str(pos)}\n\n")
         return pos
 
 def load_config_prefix(config):
