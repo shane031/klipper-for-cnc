@@ -38,6 +38,7 @@ class ExtruderHoming:
 
         self.toolhead = None
         self.extruder = None
+        self.gcmd = None
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
@@ -60,6 +61,9 @@ class ExtruderHoming:
     #       The "help" string is usually defined along the method.
     cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop. The active extruder will be homed."
     def cmd_HOME_EXTRUDER(self, gcmd):
+        
+        # Get gcmd object, for later.
+        self.gcmd = gcmd
         
         # NOTE: Get the toolhead and its extruder
         self.toolhead = self.printer.lookup_object("toolhead")
@@ -209,7 +213,9 @@ class ExtruderHoming:
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D
         HOMING_DELAY = 4.0
+        self.gcmd.respond_info(f"Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}")
         self.toolhead.dwell(HOMING_DELAY)
+        self.gcmd.respond_info(f"Done dwelling. Current last move time: {str(self.toolhead.get_last_move_time())}")
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
@@ -249,7 +255,9 @@ class ExtruderHoming:
         # NOTE: The manual_move method allows "None" values to be passed,
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
-        self.toolhead.manual_move(coord=[None, None, None, newpos[3]],
+        coord = [None, None, None, newpos[3]]
+        self.gcmd.respond_info(f"Moving {self.extrudername} to {str(coord)} for homing.")
+        self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
     def drip_move(self, newpos, speed, drip_completion):

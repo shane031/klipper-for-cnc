@@ -370,6 +370,8 @@ class ToolHead:
             return self.flush_step_generation()
         self.move_queue.flush()
     def get_last_move_time(self):
+        # NOTE: this method probably returns a "safe" time
+        #       which can be used to schedule a new move.
         self._flush_lookahead()
         if self.special_queuing_state:
             self._calc_print_time()
