@@ -50,23 +50,6 @@ class ExtruderHoming:
                                    self.extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
     
-    # NOTE: a "do_enable" function is defined in manual_stepper.py
-    #       It is unlikely that this is needed here, as the Extruder
-    #       class may be managed in a different way.
-    #       The same goes for "do_move"
-    # TODO: consider defining "do_set_position" here as well.
-
-    def sync_print_time(self):
-        # NOTE: this function is likely making the "toolhead"
-        #       wait for all moves to end before doing something
-        #       else. Perhaps it will be called by "manual_home" below.
-        toolhead = self.printer.lookup_object('toolhead')
-        print_time = toolhead.get_last_move_time()
-        if self.next_cmd_time > print_time:
-            toolhead.dwell(self.next_cmd_time - print_time)
-        else:
-            self.next_cmd_time = print_time
-    
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
     #       The "help" string is usually defined along the method.
@@ -134,14 +117,33 @@ class ExtruderHoming:
                             triggered=True, 
                             check_triggered=True)
     
+    # TODO: Is this method from manual_stepper required?
+    def sync_print_time(self):
+        # NOTE: this function is likely making the "toolhead"
+        #       wait for all moves to end before doing something
+        #       else. Perhaps it will be called by "manual_home" below.
+        toolhead = self.printer.lookup_object('toolhead')
+        print_time = toolhead.get_last_move_time()
+        if self.next_cmd_time > print_time:
+            toolhead.dwell(self.next_cmd_time - print_time)
+        else:
+            self.next_cmd_time = print_time
+
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
         """
         Virtual toolhead method.
-        Called by 
+        Called by:
+            -   HomingMove.homing_move
         """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        self.sync_print_time()
+        # TODO: What should I do here?
+        #       I think it is allright to use the toolheads method,
+        #       because the extruder stepper is part of the toolhead.
+        #       Also, the alternative "sync_print_time" does not make
+        #       much sense to me, because it was used to get the latest
+        #       print time, to be used in other manual_stepper methods.
+        #self.sync_print_time()
+        self.toolhead.flush_step_generation()
     
     def get_position(self):
         """

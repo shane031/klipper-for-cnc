@@ -88,8 +88,9 @@ class HomingMove:
         #       object, as loaded from a module in the "kinematics/" directory,
         #       during the class's __init__.
         kin = self.toolhead.get_kinematics()
-        # NOTE: this step calls the "get_steppers" method on the
-        #       provided kinematics.
+        
+        # NOTE: this step calls the "get_steppers" method on the provided
+        #       kinematics, which returns a list of stepper objects.
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
         
