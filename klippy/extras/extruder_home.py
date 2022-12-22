@@ -108,7 +108,7 @@ class ExtruderHoming:
         #       - set_position
         # NOTE: Other methods using the toolhead object or derivatives are also called:
         #       -   calc_toolhead_pos: This method receives a "movepos" argument,
-        #           which is the "pos" list above.
+        #           which is the "pos" list above:  pos = [0., 0., 0., 0.]
         # NOTE: Of these methods, the Extruder class defines none.
         # NOTE: The object returned by "get_kinematics" is
         #       required to have the following methods:
@@ -125,6 +125,28 @@ class ExtruderHoming:
                             pos=pos, speed=speed,
                             triggered=True, 
                             check_triggered=True)
+
+    def get_kinematics(self):
+        """
+        Virtual toolhead method.
+        Called by:
+            -   HomingMove.calc_toolhead_pos
+            -   HomingMove.homing_move
+        """
+        # TEST: identical to manual_stepper, 
+        #       methods for a "virtual kin" are defined here.
+        return self
+    
+    def get_steppers(self):
+        """
+        Virtual toolhead method.
+        Called by:
+            -   HomingMove.calc_toolhead_pos,
+            -   HomingMove.homing_move
+
+        """
+        # TEST: passes extruder stepper
+        return self.steppers
     
     # TODO: Is this method from manual_stepper required?
     def sync_print_time(self):
@@ -153,33 +175,6 @@ class ExtruderHoming:
         #       print time, to be used in other manual_stepper methods.
         #self.sync_print_time()
         self.toolhead.flush_step_generation()
-    
-    def get_position(self):
-        """
-        Virtual toolhead method.
-        Called by :
-            -   _calc_endstop_rate
-            -   calc_toolhead_pos
-        """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        return [self.rail.get_commanded_position(), 0., 0., 0.]
-    
-    def set_position(self, newpos, homing_axes=()):
-        """
-        Virtual toolhead method.
-        Called by:
-            -   HomingMove.homing_move
-        """
-        # TODO: What should I do here?
-        # NOTE: I am assuming that the "set_position" applies to steppers,
-        #       by tracing calls to the "set_position" method in MCU_stepper.
-        #       There, the "coords" argument is a list of at least 3 components:
-        #           [coord[0], coord[1], coord[2]]
-        #       I do not know why it needs three components for a steper object,
-        #       but from the "itersolve_set_position" code, they seem to be x,y,z 
-        #       components.
-        # self.do_set_position(newpos[0])
-        pass
 
     def get_last_move_time(self):
         """
@@ -187,10 +182,12 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
+        # TODO: What should I do here? Using toolhead method.
         # self.sync_print_time()
         # return self.next_cmd_time
-        # TODO: What should I do here? Using toolhead method.
-        return self.toolhead.get_last_move_time()
+        lmt = self.toolhead.get_last_move_time()
+        print(f"\n\nLast move time: {str(lmt)}\n\n")
+        return lmt
     
     def dwell(self, delay):
         """
@@ -213,9 +210,9 @@ class ExtruderHoming:
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D
         HOMING_DELAY = 4.0
-        self.gcmd.respond_info(f"Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}")
+        print(f"\n\nDwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
         self.toolhead.dwell(HOMING_DELAY)
-        self.gcmd.respond_info(f"Done dwelling. Current last move time: {str(self.toolhead.get_last_move_time())}")
+        print(f"\n\nDone sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
     
     def drip_move_extruder(self, newpos, speed, drip_completion):
         """
@@ -255,8 +252,10 @@ class ExtruderHoming:
         # NOTE: The manual_move method allows "None" values to be passed,
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
-        coord = [None, None, None, newpos[3]]
-        self.gcmd.respond_info(f"Moving {self.extrudername} to {str(coord)} for homing.")
+        extra = 0.0
+        e_newpos = newpos[3] + extra
+        coord = [None, None, None, e_newpos]
+        print(f"\n\nMoving {self.extrudername} to {str(coord)} for homing.\n\n")
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
@@ -271,28 +270,35 @@ class ExtruderHoming:
         
         # NOTE: option 2, use the "move" method from the Extruder class.
         #self.drip_move_extruder(newpos, speed, drip_completion)
-    
-    def get_kinematics(self):
-        """
-        Virtual toolhead method.
-        Called by:
-            -   HomingMove.calc_toolhead_pos
-            -   HomingMove.homing_move
-        """
-        # TEST: identical to manual_stepper, 
-        #       methods for a "virtual kin" are defined here.
-        return self
-    
-    def get_steppers(self):
-        """
-        Virtual toolhead method.
-        Called by:
-            -   HomingMove.calc_toolhead_pos,
-            -   HomingMove.homing_move
 
+    def get_position(self):
         """
-        # TEST: passes extruder stepper
-        return self.steppers
+        Virtual toolhead method.
+        Called by :
+            -   _calc_endstop_rate
+            -   calc_toolhead_pos
+        """
+        # TODO: What should I do here? Testing manual_stepper code directly.
+        pos = [0., 0., 0., self.rail.get_commanded_position()]
+        print(f"\n\n get_position: {str(pos)}\n\n")
+        return pos
+    
+    def set_position(self, newpos, homing_axes=()):
+        """
+        Virtual toolhead method.
+        Called by:
+            -   HomingMove.homing_move
+        """
+        # TODO: What should I do here?
+        # NOTE: I am assuming that the "set_position" applies to steppers,
+        #       by tracing calls to the "set_position" method in MCU_stepper.
+        #       There, the "coords" argument is a list of at least 3 components:
+        #           [coord[0], coord[1], coord[2]]
+        #       I do not know why it needs three components for a steper object,
+        #       but from the "itersolve_set_position" code, they seem to be x,y,z 
+        #       components.
+        # self.do_set_position(newpos[0])
+        pass
     
     def calc_position(self, stepper_positions):
         """
@@ -304,7 +310,11 @@ class ExtruderHoming:
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.
-        return [stepper_positions[self.rail.get_name()], 0., 0.]
+        # NOTE: calc_toolhead_pos only uses the first three elements of this list,
+        #       a fourth item  would be ignored.
+        pos = [stepper_positions[self.rail.get_name()], 0., 0.]
+        print(f"\n\n get_position: {str(pos)}\n\n")
+        return pos
 
 def load_config_prefix(config):
     return ExtruderHoming(config)
