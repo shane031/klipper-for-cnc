@@ -252,7 +252,7 @@ class ExtruderHoming:
         # NOTE: The manual_move method allows "None" values to be passed,
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
-        extra = 5.0
+        extra = 0.0
         e_newpos = newpos[3] + extra
         coord = [None, None, None, e_newpos]
         logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
