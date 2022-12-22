@@ -37,6 +37,7 @@ class ExtruderHoming:
         self.extruder_name = config.get_name().split()[1]
 
         self.toolhead = None
+        self.extruder = None
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
@@ -57,7 +58,7 @@ class ExtruderHoming:
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
     #       The "help" string is usually defined along the method.
-    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop"
+    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop. The active extruder will be homed."
     def cmd_HOME_EXTRUDER(self, gcmd):
         
         # NOTE: Get the toolhead and its extruder

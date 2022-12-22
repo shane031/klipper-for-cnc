@@ -232,8 +232,12 @@ class PrinterExtruder:
             toolhead.set_extruder(self, 0.)
             gcode.register_command("M104", self.cmd_M104)
             gcode.register_command("M109", self.cmd_M109)
-        gcode.register_mux_command("ACTIVATE_EXTRUDER", "EXTRUDER",
-                                   self.name, self.cmd_ACTIVATE_EXTRUDER,
+        # NOTE: a command is registered and identified uniquely by the "cmd",
+        #       the "key", and also the key's "value". This means that the 
+        #       ACTIVATE_EXTRUDER command will run in different instances
+        #       of PrinterExtruder classes if the "value" differs.
+        gcode.register_mux_command(cmd="ACTIVATE_EXTRUDER", key="EXTRUDER",
+                                   value=self.name, func=self.cmd_ACTIVATE_EXTRUDER,
                                    desc=self.cmd_ACTIVATE_EXTRUDER_help)
     def update_move_time(self, flush_time):
         self.trapq_finalize_moves(self.trapq, flush_time)
@@ -351,7 +355,7 @@ class PrinterExtruder:
             return
         gcmd.respond_info("Activating extruder %s" % (self.name,))
         toolhead.flush_step_generation()
-        toolhead.set_extruder(self, self.last_position)
+        toolhead.set_extruder(extruder=self, extrude_pos=self.last_position)
         self.printer.send_event("extruder:activate_extruder")
 
 # Dummy extruder class used when a printer has no extruder at all
