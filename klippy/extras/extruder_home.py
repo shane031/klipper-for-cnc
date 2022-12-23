@@ -340,3 +340,31 @@ class ExtruderHoming:
 
 def load_config_prefix(config):
     return ExtruderHoming(config)
+
+"""
+
+get_movepos: movepos=150.0
+
+get_last_move_time: Last move time: 29.0592399375
+
+get_position output: [0.0, 0.0, 0.0, 0.0]
+
+dwell: Dwelling for 4.0 before homing. Current last move time: 29.067680625
+
+
+Stats 4736.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000035 bytes_write=928 bytes_read=4203 bytes_retransmit=0 bytes_invalid=0 send_seq=115 receive_seq=115 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987465 tools: mcu_awake=0.007 mcu_task_avg=0.000073 mcu_task_stddev=0.000059 bytes_write=984 bytes_read=5374 bytes_retransmit=9 bytes_invalid=0 send_seq=110 receive_seq=110 retransmit_seq=2 srtt=0.004 rttvar=0.000 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934599 adj=15947069  sysload=0.31 cputime=3.749 memavail=564980 print_time=33.069 buffer_time=3.718 print_stall=0 extruder: target=0 temp=169.7 pwm=0.000 extruder1: target=0 temp=169.9 pwm=0.000
+Stats 4737.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000035 bytes_write=934 bytes_read=4219 bytes_retransmit=0 bytes_invalid=0 send_seq=116 receive_seq=116 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987462 tools: mcu_awake=0.007 mcu_task_avg=0.000073 mcu_task_stddev=0.000059 bytes_write=1110 bytes_read=5692 bytes_retransmit=9 bytes_invalid=0 send_seq=121 receive_seq=121 retransmit_seq=2 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934588 adj=15947109  sysload=0.31 cputime=3.790 memavail=565032 print_time=33.069 buffer_time=2.718 print_stall=0 extruder: target=0 temp=170.3 pwm=0.000 extruder1: target=0 temp=170.5 pwm=0.000
+
+dwell: Done sending dwell command. Current last move time: 33.0686685
+
+move_toolhead: Moving extruder1 to [None, None, None, 150.0] for homing.
+
+get_last_move_time: Last move time: 40.7706685
+
+Stats 4738.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000034 bytes_write=940 bytes_read=4248 bytes_retransmit=0 bytes_invalid=0 send_seq=117 receive_seq=117 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987461 tools: mcu_awake=0.007 mcu_task_avg=0.000073 mcu_task_stddev=0.000059 bytes_write=1708 bytes_read=6017 bytes_retransmit=9 bytes_invalid=0 send_seq=139 receive_seq=139 retransmit_seq=2 srtt=0.004 rttvar=0.000 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934582 adj=15947013  sysload=0.31 cputime=3.862 memavail=565244 print_time=40.771 buffer_time=9.421 print_stall=0 extruder: target=0 temp=169.2 pwm=0.000 extruder1: target=0 temp=171.3 pwm=0.000
+Stats 4739.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000034 bytes_write=946 bytes_read=4264 bytes_retransmit=0 bytes_invalid=0 send_seq=118 receive_seq=118 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987456 tools: mcu_awake=0.018 mcu_task_avg=0.000116 mcu_task_stddev=0.000101 bytes_write=1834 bytes_read=6322 bytes_retransmit=9 bytes_invalid=0 send_seq=150 receive_seq=150 retransmit_seq=2 srtt=0.003 rttvar=0.000 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934575 adj=15947070  sysload=0.31 cputime=3.894 memavail=565284 print_time=40.771 buffer_time=8.420 print_stall=0 extruder: target=0 temp=169.0 pwm=0.000 extruder1: target=0 temp=170.8 pwm=0.000
+Stats 4740.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000034 bytes_write=952 bytes_read=4280 bytes_retransmit=0 bytes_invalid=0 send_seq=119 receive_seq=119 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987453 tools: mcu_awake=0.018 mcu_task_avg=0.000116 mcu_task_stddev=0.000101 bytes_write=1960 bytes_read=6626 bytes_retransmit=9 bytes_invalid=0 send_seq=161 receive_seq=161 retransmit_seq=2 srtt=0.003 rttvar=0.000 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934564 adj=15947067  sysload=0.37 cputime=3.928 memavail=565260 print_time=40.771 buffer_time=7.420 print_stall=0 extruder: target=0 temp=170.2 pwm=0.000 extruder1: target=0 temp=169.9 pwm=0.000
+
+set_position input: [0.0, 0.0, 0.0, 150.0]
+
+"""
