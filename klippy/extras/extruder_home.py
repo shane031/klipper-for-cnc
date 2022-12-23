@@ -229,7 +229,7 @@ class ExtruderHoming:
         # HOMING_DELAY = 0.0
         # NOTE: trying drip move, reverting to default delay.
         HOMING_DELAY = delay
-        
+
         logging.info(f"\n\ndwell: Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
         self.toolhead.dwell(HOMING_DELAY)
         logging.info(f"\n\ndwell: Done sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
@@ -298,7 +298,7 @@ class ExtruderHoming:
         #self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
-        self.move_toolhead_drip(self, newpos, speed, drip_completion)
+        self.move_toolhead_drip(newpos, speed, drip_completion)
 
     def get_position(self):
         """
