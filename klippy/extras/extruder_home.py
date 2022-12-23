@@ -139,6 +139,8 @@ class ExtruderHoming:
             movepos -= 1.5 * (homing_info.position_endstop - position_min)  #   (0 - 0)*1.5 = 0
         else:
             movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
+
+        logging.info(f"\n\get_movepos: movepos={str(movepos)}\n\n")
         return movepos
 
     def get_kinematics(self):
@@ -201,7 +203,7 @@ class ExtruderHoming:
         # self.sync_print_time()
         # return self.next_cmd_time
         lmt = self.toolhead.get_last_move_time()
-        logging.info(f"\n\nLast move time: {str(lmt)}\n\n")
+        logging.info(f"\n\nget_last_move_time: Last move time: {str(lmt)}\n\n")
         return lmt
     
     def dwell(self, delay):
@@ -225,9 +227,9 @@ class ExtruderHoming:
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D
         HOMING_DELAY = 4.0
-        logging.info(f"\n\nDwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
+        logging.info(f"\n\ndwell: Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
         self.toolhead.dwell(HOMING_DELAY)
-        logging.info(f"\n\nDone sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
+        logging.info(f"\n\ndwell: Done sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
     
     def move_extruder(self, newpos, speed, drip_completion):
         """
@@ -267,10 +269,10 @@ class ExtruderHoming:
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
         
-        # extra = 0.0
-        # e_newpos = newpos[3] + extra
-        coord = [None, None, None, newpos]
-        logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+        extra = 0.0
+        e_newpos = newpos[3] + extra
+        coord = [None, None, None, e_newpos]
+        logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
     
