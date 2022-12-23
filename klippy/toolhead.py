@@ -294,6 +294,7 @@ class ToolHead:
             self.printer.load_object(config, module_name)
     # Print time tracking
     def _update_move_time(self, next_print_time):
+        batch_time = MOVE_BATCH_TIME
         # NOTE: called by "flush_step_generation", "_process_moves", 
         #       "dwell", and "_update_drip_move_time".
         # NOTE: This function updates "self.print_time" directly.
