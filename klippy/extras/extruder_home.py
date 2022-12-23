@@ -214,7 +214,7 @@ class ExtruderHoming:
         self.toolhead.dwell(HOMING_DELAY)
         logging.info(f"\n\nDone sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
     
-    def drip_move_extruder(self, newpos, speed, drip_completion):
+    def move_extruder(self, newpos, speed, drip_completion):
         """
         This method is an alternative to implement "drip_move",
         using the Extruder.move command. To use it instead of other
@@ -236,9 +236,8 @@ class ExtruderHoming:
         #       move: ???
         self.extruder.move()
         # self.do_move(newpos[0], speed, self.homing_accel)
-
     
-    def drip_move_toolhead(self, newpos, speed, drip_completion):
+    def move_toolhead(self, newpos, speed, drip_completion):
         """
         This method is an alternative to implement "drip_move",
         using the ToolHead.manual_move command. To use it instead of other
@@ -252,12 +251,25 @@ class ExtruderHoming:
         # NOTE: The manual_move method allows "None" values to be passed,
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
+        
         extra = 0.0
         e_newpos = newpos[3] + extra
         coord = [None, None, None, e_newpos]
         logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
+
+    def get_movepos(self, rail):
+        # NOTE: based on "_home_axis" from CartKinematics.
+        # Determine movement
+        position_min, position_max = self.rail.get_range()  # 0, 100
+        homing_info = self.rail.get_homing_info()
+        movepos = homing_info.position_endstop
+        if homing_info.positive_dir:
+            movepos -= 1.5 * (homing_info.position_endstop - position_min)  #   (0 - 0)*1.5 = 0
+        else:
+            movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
+        return movepos
     
     def drip_move(self, newpos, speed, drip_completion):
         """
@@ -266,10 +278,10 @@ class ExtruderHoming:
             -   HomingMove.homing_move
         """
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
-        self.drip_move_toolhead(newpos, speed, drip_completion)
+        self.move_toolhead(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
-        #self.drip_move_extruder(newpos, speed, drip_completion)
+        #self.move_extruder(newpos, speed, drip_completion)
 
     def get_position(self):
         """

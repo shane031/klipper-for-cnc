@@ -112,6 +112,11 @@ class HomingMove:
                                           triggered=triggered)
             endstop_triggers.append(wait)
         all_endstop_trigger = multi_complete(self.printer, endstop_triggers)
+
+        # NOTE: This dwell used to be needed by low-power RPi2. Otherwise
+        #       calculations would take too long, and by the time they were sent,
+        #       the associated "mcu time" would have already passed.
+        #       I don't know why it remains yet.
         self.toolhead.dwell(HOMING_START_DELAY)
         
         # Issue move
@@ -207,6 +212,11 @@ class Homing:
     def set_homed_position(self, pos):
         self.toolhead.set_position(self._fill_coord(pos))
     def home_rails(self, rails, forcepos, movepos):
+        # NOTE: this method is used by the home method of the 
+        #       cartesian kinematics, in response to a G28 command.
+        # NOTE: The "forcepos" argument is passed 1.5 times the
+        #       difference between the endstop position and the
+        #       opposing limit coordinate.
         # Notify of upcoming homing operation
         self.printer.send_event("homing:home_rails_begin", self, rails)
         # Alter kinematics class to think printer is at forcepos
