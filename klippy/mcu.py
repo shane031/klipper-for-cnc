@@ -206,7 +206,7 @@ class MCU_endstop:
         etrsync.set_home_end_time(home_end_time)
         if self._mcu.is_fileoutput():
             self._trigger_completion.complete(True)
-        self._trigger_completion.wait()
+        self._trigger_completion.wait()  # NOTE: is this the "sleep" function?
         self._home_cmd.send([self._oid, 0, 0, 0, 0, 0, 0, 0])
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trdispatch_stop(self._trdispatch)

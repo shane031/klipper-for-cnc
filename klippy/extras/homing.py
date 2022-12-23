@@ -59,11 +59,14 @@ class HomingMove:
         self.stepper_positions = []
     def get_mcu_endstops(self):
         return [es for es, name in self.endstops]
-    def _calc_endstop_rate(self, mcu_endstop, movepos, speed):
-        startpos = self.toolhead.get_position()
+    # NOTE: "_calc_endstop_rate" calculates the max amount of steps for the
+    #       move, and the time the move will take. It then returns the "rate"
+    #       of "time per step".
+    def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, 150.0]
+        startpos = self.toolhead.get_position()                 # startpos = [0.0, 0.0, 0.0, 0.0]
         axes_d = [mp - sp for mp, sp in zip(movepos, startpos)]
-        move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
-        move_t = move_d / speed
+        move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))      # 150.0
+        move_t = move_d / speed                                 # 150.0 / 25.0 = 6.0
         max_steps = max([(abs(s.calc_position_from_coord(startpos)
                               - s.calc_position_from_coord(movepos))
                           / s.get_step_dist())
@@ -105,10 +108,12 @@ class HomingMove:
         endstop_triggers = []
         for mcu_endstop, name in self.endstops:
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
-                                                movepos=movepos, 
+                                                movepos=movepos,  # [0.0, 0.0, 0.0, 150.0]
                                                 speed=speed)
-            wait = mcu_endstop.home_start(print_time, ENDSTOP_SAMPLE_TIME,
-                                          ENDSTOP_SAMPLE_COUNT, rest_time,
+            wait = mcu_endstop.home_start(print_time=print_time, 
+                                          sample_time=ENDSTOP_SAMPLE_TIME,
+                                          sample_count=ENDSTOP_SAMPLE_COUNT, 
+                                          rest_time=rest_time,
                                           triggered=triggered)
             endstop_triggers.append(wait)
         all_endstop_trigger = multi_complete(self.printer, endstop_triggers)
@@ -116,7 +121,8 @@ class HomingMove:
         # NOTE: This dwell used to be needed by low-power RPi2. Otherwise
         #       calculations would take too long, and by the time they were sent,
         #       the associated "mcu time" would have already passed.
-        #       I don't know why it remains yet.
+        #       It was not needed after the implementation of drip moves.
+        #       I don't know yet why it remains.
         self.toolhead.dwell(HOMING_START_DELAY)
         
         # Issue move
@@ -125,7 +131,7 @@ class HomingMove:
             # NOTE: Before the "drip" commit, the following command 
             #       used to be: self.toolhead.move(movepos, speed)
             #       See: https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
-            self.toolhead.drip_move(newpos=movepos, 
+            self.toolhead.drip_move(newpos=movepos,  # [0.0, 0.0, 0.0, 150.0]
                                     speed=speed, 
                                     drip_completion=all_endstop_trigger)
         except self.printer.command_error as e:
@@ -167,7 +173,7 @@ class HomingMove:
                                  for s in kin.get_steppers()}
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
                                                  offsets=over_steps)
-        self.toolhead.set_position(haltpos)
+        self.toolhead.set_position(haltpos)  # [0.0, 0.0, 0.0, 150.0]
         # Signal homing/probing move complete
         try:
             self.printer.send_event("homing:homing_move_end", self)

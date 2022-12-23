@@ -291,6 +291,9 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
+        # NOTE: the "drip_completion" argument is an object that can be checked
+        #       for to know if all of the endstops have been triggered yet.
+
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
         #self.move_toolhead(newpos, speed, drip_completion)
         
