@@ -75,13 +75,20 @@ class HomingMove:
             return .001
         return move_t / max_steps
     def calc_toolhead_pos(self, kin_spos, offsets):
+        # NOTE: the "kin_spos" received here has "old" values, from
+        #       before sending the [drip_]move command.
+        #       For example:
+        #           {'extruder1': 5.444999999999932}
         kin_spos = dict(kin_spos)
+        logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
         kin = self.toolhead.get_kinematics()
         for stepper in kin.get_steppers():
             sname = stepper.get_name()
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
         thpos = self.toolhead.get_position()
-        return list(kin.calc_position(kin_spos))[:3] + thpos[3:]
+        result = list(kin.calc_position(kin_spos))[:3] + thpos[3:]
+        logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
+        return result
     def homing_move(self, movepos, speed, probe_pos=False,
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move

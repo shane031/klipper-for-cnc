@@ -283,6 +283,7 @@ class ExtruderHoming:
         """
         This method passes argument to the real toolhead "drip_move" method.
         """
+        logging.info(f"\n\nmove_toolhead_drip: drip-moving to {str(newpos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.drip_move(newpos, speed, drip_completion)
 
     def drip_move(self, newpos, speed, drip_completion):
@@ -408,5 +409,47 @@ calc_position input: {'extruder1': 4.6599999999999495}
 calc_position return: [4.6599999999999495, 0.0, 0.0]
 
 set_position input: [4.6599999999999495, 0.0, 0.0, 2.8849999999999496]
+
+"""
+
+"""
+
+# Movi el extruder "10 mm" hacia abajo después del reboot.
+
+get_movepos: movepos=150.0  # Extruder home L93
+
+
+get_last_move_time: Last move time: 75.023014  # homing.py L107
+
+
+get_position output: [0.0, 0.0, 0.0, -10.000000000000153]   # homing.py L110 (call to _calc_endstop_rate).
+                                                            # --> homing.py L66
+                                                            # Los "10 mm" aparecen acá.
+
+                                                            
+dwell: Dwelling for 0.001 before homing. Current last move time: 75.0309443125  # homing.py L126
+dwell: Done sending dwell command. Current last move time: 75.0348051875        # homing.py L126
+
+
+# Drip move command happens here  # homing.py L134
+
+
+get_last_move_time: Last move time: 75.824560125    # homing.py L142
+                                                    # This is after sending the drip move.
+
+                                                    
+set_position input: [0.0, 0.0, 0.0, 150.0]  # homing.py L171
+                                            # This is from the set to "movepos" line.
+
+
+get_position output: [0.0, 0.0, 0.0, 3.709999999999932] # homing.py L174 (call to calc_toolhead_pos)
+                                                        # --> homing.py L83
+
+calc_position input: {'extruder1': 5.444999999999932}  # homing.py L174 (call to calc_toolhead_pos)
+calc_position return: [5.444999999999932, 0.0, 0.0]    # --> homing.py L84
+
+
+set_position input: [5.444999999999932, 0.0, 0.0, 3.709999999999932]    # homing.py L176
+                                                                        # This is from the set to "haltpos" line.
 
 """
