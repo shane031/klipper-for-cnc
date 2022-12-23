@@ -225,8 +225,11 @@ class ExtruderHoming:
         
         # NOTE: The original value of 0.250 did not work,
         #       so it was increased by a nice amount,
-        #       and now... It works! OMG :D
-        HOMING_DELAY = 4.0
+        #       and now... It works! OMG :D Sometimes...
+        # HOMING_DELAY = 0.0
+        # NOTE: trying drip move, reverting to default delay.
+        HOMING_DELAY = delay
+        
         logging.info(f"\n\ndwell: Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
         self.toolhead.dwell(HOMING_DELAY)
         logging.info(f"\n\ndwell: Done sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
@@ -275,7 +278,13 @@ class ExtruderHoming:
         logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
-    
+
+    def move_toolhead_drip(self, newpos, speed, drip_completion):
+        """
+        This method passes argument to the real toolhead "drip_move" method.
+        """
+        self.toolhead.drip_move(newpos, speed, drip_completion)
+
     def drip_move(self, newpos, speed, drip_completion):
         """
         Virtual toolhead method.
@@ -283,10 +292,13 @@ class ExtruderHoming:
             -   HomingMove.homing_move
         """
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
-        self.move_toolhead(newpos, speed, drip_completion)
+        #self.move_toolhead(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
         #self.move_extruder(newpos, speed, drip_completion)
+
+        # NOTE: option 3, use the "drop move" method from the ToolHead class.
+        self.move_toolhead_drip(self, newpos, speed, drip_completion)
 
     def get_position(self):
         """
