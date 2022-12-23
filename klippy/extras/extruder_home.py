@@ -346,8 +346,8 @@ class ExtruderHoming:
         # NOTE: calc_toolhead_pos only uses the first three elements of this list,
         #       a fourth item  would be ignored.
         pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        logging.info(f"\n\n calc_position input: {str(stepper_positions)}\n\n")
-        logging.info(f"\n\n calc_position return: {str(pos)}\n\n")
+        logging.info(f"\n\ncalc_position input: {str(stepper_positions)}\n\n")
+        logging.info(f"\n\ncalc_position return: {str(pos)}\n\n")
         return pos
 
 def load_config_prefix(config):
@@ -378,5 +378,32 @@ Stats 4739.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_std
 Stats 4740.1: gcodein=0  mcu: mcu_awake=0.002 mcu_task_avg=0.000032 mcu_task_stddev=0.000034 bytes_write=952 bytes_read=4280 bytes_retransmit=0 bytes_invalid=0 send_seq=119 receive_seq=119 retransmit_seq=0 srtt=0.004 rttvar=0.001 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15987453 tools: mcu_awake=0.018 mcu_task_avg=0.000116 mcu_task_stddev=0.000101 bytes_write=1960 bytes_read=6626 bytes_retransmit=9 bytes_invalid=0 send_seq=161 receive_seq=161 retransmit_seq=2 srtt=0.003 rttvar=0.000 rto=0.025 ready_bytes=0 stalled_bytes=0 freq=15934564 adj=15947067  sysload=0.37 cputime=3.928 memavail=565260 print_time=40.771 buffer_time=7.420 print_stall=0 extruder: target=0 temp=170.2 pwm=0.000 extruder1: target=0 temp=169.9 pwm=0.000
 
 set_position input: [0.0, 0.0, 0.0, 150.0]
+
+"""
+
+
+""" Successfull drip home output: there seems to be a problem with the get_position / set position vectors
+
+get_movepos: movepos=150.0
+
+get_last_move_time: Last move time: 72.668525125
+
+get_position output: [0.0, 0.0, 0.0, 0.0]
+
+dwell: Dwelling for 0.001 before homing. Current last move time: 72.6729861875
+
+dwell: Done sending dwell command. Current last move time: 72.67548725
+
+get_last_move_time: Last move time: 72.922865625
+
+set_position input: [0.0, 0.0, 0.0, 150.0]
+
+get_position output: [0.0, 0.0, 0.0, 2.8849999999999496]
+
+calc_position input: {'extruder1': 4.6599999999999495}
+
+calc_position return: [4.6599999999999495, 0.0, 0.0]
+
+set_position input: [4.6599999999999495, 0.0, 0.0, 2.8849999999999496]
 
 """
