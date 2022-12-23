@@ -944,6 +944,8 @@ class MCU:
         clock = self.print_time_to_clock(print_time)
         if clock < 0:
             return
+        # NOTE: Find and transmit any scheduled steps 
+        #       prior to the given 'clock' (see stepcompress.c).
         ret = self._ffi_lib.steppersync_flush(self._steppersync, clock)
         if ret:
             raise error("Internal error in MCU '%s' stepcompress"

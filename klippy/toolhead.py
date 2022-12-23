@@ -135,6 +135,8 @@ class MoveQueue:
             return self.queue[-1]
         return None
     def flush(self, lazy=False):
+        # NOTE: called by "add_move" when: 
+        #       "Enough moves have been queued to reach the target flush time."
         self.junction_flush = LOOKAHEAD_FLUSH_TIME
         update_flush_count = lazy
         queue = self.queue
@@ -180,12 +182,17 @@ class MoveQueue:
                 delayed.append((move, start_v2, next_end_v2))
             next_end_v2 = start_v2
             next_smoothed_v2 = smoothed_v2
+        
         if update_flush_count or not flush_count:
             return
+        
         # Generate step times for all moves ready to be flushed
+        # NOTE: So far, the clock time when this move will be sent are not known.
         self.toolhead._process_moves(moves=queue[:flush_count])
+
         # Remove processed moves from the queue
         del queue[:flush_count]
+
     def add_move(self, move):
         self.queue.append(move)
         if len(self.queue) == 1:
@@ -287,7 +294,9 @@ class ToolHead:
             self.printer.load_object(config, module_name)
     # Print time tracking
     def _update_move_time(self, next_print_time):
-        batch_time = MOVE_BATCH_TIME
+        # NOTE: called by "flush_step_generation", "_process_moves", 
+        #       "dwell", and "_update_drip_move_time".
+        # NOTE: This function updates "self.print_time" directly.
         kin_flush_delay = self.kin_flush_delay
         lkft = self.last_kin_flush_time
         while 1:
@@ -296,14 +305,27 @@ class ToolHead:
             for sg in self.step_generators:
                 sg(sg_flush_time)
             free_time = max(lkft, sg_flush_time - kin_flush_delay)
+            
+            # NOTE: Update move times on the toolhead; meaning:
+            #           Expire any moves older than `free_time` from
+            #           the trapezoid velocity queue (see trapq.c).
             self.trapq_finalize_moves(self.trapq, free_time)
+            
+            # NOTE: Update move times on the toolhead;
+            #       it calls "trapq_finalize_moves" in PrinterExtruder.
             self.extruder.update_move_time(free_time)
+
             mcu_flush_time = max(lkft, sg_flush_time - self.move_flush_time)
             for m in self.all_mcus:
+                # NOTE: This may find and transmit any scheduled steps 
+                #       prior to the given 'mcu_flush_time' (see stepcompress.c).
                 m.flush_moves(mcu_flush_time)
             if self.print_time >= next_print_time:
                 break
     def _calc_print_time(self):
+        # NOTE: called during "special" queuing states, 
+        #       by "get_last_move_time" or "_process_moves".
+        # NOTE: This function updates "self.print_time" directly.
         curtime = self.reactor.monotonic()
         est_print_time = self.mcu.estimated_print_time(curtime)
         kin_time = max(est_print_time + MIN_KIN_TIME, self.last_kin_flush_time)
@@ -347,12 +369,20 @@ class ToolHead:
             next_move_time = (next_move_time + move.accel_t
                               + move.cruise_t + move.decel_t)
             for cb in move.timing_callbacks:
+                # NOTE: execute any "callbacks" registered to be
+                #       run at the end of this move.
                 cb(next_move_time)
         # Generate steps for moves
         if self.special_queuing_state:
             self._update_drip_move_time(next_move_time)
+        
+        # NOTE: "next_move_time" is the last "self.print_time" plus the
+        #       time added by the nuew moves sento to trapq.
+        #       Here, it is passed to "_update_move_time", which updates
+        #       "self.print_time" and to overwrite "self.last_kin_move_time".
         self._update_move_time(next_move_time)
         self.last_kin_move_time = next_move_time
+        
     def flush_step_generation(self):
         # Transition from "Flushed"/"Priming"/main state to "Flushed" state
         self.move_queue.flush()
@@ -364,7 +394,7 @@ class ToolHead:
         flush_time = self.last_kin_move_time + self.kin_flush_delay
         flush_time = max(flush_time, self.print_time - self.kin_flush_delay)
         self.last_kin_flush_time = max(self.last_kin_flush_time, flush_time)
-        self._update_move_time(max(self.print_time, self.last_kin_flush_time))
+        self._update_move_time(next_print_time=max(self.print_time, self.last_kin_flush_time))
     def _flush_lookahead(self):
         if self.special_queuing_state:
             return self.flush_step_generation()
@@ -435,6 +465,7 @@ class ToolHead:
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
                     speed=speed)
+        # NOTE: So far, the clock time when this move will be sent are not known.
         if not move.move_d:
             return
         if move.is_kinematic_move:
