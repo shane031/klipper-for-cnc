@@ -232,7 +232,7 @@ class PrinterExtruder:
             toolhead.set_extruder(self, 0.)
             gcode.register_command("M104", self.cmd_M104)
             gcode.register_command("M109", self.cmd_M109)
-        # NOTE: a command is registered and identified uniquely by the "cmd",
+        # NOTE: a mux command is registered and identified uniquely by the "cmd",
         #       the "key", and also the key's "value". This means that the 
         #       ACTIVATE_EXTRUDER command will run in different instances
         #       of PrinterExtruder classes if the "value" differs.

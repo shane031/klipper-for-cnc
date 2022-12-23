@@ -77,9 +77,6 @@ class ExtruderHoming:
         # NOTE: Get the "rail" from the extruder stepper.
         self.rail = self.extruder_stepper.rail                  # PrinterRail
 
-        pos = [0., 0., 0., 0.]
-        speed = 5.0
-
         # NOTE: get the endstops from the extruder's PrinterRail.
         #       likely a list of tuples, each with an instance of 
         #       MCU_endstop and a stepper name.
@@ -88,6 +85,12 @@ class ExtruderHoming:
         
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
+
+        # NOTE: get homing information, speed and move coordinate.
+        homing_info = self.rail.get_homing_info()
+        speed = homing_info.speed
+        pos = [0.0, 0.0, 0.0, None]
+        pos[3] = self.get_movepos(homing_info)
         
         # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
@@ -125,6 +128,18 @@ class ExtruderHoming:
                             pos=pos, speed=speed,
                             triggered=True, 
                             check_triggered=True)
+
+    def get_movepos(self, homing_info):
+        # NOTE: based on "_home_axis" from CartKinematics, it estimates
+        #       the distance to move for homing, at least for a G28 command.
+        # Determine movement
+        position_min, position_max = self.rail.get_range()  # 0, 100
+        movepos = homing_info.position_endstop
+        if homing_info.positive_dir:
+            movepos -= 1.5 * (homing_info.position_endstop - position_min)  #   (0 - 0)*1.5 = 0
+        else:
+            movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
+        return movepos
 
     def get_kinematics(self):
         """
@@ -252,24 +267,12 @@ class ExtruderHoming:
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
         
-        extra = 0.0
-        e_newpos = newpos[3] + extra
-        coord = [None, None, None, e_newpos]
+        # extra = 0.0
+        # e_newpos = newpos[3] + extra
+        coord = [None, None, None, newpos]
         logging.info(f"\n\nMoving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.manual_move(coord=coord,
                                   speed=speed)
-
-    def get_movepos(self, rail):
-        # NOTE: based on "_home_axis" from CartKinematics.
-        # Determine movement
-        position_min, position_max = self.rail.get_range()  # 0, 100
-        homing_info = self.rail.get_homing_info()
-        movepos = homing_info.position_endstop
-        if homing_info.positive_dir:
-            movepos -= 1.5 * (homing_info.position_endstop - position_min)  #   (0 - 0)*1.5 = 0
-        else:
-            movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
-        return movepos
     
     def drip_move(self, newpos, speed, drip_completion):
         """
@@ -292,7 +295,7 @@ class ExtruderHoming:
         """
         # TODO: What should I do here? Testing manual_stepper code directly.
         pos = [0., 0., 0., self.rail.get_commanded_position()]  # Can be [0.0, 0.0, 0.0, 0.0]
-        logging.info(f"\n\nget_position: {str(pos)}\n\n")
+        logging.info(f"\n\nget_position output: {str(pos)}\n\n")
         return pos
     
     def set_position(self, newpos, homing_axes=()):
@@ -310,6 +313,10 @@ class ExtruderHoming:
         #       but from the "itersolve_set_position" code, they seem to be x,y,z 
         #       components.
         # self.do_set_position(newpos[0])
+        # NOTE: the set_position method in a toolhead calls set_position in a
+        #       PrinterRail object, which we have here. That method calls 
+        #       the set_position method in each of the steppers in the rail.
+        logging.info(f"\n\nset_position input: {str(set_position)}\n\n")
         pass
     
     def calc_position(self, stepper_positions):
@@ -325,7 +332,8 @@ class ExtruderHoming:
         # NOTE: calc_toolhead_pos only uses the first three elements of this list,
         #       a fourth item  would be ignored.
         pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        logging.info(f"\n\n get_position: {str(pos)}\n\n")
+        logging.info(f"\n\n calc_position input: {str(stepper_positions)}\n\n")
+        logging.info(f"\n\n calc_position return: {str(pos)}\n\n")
         return pos
 
 def load_config_prefix(config):
