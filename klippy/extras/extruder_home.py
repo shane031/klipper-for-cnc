@@ -140,7 +140,7 @@ class ExtruderHoming:
         else:
             movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
 
-        logging.info(f"\n\get_movepos: movepos={str(movepos)}\n\n")
+        logging.info(f"\n\nget_movepos: movepos={str(movepos)}\n\n")
         return movepos
 
     def get_kinematics(self):
@@ -318,7 +318,7 @@ class ExtruderHoming:
         # NOTE: the set_position method in a toolhead calls set_position in a
         #       PrinterRail object, which we have here. That method calls 
         #       the set_position method in each of the steppers in the rail.
-        logging.info(f"\n\nset_position input: {str(set_position)}\n\n")
+        logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
         pass
     
     def calc_position(self, stepper_positions):
