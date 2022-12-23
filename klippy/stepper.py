@@ -291,6 +291,8 @@ def parse_step_distance(config, units_in_radians=None, note_valid=False):
 
 # A motor control "rail" with one (or more) steppers and one (or more)
 # endstops.
+# NOTE: in this branch, this class can also be used to create a stepper
+#       for the ExtruderStepper class.
 class PrinterRail:
     def __init__(self, config, need_position_minmax=True,
                  default_position_endstop=None, units_in_radians=False):

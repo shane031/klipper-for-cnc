@@ -87,6 +87,7 @@ class ExtruderHoming:
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
 
         # NOTE: get homing information, speed and move coordinate.
+        # self.toolhead_pos = self.toolhead.get_position()
         homing_info = self.rail.get_homing_info()
         speed = homing_info.speed
         pos = [0.0, 0.0, 0.0, None]
@@ -334,7 +335,24 @@ class ExtruderHoming:
         # NOTE: the set_position method in a toolhead calls set_position in a
         #       PrinterRail object, which we have here. That method calls 
         #       the set_position method in each of the steppers in the rail.
+        # NOTE: At this point, this method receives a vector: "[4.67499999999994, 0.0, 0.0, 3.3249999999999402]"
+        #       The first 3 components come from the calc_position method below.
+        #       The first one is the "updated" position of the extruder stepper,
+        #       corresponding to "haltpos". The second and third are hard-coded 0s.
+        #       The fourth component comes from "rail.get_commanded_position" here,
+        #       which may correspond to the "old" extruder position, meaning that the
+        #       rail has not been updated yet (sensibly because set_position is called later).
+        #       This means that we need the original 123 toolhead components, and
+        #       only update the remaining extruder component using the toolhead.set_position
+        #       method. However it only sets the XYZ components in the XYZ "trapq". I need to
+        #       update the "E" queue.
+        #       When switching extruder steppers, the Extruder class uses the set_position
+        #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
+        #       Thus, I need a three element list, where the first element is the updated position.
         logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
+        coord = [newpos[0], 0.0, 0.0]
+        logging.info(f"\n\nset_position output: {str(coord)}\n\n")
+        self.rail.set_position(coord)
         pass
     
     def calc_position(self, stepper_positions):
