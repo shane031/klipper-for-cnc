@@ -346,7 +346,7 @@ class ExtruderHoming:
         #self.move_toolhead(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
-        # TODO: I have not tried this, although I don't expect an improvement.
+        # TODO: Fails after homing with "Exception in flush_handler" / "Invalid sequence".
         self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
