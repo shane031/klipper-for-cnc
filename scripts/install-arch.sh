@@ -1,32 +1,28 @@
 #!/bin/bash
-# This script installs Klipper on an Arch Linux system
+# This script runs Klipper on an Arch Linux system
 
 PYTHONDIR="${HOME}/klippy-env"
-SYSTEMDDIR="/etc/systemd/system"
-AURCLIENT="pamac"
-KLIPPER_USER=$USER
-KLIPPER_GROUP=$KLIPPER_USER
+SRCDIR="${HOME}/klipper"
 
 # Step 1: Install system packages
 install_packages()
 {
     # Packages for python cffi
-    PKGLIST="python2-virtualenv libffi base-devel"
+    PKGLIST="libffi base-devel"
     # kconfig requirements
     PKGLIST="${PKGLIST} ncurses"
     # hub-ctrl
     PKGLIST="${PKGLIST} libusb"
     # AVR chip installation and building
-    PKGLIST="${PKGLIST} avrdude avr-gcc avr-binutils avr-libc"
+    # PKGLIST="${PKGLIST} avrdude avr-gcc avr-binutils avr-libc"
     # ARM chip installation and building
-    AURLIST="stm32flash"
-    PKGLIST="${PKGLIST} arm-none-eabi-newlib"
-    PKGLIST="${PKGLIST} arm-none-eabi-gcc arm-none-eabi-binutils"
+    # AURLIST="stm32flash"
+    # PKGLIST="${PKGLIST} arm-none-eabi-newlib"
+    # PKGLIST="${PKGLIST} arm-none-eabi-gcc arm-none-eabi-binutils"
 
     # Install desired packages
-     report_status "Installing packages..."
-     sudo pacman -S ${PKGLIST}
-     $AURCLIENT build ${AURLIST}
+    report_status "Installing packages..."
+    sudo pacman -S ${PKGLIST}
 }
 
 # Step 2: Create python virtual environment
@@ -35,43 +31,28 @@ create_virtualenv()
     report_status "Updating python virtual environment..."
 
     # Create virtualenv if it doesn't already exist
-    [ ! -d ${PYTHONDIR} ] && virtualenv2 ${PYTHONDIR}
-
+    [ ! -d ${PYTHONDIR} ] && python3 -m venv ${PYTHONDIR}
+    
+    activate_virtualenv
+    
     # Install/update dependencies
     ${PYTHONDIR}/bin/pip install -r ${SRCDIR}/scripts/klippy-requirements.txt
 }
 
-# Step 3: Install startup script
-install_script()
+activate_virtualenv()
 {
-# Create systemd service file
-    KLIPPER_LOG=/tmp/klippy.log
-    report_status "Installing system start script..."
-    sudo /bin/sh -c "cat > $SYSTEMDDIR/klipper.service" << EOF
-#Systemd service file for klipper
-[Unit]
-Description=Starts klipper on startup
-After=network.target
-
-[Install]
-WantedBy=multi-user.target
-
-[Service]
-Type=simple
-User=$KLIPPER_USER
-RemainAfterExit=yes
-ExecStart=${PYTHONDIR}/bin/python ${SRCDIR}/klippy/klippy.py ${HOME}/printer.cfg -l ${KLIPPER_LOG}
-EOF
-# Use systemctl to enable the klipper systemd service script
-    sudo systemctl enable klipper.service
-    report_status "Make sure to add $KLIPPER_USER to the user group controlling your serial printer port"
+    # Activate virtual environment
+    report_status "Activating venv at ${PYTHONDIR}/bin/activate."
+    source ${PYTHONDIR}/bin/activate
 }
 
 # Step 4: Start host software
 start_software()
 {
     report_status "Launching Klipper host software..."
-    sudo systemctl start klipper
+    deactivate && echo "Deactivated current venv." || echo "No venv to deactivate."
+    activate_virtualenv
+    python3 ${SRCDIR}/klippy/klippy.py
 }
 
 # Helper functions
@@ -91,12 +72,15 @@ verify_ready()
 # Force script to exit if an error occurs
 set -e
 
+# Check for dirs
+ls $PYTHONDIR > /dev/null
+ls $SRCDIR    > /dev/null
+
 # Find SRCDIR from the pathname of this script
-SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
+# SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 
 # Run installation steps defined above
 verify_ready
 install_packages
 create_virtualenv
-install_script
 start_software
