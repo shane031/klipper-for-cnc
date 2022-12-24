@@ -355,7 +355,7 @@ class ExtruderHoming:
         """
         # NOTE: try brute force?
         force_move = self.printer.lookup_object("force_move")
-        self.stepper = force_move.manual_move(self.stepper, dist=5.0, speed=speed, accel=20.0)
+        self.stepper = force_move.manual_move(self.stepper, dist=10.0, speed=speed, accel=100.0)
 
 
     def drip_move(self, newpos, speed, drip_completion):
