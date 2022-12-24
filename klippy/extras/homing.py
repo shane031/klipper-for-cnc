@@ -236,6 +236,9 @@ class Homing:
         homing_axes = [axis for axis in range(3) if forcepos[axis] is not None]
         startpos = self._fill_coord(forcepos)
         homepos = self._fill_coord(movepos)
+        # NOTE: esto usa "trapq_set_position" sobre el trapq del XYZ.
+        # NOTE: homing_axes se usa finalmente en "CartKinematics.set_position",
+        #       para asignarle limites a los "rails" que se homearon. Nada más.
         self.toolhead.set_position(startpos, homing_axes=homing_axes)
         # Perform first home
         endstops = [es for rail in rails for es in rail.get_endstops()]
