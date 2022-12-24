@@ -288,6 +288,12 @@ class ExtruderHoming:
         print_time = self.toolhead.print_time  # TODO: this should be OK if the dwell above is enough
         self.extruder.move(print_time=print_time, move=move)
         self.extruder.last_position = 0
+
+        next_move_time = (print_time + move.accel_t + move.cruise_t + move.decel_t)
+
+        self.toolhead._update_move_time(next_move_time)
+        self.toolhead.last_kin_move_time = next_move_time
+
         pass
     
     def move_toolhead(self, newpos, speed, drip_completion):
