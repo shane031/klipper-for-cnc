@@ -19,6 +19,7 @@ It's meant to go in a new file in extras.
 You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_endstop]).
 """
 import stepper, chelper, logging
+from toolhead import Move
 
 class ExtruderHoming:
     """
