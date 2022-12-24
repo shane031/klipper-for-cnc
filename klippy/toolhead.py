@@ -494,8 +494,13 @@ class ToolHead:
         self.move(curpos, speed)
         self.printer.send_event("toolhead:manual_move")
     def dwell(self, delay):
+        # NOTE: get_last_move_time runs "_flush_lookahead" which then
+        #       calls "flush" on the MoveQueue, and ends up calling 
+        #       "_update_move_time", which updates "self.print_time".
+        #       In essence "get_last_move_time" returns an updated
+        #       "self.print_time". The delay is then added to it.
         next_print_time = self.get_last_move_time() + max(0., delay)
-        self._update_move_time(next_print_time)
+        self._update_move_time(next_print_time=next_print_time)
         self._check_stall()
     def wait_moves(self):
         self._flush_lookahead()
@@ -524,7 +529,7 @@ class ToolHead:
                 self.drip_completion.wait(curtime + wait_time)
                 continue
             npt = min(self.print_time + DRIP_SEGMENT_TIME, next_print_time)
-            self._update_move_time(npt)
+            self._update_move_time(next_print_time=npt)
     def drip_move(self, newpos, speed, drip_completion):
         self.dwell(self.kin_flush_delay)
         # Transition from "Flushed"/"Priming"/main state to "Drip" state
