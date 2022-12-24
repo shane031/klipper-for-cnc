@@ -320,12 +320,16 @@ class ExtruderHoming:
         #       for to know if all of the endstops have been triggered yet.
 
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
+        # TODO: Couldn't debug "Timer too close" nor "flush_handler" errors (at or after homing).
         #self.move_toolhead(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
+        # TODO: I have not tried this, although I don't expect an improvement.
         #self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
+        # TODO: Couldn't debug "flush_handler" and some "Timer too close" errors only _after_ homing.
+        # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
         self.move_toolhead_drip(newpos, speed, drip_completion)
 
     def get_position(self):
