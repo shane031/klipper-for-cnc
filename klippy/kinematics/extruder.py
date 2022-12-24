@@ -316,7 +316,8 @@ class PrinterExtruder:
         # TODO: after reading the code overview (https://www.klipper3d.org/Code_Overview.html)
         #       I still don't know for sure _where_ in the code these queues of 
         #       moves end up together. The only reasonable place left seems to be
-        #       in the "serialqueue.c" or nearby files.
+        #       in the "serialqueue.c" or nearby files. What I know is that they 
+        #       are coordinated by print_time at "_process_moves" (see: toolhead.py).
         self.trapq_append(self.trapq, print_time,
                           move.accel_t, move.cruise_t, move.decel_t,
                           move.start_pos[3], 0., 0.,

@@ -236,13 +236,15 @@ class ExtruderHoming:
         #       extended dwell time, thereby ignoring the delay argument.
 
         # NOTE: pass the input
-        self.HOMING_DELAY = delay
+        # self.HOMING_DELAY = delay
 
         # NOTE: From homing.py
         # self.HOMING_DELAY = 0.001
         
-        # NOTE: The original old value of 0.250 did not work,
-        # self.HOMING_DELAY = 0.250
+        # NOTE: The original pre-drip value
+        self.HOMING_DELAY = 0.250
+        
+        # NOTE: the 0.250 valued did not work at all,
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D Sometimes...
         # self.HOMING_DELAY = 4.0
@@ -267,12 +269,20 @@ class ExtruderHoming:
         # NOTE: the manual_stepper class simply "moves" the stepper 
         #       in the regular way. However the ToolHead.drip_move does
         #       a lot more, in accordance with the commit linked above.
+        # self.do_move(newpos[0], speed, self.homing_accel)
         # TODO: What should I do here? What should the Move argument be?
         #       The "Extruder.move" method requires the following arguments:
         #       print_time: ???
         #       move: ???
-        self.extruder.move()
-        # self.do_move(newpos[0], speed, self.homing_accel)
+        curpos = list(self.toolhead.commanded_pos)
+        move = Move(toolhead=self.toolhead, 
+                    start_pos=curpos,
+                    end_pos=curpos[:3] + [25],  # TODO: base this on the config
+                    speed=self.velocity)
+        print_time = self.toolhead.print_time  # TODO: this should be OK if the dwell above is enough
+        self.extruder.move(print_time=print_time, move=move)
+        self.extruder.last_position = 0
+        pass
     
     def move_toolhead(self, newpos, speed, drip_completion):
         """
@@ -386,7 +396,7 @@ class ExtruderHoming:
         #       regular homing move, and shouldnt hurt.
         logging.info(f"\n\nset_position: input={str(newpos)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
-        pos = self.th_orig_pos[:3] + [newpos[0]]
+        pos = self.th_orig_pos[:3] + [0]
         logging.info(f"\n\nset_position: output={str(pos)}\n\n")
         self.toolhead.set_position(pos)
         pass
