@@ -20,6 +20,7 @@ You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_end
 """
 import stepper, chelper, logging
 from toolhead import Move
+from collections import namedtuple
 
 class ExtruderHoming:
     """
@@ -139,8 +140,9 @@ class ExtruderHoming:
         # NOTE: Update positions in gcode_move, fixes inaccurate first
         #       relative move. Might not be needed since actually using 
         #       set_position from the TH.
-        gcode_move = self.printer.lookup_object('gcode_move')
-        gcode_move.reset_last_position()
+        #       Might interfere with extruder move?
+        # gcode_move = self.printer.lookup_object('gcode_move')
+        # gcode_move.reset_last_position()
 
     def get_movepos(self, homing_info):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
@@ -276,10 +278,13 @@ class ExtruderHoming:
         #       print_time: ???
         #       move: ???
         curpos = list(self.toolhead.commanded_pos)
-        move = Move(toolhead=self.toolhead, 
-                    start_pos=curpos,
-                    end_pos=curpos[:3] + [25],  # TODO: base this on the config
-                    speed=self.velocity)
+        # move = Move(toolhead=self.toolhead, 
+        #             start_pos=curpos,
+        #             end_pos=curpos[:3] + [25.0],  # TODO: base this on the config
+        #             speed=self.velocity)
+        ntMove = namedtuple('Move', "axes_r accel start_v cruise_v axes_d accel_t cruise_t decel_t start_pos end_pos")
+        move = ntMove(axes_r=[0,0,0,1.0], accel=20.0, start_v=0.0, cruise_v=20.0, axes_d=[None,None,None,25.0],
+                        accel_t=1.0, cruise_t=5.0, decel_t=1.0, start_pos=0.0, end_pos=0.0)
         print_time = self.toolhead.print_time  # TODO: this should be OK if the dwell above is enough
         self.extruder.move(print_time=print_time, move=move)
         self.extruder.last_position = 0
