@@ -138,6 +138,7 @@ class MoveQueue:
         # NOTE: called by "add_move" when: 
         #       "Enough moves have been queued to reach the target flush time."
         self.junction_flush = LOOKAHEAD_FLUSH_TIME
+        logging.info("MoveQueue flush: function triggered")
         update_flush_count = lazy
         queue = self.queue
         flush_count = len(queue)
@@ -341,6 +342,7 @@ class ToolHead:
         #       the "flush" method in a "MoveQueue" class instance.
         #       The "moves" argument receives a "queue" of moves _ready to be flushed_.
         # Resync print_time if necessary
+        logging.info("ToolHead _process_moves: function triggered")
         if self.special_queuing_state:
             if self.special_queuing_state != "Drip":
                 # Transition from "Flushed"/"Priming" state to main state
@@ -348,6 +350,8 @@ class ToolHead:
                 self.need_check_stall = -1.
                 self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
             self._calc_print_time()
+            logging.info(f"ToolHead _process_moves: self.print_time={str(self.print_time)}")
+        
         # Queue moves into trapezoid motion queue (trapq)
         # NOTE: the "trapq" is possibly something like a CFFI object.
         #       From the following I infer that it is actually this
@@ -355,6 +359,7 @@ class ToolHead:
         #       the MCUs.
         next_move_time = self.print_time
         for move in moves:
+            logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
             if move.is_kinematic_move:
                 self.trapq_append(
                     self.trapq, next_move_time,
@@ -373,15 +378,19 @@ class ToolHead:
                 # NOTE: execute any "callbacks" registered to be
                 #       run at the end of this move.
                 cb(next_move_time)
+        
         # Generate steps for moves
         if self.special_queuing_state:
+            logging.info(f"ToolHead _process_moves: _update_drip_move_time with next_move_time={str(next_move_time)}")
             self._update_drip_move_time(next_move_time)
         
         # NOTE: "next_move_time" is the last "self.print_time" plus the
         #       time added by the nuew moves sento to trapq.
         #       Here, it is passed to "_update_move_time", which updates
         #       "self.print_time" and to overwrite "self.last_kin_move_time".
+        logging.info(f"ToolHead _process_moves: _update_move_time with next_move_time={str(next_move_time)}")
         self._update_move_time(next_move_time)
+        logging.info(f"ToolHead _process_moves: last_kin_move_time set to next_move_time={str(next_move_time)}")
         self.last_kin_move_time = next_move_time
         
     def flush_step_generation(self):
