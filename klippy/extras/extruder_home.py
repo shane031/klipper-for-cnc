@@ -39,6 +39,9 @@ class ExtruderHoming:
         self.toolhead = None
         self.extruder = None
         self.gcmd = None
+        self.th_orig_pos = None
+
+        self.HOMING_DELAY = 0.001
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
@@ -86,8 +89,10 @@ class ExtruderHoming:
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
 
+        # NOTE: Get toolhead position 
+        self.th_orig_pos = self.toolhead.get_position()
+
         # NOTE: get homing information, speed and move coordinate.
-        # self.toolhead_pos = self.toolhead.get_position()
         homing_info = self.rail.get_homing_info()
         speed = homing_info.speed
         pos = [0.0, 0.0, 0.0, None]
@@ -129,6 +134,12 @@ class ExtruderHoming:
                             pos=pos, speed=speed,
                             triggered=True, 
                             check_triggered=True)
+
+        # NOTE: Update positions in gcode_move, fixes inaccurate first
+        #       relative move. Might not be needed since actually using 
+        #       set_position from the TH.
+        gcode_move = self.printer.lookup_object('gcode_move')
+        gcode_move.reset_last_position()
 
     def get_movepos(self, homing_info):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
@@ -223,17 +234,22 @@ class ExtruderHoming:
         #       - https://github.com/Klipper3d/klipper/commit/dd34768e3afb6b5aa46885109182973d88df10b7
         #       Here the drip_move is _not_ used, and we thus require the
         #       extended dwell time, thereby ignoring the delay argument.
+
+        # NOTE: pass the input
+        self.HOMING_DELAY = delay
+
+        # NOTE: From homing.py
+        # self.HOMING_DELAY = 0.001
         
-        # NOTE: The original value of 0.250 did not work,
+        # NOTE: The original old value of 0.250 did not work,
+        # self.HOMING_DELAY = 0.250
         #       so it was increased by a nice amount,
         #       and now... It works! OMG :D Sometimes...
-        # HOMING_DELAY = 0.0
-        # NOTE: trying drip move, reverting to default delay.
-        HOMING_DELAY = delay
+        # self.HOMING_DELAY = 4.0
 
-        logging.info(f"\n\ndwell: Dwelling for {str(HOMING_DELAY)} before homing. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
-        self.toolhead.dwell(HOMING_DELAY)
-        logging.info(f"\n\ndwell: Done sending dwell command. Current last move time: {str(self.toolhead.get_last_move_time())}\n\n")
+        logging.info(f"\n\ndwell: Dwelling for {str(self.HOMING_DELAY)} before homing. Current print_time: {str(self.toolhead.print_time)}\n\n")
+        self.toolhead.dwell(self.HOMING_DELAY)
+        logging.info(f"\n\ndwell: Done sending dwell command. Current print_time: {str(self.toolhead.print_time)}\n\n")
     
     def move_extruder(self, newpos, speed, drip_completion):
         """
@@ -273,17 +289,24 @@ class ExtruderHoming:
         #       allowing me not to worry about getting the current and new
         #       coordinates for the homing move.
         
-        extra = 0.0
-        e_newpos = newpos[3] + extra
-        coord = [None, None, None, e_newpos]
-        logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
-        self.toolhead.manual_move(coord=coord,
-                                  speed=speed)
+        # NOTE: using "toolhead.manual_move" allows None values, is simpler
+        #       to use in that sense, and also ends up calling "toolhead.move".
+        # extra = 0.0
+        # e_newpos = newpos[3] + extra
+        # coord = [None, None, None, e_newpos]
+        # logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+        # self.toolhead.manual_move(coord=coord, speed=speed)
+
+        # NOTE: using "toolhead.move" should be similar.
+        logging.info(f"\n\nmove_toolhead: moving toolhead to {str(newpos)} for homing.\n\n")
+        self.toolhead.move(newpos=newpos, speed=speed)
+        logging.info(f"\n\nmove_toolhead: move completed.\n\n")
 
     def move_toolhead_drip(self, newpos, speed, drip_completion):
         """
         This method passes argument to the real toolhead "drip_move" method.
         """
+
         logging.info(f"\n\nmove_toolhead_drip: drip-moving to {str(newpos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.drip_move(newpos, speed, drip_completion)
 
@@ -336,23 +359,32 @@ class ExtruderHoming:
         #       PrinterRail object, which we have here. That method calls 
         #       the set_position method in each of the steppers in the rail.
         # NOTE: At this point, this method receives a vector: "[4.67499999999994, 0.0, 0.0, 3.3249999999999402]"
-        #       The first 3 components come from the calc_position method below.
-        #       The first one is the "updated" position of the extruder stepper,
-        #       corresponding to "haltpos". The second and third are hard-coded 0s.
+        #       The first 3 items come from the "calc_position" method below.
+        #       The first item is the "updated" position of the extruder stepper,
+        #       corresponding to "haltpos", and the second and third are hard-coded 0s.
         #       The fourth component comes from "rail.get_commanded_position" here,
         #       which may correspond to the "old" extruder position, meaning that the
         #       rail has not been updated yet (sensibly because set_position is called later).
         #       This means that we need the original 123 toolhead components, and
         #       only update the remaining extruder component using the toolhead.set_position
-        #       method. However it only sets the XYZ components in the XYZ "trapq". I need to
-        #       update the "E" queue.
+        #       method. However it only sets the XYZ components in the XYZ "trapq".
+
+        # TODO: I need to update the "E" queue somehow.
         #       When switching extruder steppers, the Extruder class uses the set_position
         #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
         #       Thus, I need a three element list, where the first element is the updated position.
-        logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
-        coord = [newpos[0], 0.0, 0.0]
-        logging.info(f"\n\nset_position output: {str(coord)}\n\n")
-        self.rail.set_position(coord)
+        # logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
+        # coord = [newpos[0], 0.0, 0.0]
+        # logging.info(f"\n\nset_position output: {str(coord)}\n\n")
+        # self.rail.set_position(coord)
+
+        # NOTE: setup "set_position" from the toolhead, this is expected for a complete
+        #       regular homing move, and shouldnt hurt.
+        logging.info(f"\n\nset_position: input={str(newpos)}\n\n")
+        logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
+        pos = self.th_orig_pos[:3] + [newpos[0]]
+        logging.info(f"\n\nset_position: output={str(pos)}\n\n")
+        self.toolhead.set_position(pos)
         pass
     
     def calc_position(self, stepper_positions):
