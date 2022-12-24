@@ -349,6 +349,15 @@ class ExtruderHoming:
         logging.info(f"\n\nmove_toolhead_drip: drip-moving to {str(newpos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
         self.toolhead.drip_move(newpos, speed, drip_completion)
 
+    def move_forced(self, newpos, speed, drip_completion):
+        """
+        This method uses MANUAL_MOVE from force_move.py
+        """
+        # NOTE: try brute force?
+        force_move = self.printer.lookup_object("force_move")
+        self.stepper = force_move.manual_move(self.stepper, dist=5.0, speed=speed, accel=20.0)
+
+
     def drip_move(self, newpos, speed, drip_completion):
         """
         Virtual toolhead method.
@@ -370,6 +379,9 @@ class ExtruderHoming:
         # TODO: Couldn't debug "flush_handler" and some "Timer too close" errors only _after_ homing.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
         self.move_toolhead_drip(newpos, speed, drip_completion)
+
+        # NOTE: option 4, out of ideas.
+        # self.move_forced(newpos, speed, drip_completion)
 
     def get_position(self):
         """
