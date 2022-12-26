@@ -438,6 +438,7 @@ class ExtruderHoming:
         # NOTE: Log stuff
         #newpos_e = copy(newpos[0])
         newpos_e = newpos[0]
+        newpos_e = newpos[3]
         logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
         pos = self.th_orig_pos[:3] + [newpos_e]
@@ -454,8 +455,9 @@ class ExtruderHoming:
         # self.rail.set_position(coord)
 
         # NOTE: update extruder position, code adapted from "set_position" in toolhead.py
-        self.toolhead.flush_step_generation()
+        self.toolhead.flush_step_generation()  # NOTE: runs trapq_finalize_moves on the extruder's trapq too.
         ffi_main, ffi_lib = chelper.get_ffi()
+        # NOTE: Dice "// Note a position change in the trapq history" en "trapq.c".
         ffi_lib.trapq_set_position(self.extruder_trapq, 
                                    # TODO: check source for print-time is correct
                                    self.toolhead.print_time,
@@ -471,7 +473,8 @@ class ExtruderHoming:
         #       It calls "rail.set_position" on all toolhead's rails (which are PrinterRails),
         #       and updates the toolhead limits using "rail.get_range".
         #       Those rails are "PrinterRail" classes, which in turn call
-        #       "stepper.set_position" on each of their steppers. Replicate here:
+        #       "stepper.set_position" on each of their steppers.
+        #       It calls "itersolve_set_position". Replicate here:
         self.rail.set_position([newpos_e, 0., 0.])
 
         # NOTE: The next line from toolhead.py is: self.printer.send_event("toolhead:set_position")
