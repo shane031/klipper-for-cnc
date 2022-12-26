@@ -423,7 +423,8 @@ class ExtruderHoming:
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
         # NOTE: Log stuff
-        newpos_e = copy(newpos[0])
+        #newpos_e = copy(newpos[0])
+        newpos_e = newpos[0]
         logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
         pos = self.th_orig_pos[:3] + [newpos_e]
