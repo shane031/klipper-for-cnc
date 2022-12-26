@@ -325,6 +325,7 @@ class PrinterExtruder:
                           1., can_pressure_advance, 0.,
                           start_v, cruise_v, accel)
         self.last_position = move.end_pos[3]
+        logging.info(f"\n\nextruder: move.end_pos[3]={str(move.end_pos[3])}\n\n")
     def find_past_position(self, print_time):
         if self.extruder_stepper is None:
             return 0.

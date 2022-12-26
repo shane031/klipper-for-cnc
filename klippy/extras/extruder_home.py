@@ -300,10 +300,11 @@ class ExtruderHoming:
         #             speed=self.velocity)
         ntMove = namedtuple('Move', "axes_r accel start_v cruise_v axes_d accel_t cruise_t decel_t start_pos end_pos")
         move = ntMove(axes_r=[0,0,0,1.0], accel=20.0, start_v=0.0, cruise_v=20.0, axes_d=[None,None,None,25.0],
-                        accel_t=1.0, cruise_t=5.0, decel_t=1.0, start_pos=[0.0,0.0,0.0,0.0], end_pos=[0.0,0.0,0.0,0.0])
-        print_time = self.toolhead.print_time  # TODO: this should be OK if the dwell above is enough
+                      accel_t=1.0, cruise_t=5.0, decel_t=1.0, start_pos=[0.0,0.0,0.0,0.0], end_pos=[0.0,0.0,0.0,0.0])
+        print_time = self.toolhead.print_time  # TODO: this should be OK if the dwell above is enough? IDK
         self.extruder.move(print_time=print_time, move=move)
-        self.extruder.last_position = 0
+        # NOTE: the following is done automatically by the end of the move method.
+        # self.extruder.last_position = 0
 
         next_move_time = (print_time + move.accel_t + move.cruise_t + move.decel_t)
 
