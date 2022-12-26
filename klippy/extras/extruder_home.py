@@ -88,14 +88,15 @@ class ExtruderHoming:
         # NOTE: Get the toolhead and its extruder
         self.toolhead = self.printer.lookup_object("toolhead")
         self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
-
+        self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)
+        
         # NOTE: Get the steppers
         self.extruder_stepper = self.extruder.extruder_stepper  # ExtruderStepper
-        self.stepper = self.extruder_stepper.stepper            # PrinterStepper
-        self.steppers = [self.stepper]                          # [PrinterStepper]
-
-        # NOTE: Get the "rail" from the extruder stepper.
         self.rail = self.extruder_stepper.rail                  # PrinterRail
+        self.stepper = self.extruder_stepper.stepper            # PrinterRail or PrinterStepper
+        self.steppers = [self.stepper]                          # [PrinterRail or PrinterStepper]
+        # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"  
+        #       objects are _the same_ object.
 
         # NOTE: get the endstops from the extruder's PrinterRail.
         #       likely a list of tuples, each with an instance of 
@@ -388,7 +389,7 @@ class ExtruderHoming:
             -   HomingMove.homing_move
         """
         # TODO: What should I do here?
-        # NOTE: I am assuming that the "set_position" applies to steppers,
+        # NOTE: I am assuming that the "set_position" applies to steppers.
         #       by tracing calls to the "set_position" method in MCU_stepper.
         #       There, the "coords" argument is a list of at least 3 components:
         #           [coord[0], coord[1], coord[2]]
@@ -399,7 +400,8 @@ class ExtruderHoming:
         # NOTE: the set_position method in a toolhead calls set_position in a
         #       PrinterRail object, which we have here. That method calls 
         #       the set_position method in each of the steppers in the rail.
-        # NOTE: At this point, this method receives a vector: "[4.67499999999994, 0.0, 0.0, 3.3249999999999402]"
+        # NOTE: At this point, this method receives a vector: 
+        #           "[4.67499999999994, 0.0, 0.0, 3.3249999999999402]"
         #       The first 3 items come from the "calc_position" method below.
         #       The first item is the "updated" position of the extruder stepper,
         #       corresponding to "haltpos", and the second and third are hard-coded 0s.
@@ -414,16 +416,42 @@ class ExtruderHoming:
         #       When switching extruder steppers, the Extruder class uses the set_position
         #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
         #       Thus, I need a three element list, where the first element is the updated position.
+
         # logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
         # coord = [newpos[0], 0.0, 0.0]
         # logging.info(f"\n\nset_position output: {str(coord)}\n\n")
         # self.rail.set_position(coord)
 
-        # NOTE: setup "set_position" from the toolhead, this is expected for a complete
-        #       regular homing move, and shouldnt hurt.
+        # NOTE: update extruder position, code adapted from "set_position" in toolhead.py
+        self.toolhead.flush_step_generation()
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trapq_set_position(self.extruder_trapq, 
+                                   # TODO: check source for print-time is correct
+                                   self.toolhead.print_time,
+                                   newpos[0], 0., 0.)
+        # NOTE: The next line from toolhead.py is: "self.commanded_pos[:] = newpos".
+        #       The most similar line from extryder.py is in "sync_to_extruder",
+        #       from the ExtruderStepper class:
+        #           self.stepper.set_position([extruder.last_position, 0., 0.])
+        # NOTE: However, since the next line is equivalent to this one, I'll skip it.
+        #self.extruder_stepper.stepper.set_position([newpos[0], 0., 0.])
+
+        # NOTE: The next line from toolhead.py is: "self.kin.set_position(newpos, homing_axes)"
+        #       It calls "rail.set_position" on all toolhead's rails (which are PrinterRails),
+        #       and updates the toolhead limits using "rail.get_range".
+        #       Those rails are "PrinterRail" classes, which in turn call
+        #       "stepper.set_position" on each of their steppers. Replicate here:
+        self.rail.set_position([newpos[0], 0., 0.])
+
+        # NOTE: The next line from toolhead.py is: self.printer.send_event("toolhead:set_position")
+        #       It runs the "reset_last_position" method in GCodeMove at gcode_move.py,
+        #       which takes no arguments. It runs the "position_with_transform" method,
+        #       which is apparently "toolhead.get_position".
+        # NOTE: I can simply call "set_position" from the toolhead. This is expected for a
+        #       complete regular homing move, and shouldnt hurt either.
         logging.info(f"\n\nset_position: input={str(newpos)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
-        pos = self.th_orig_pos[:3] + [0]
+        pos = self.th_orig_pos[:3] + [newpos[0]]
         logging.info(f"\n\nset_position: output={str(pos)}\n\n")
         self.toolhead.set_position(pos)
         pass
@@ -438,11 +466,10 @@ class ExtruderHoming:
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.
-        # NOTE: calc_toolhead_pos only uses the first three elements of this list,
-        #       a fourth item  would be ignored.
+        # NOTE: This code was grabbed from the cartesian.py calc_position method.
         pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        logging.info(f"\n\ncalc_position input: {str(stepper_positions)}\n\n")
-        logging.info(f"\n\ncalc_position return: {str(pos)}\n\n")
+        logging.info(f"\n\ncalc_position input calc_position={str(stepper_positions)}\n\n")
+        logging.info(f"\n\ncalc_position return pos={str(pos)}\n\n")
         return pos
 
 def load_config_prefix(config):

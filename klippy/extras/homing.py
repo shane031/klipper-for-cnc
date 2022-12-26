@@ -85,7 +85,11 @@ class HomingMove:
         for stepper in kin.get_steppers():
             sname = stepper.get_name()
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
+        
+        # NOTE: this call to get_position is only used to acquire the extruder
+        #       position, and append it to XYZ components below.
         thpos = self.toolhead.get_position()  # [0.0, 0.0, 0.0, 3.3249999999999402]
+
         result = list(kin.calc_position(kin_spos))[:3] + thpos[3:]
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
         return result  # calc_toolhead_pos output: [4.67499999999994, 0.0, 0.0, 3.3249999999999402]
