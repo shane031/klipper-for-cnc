@@ -17,6 +17,21 @@ Q: where does this code go? A manual stepper is defined in "extras", perhaps loa
 
 It's meant to go in a new file in extras.
 You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_endstop]).
+
+Same project here: https://discord.com/channels/431557959978450984/801826273227177984/1022232355705999391
+    I'm adding the extruder stepper to the probe endstop's steppers, then sending a Homing.probing_move that moves the E axis until the probe endstop triggers
+    Then I'm extending the logic in homing.homing_move to update the E position correctly based on the halt_steps / trig_steps similar to how it handles XYZ
+    I seem to have it working except I get an internal flush_handler error for the first move after my probing_move
+    Kevin: Not sure.  As a guess, double check that you are resetting the position throughout the entire chain - for example,
+        by raising a "toolhead:manual_move" event.  It does seem as if the e stepper position has changed and something hasn't 
+        been notified of its new position.
+    Ooh wait, get_mcu_position is not actually callling any ffi stuff so I kinda shouldn't trust it huh...
+        ehh nope, using get_past_mcu_position gives the same answers 
+    Found it, the extruder trapq position wasn't being updated. Homing the E axis works flawlessly now
+
+
+Kevin: The "internal error in stepcompress" is just a cascading error.  The root cause is "move queue overflow".
+
 """
 import stepper, chelper, logging
 from toolhead import Move
