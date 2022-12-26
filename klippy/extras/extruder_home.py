@@ -425,6 +425,7 @@ class ExtruderHoming:
         #       the set_position method in each of the steppers in the rail.
         # NOTE: At this point, this method receives a vector: 
         #           "[4.67499999999994, 0.0, 0.0, 3.3249999999999402]"
+        #                newpos[0]                    newpos[3]
         #       The first 3 items come from the "calc_position" method below.
         #       The first item is the "updated" position of the extruder stepper,
         #       corresponding to "haltpos", and the second and third are hard-coded 0s.
@@ -435,10 +436,14 @@ class ExtruderHoming:
         #       only update the remaining extruder component using the toolhead.set_position
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
+        
+        # TODO: changing this affects the sencond stepper move after homing. Find out why.
+        #       Using newpos[0] always showed the second move. Using newpos[3] only shows
+        #       a second move the first time.
+        # newpos_e = newpos[0]  # haltpos (at homing.py)
+        newpos_e = newpos[3]    # rail.get_commanded_position
+
         # NOTE: Log stuff
-        #newpos_e = copy(newpos[0])
-        newpos_e = newpos[0]
-        newpos_e = newpos[3]
         logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
         pos = self.th_orig_pos[:3] + [newpos_e]

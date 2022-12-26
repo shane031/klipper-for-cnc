@@ -76,8 +76,7 @@ class HomingMove:
         return move_t / max_steps
     def calc_toolhead_pos(self, kin_spos, offsets):
         # NOTE: the "kin_spos" received here has "old" values, from
-        #       before sending the [drip_]move command.
-        #       For example:
+        #       before sending the move command. For example:
         #       calc_toolhead_pos input: kin_spos={'extruder1': 3.3249999999999402} offsets={'extruder1': 270}
         kin_spos = dict(kin_spos)
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
@@ -88,11 +87,14 @@ class HomingMove:
         
         # NOTE: this call to get_position is only used to acquire the extruder
         #       position, and append it to XYZ components below.
-        thpos = self.toolhead.get_position()  # [0.0, 0.0, 0.0, 3.3249999999999402]
+        thpos = self.toolhead.get_position()  # NOTE example: [0.0, 0.0, 0.0, 3.3249999999999402]
 
         result = list(kin.calc_position(kin_spos))[:3] + thpos[3:]
+        
+        # NOTE example: calc_toolhead_pos output=[4.67499999999994, 0.0, 0.0, 3.3249999999999402]
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
-        return result  # calc_toolhead_pos output: [4.67499999999994, 0.0, 0.0, 3.3249999999999402]
+
+        return result
     def homing_move(self, movepos, speed, probe_pos=False,
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move
@@ -179,12 +181,12 @@ class HomingMove:
             over_steps = {sp.stepper_name: sp.halt_pos - sp.trig_pos
                           for sp in self.stepper_positions}
             if any(over_steps.values()):
-                self.toolhead.set_position(movepos)
+                self.toolhead.set_position(movepos)  # [0.0, 0.0, 0.0, 150.0]
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
                                                  offsets=over_steps)
-        self.toolhead.set_position(haltpos)  # [0.0, 0.0, 0.0, 150.0]
+        self.toolhead.set_position(haltpos)
         # Signal homing/probing move complete
         try:
             self.printer.send_event("homing:homing_move_end", self)
