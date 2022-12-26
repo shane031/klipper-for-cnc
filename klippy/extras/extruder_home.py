@@ -422,6 +422,13 @@ class ExtruderHoming:
         #       only update the remaining extruder component using the toolhead.set_position
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
+        # NOTE: Log stuff
+        newpos_e = copy(newpos[0])
+        logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
+        logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
+        pos = self.th_orig_pos[:3] + [newpos_e]
+        logging.info(f"\n\nset_position: output={str(pos)}\n\n")
+
         # TODO: I need to update the "E" queue somehow.
         #       When switching extruder steppers, the Extruder class uses the set_position
         #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
@@ -438,7 +445,7 @@ class ExtruderHoming:
         ffi_lib.trapq_set_position(self.extruder_trapq, 
                                    # TODO: check source for print-time is correct
                                    self.toolhead.print_time,
-                                   newpos[0], 0., 0.)
+                                   newpos_e, 0., 0.)
         # NOTE: The next line from toolhead.py is: "self.commanded_pos[:] = newpos".
         #       The most similar line from extryder.py is in "sync_to_extruder",
         #       from the ExtruderStepper class:
@@ -451,7 +458,7 @@ class ExtruderHoming:
         #       and updates the toolhead limits using "rail.get_range".
         #       Those rails are "PrinterRail" classes, which in turn call
         #       "stepper.set_position" on each of their steppers. Replicate here:
-        self.rail.set_position([newpos[0], 0., 0.])
+        self.rail.set_position([newpos_e, 0., 0.])
 
         # NOTE: The next line from toolhead.py is: self.printer.send_event("toolhead:set_position")
         #       It runs the "reset_last_position" method in GCodeMove at gcode_move.py,
@@ -459,10 +466,6 @@ class ExtruderHoming:
         #       which is apparently "toolhead.get_position".
         # NOTE: I can simply call "set_position" from the toolhead. This is expected for a
         #       complete regular homing move, and shouldnt hurt either.
-        logging.info(f"\n\nset_position: input={str(newpos)}\n\n")
-        logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
-        pos = self.th_orig_pos[:3] + [newpos[0]]
-        logging.info(f"\n\nset_position: output={str(pos)}\n\n")
         self.toolhead.set_position(pos)
         pass
     
