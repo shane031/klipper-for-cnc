@@ -254,14 +254,14 @@ class ExtruderHoming:
         #       Here the drip_move is _not_ used, and we thus require the
         #       extended dwell time, thereby ignoring the delay argument.
 
-        # NOTE: pass the input
-        # self.HOMING_DELAY = delay
+        # NOTE: pass the input (default)
+        self.HOMING_DELAY = delay
 
         # NOTE: From homing.py
         # self.HOMING_DELAY = 0.001
         
         # NOTE: The original pre-drip value
-        self.HOMING_DELAY = 0.250
+        # self.HOMING_DELAY = 0.250
         
         # NOTE: the 0.250 valued did not work at all,
         #       so it was increased by a nice amount,
@@ -363,12 +363,12 @@ class ExtruderHoming:
         
         # NOTE: option 2, use the "move" method from the Extruder class.
         # TODO: Fails after homing with "Exception in flush_handler" / "Invalid sequence".
-        self.move_extruder(newpos, speed, drip_completion)
+        # self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: Couldn't debug "flush_handler" and some "Timer too close" errors only _after_ homing.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
-        # self.move_toolhead_drip(newpos, speed, drip_completion)
+        self.move_toolhead_drip(newpos, speed, drip_completion)
 
     def get_position(self):
         """
@@ -377,8 +377,18 @@ class ExtruderHoming:
             -   _calc_endstop_rate
             -   calc_toolhead_pos
         """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        pos = [0., 0., 0., self.rail.get_commanded_position()]  # Can be [0.0, 0.0, 0.0, 0.0]
+        # NOTE: calc_toolhead_pos only uses the fourth element from this list,
+        #       which is the extruder position. The equivalent coordinates from
+        #       the toolhead are obtained from "get_commanded_position" of the
+        #       steppers in the toolhead kinematics object, which ultimately
+        #       come from the "ffi" objects.
+        #       TODO: check that this is the correct method to get the position.
+        #           Another option is "last_position" from PrinterExtruder, which
+        #           is updated at the end of a move command (after the trapq_append).
+        e_pos = self.rail.get_commanded_position()      # NOTE: option 1
+        # e_pos = self.extruder.last_position           # NOTE: option 2
+
+        pos = [0., 0., 0., e_pos]
         logging.info(f"\n\nget_position output: {str(pos)}\n\n")
         return pos
     
