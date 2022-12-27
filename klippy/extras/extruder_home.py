@@ -440,7 +440,7 @@ class ExtruderHoming:
         # TODO: changing this affects the sencond stepper move after homing. Find out why.
         #       Using newpos[0] always showed the second move. Using newpos[3] only shows
         #       a second move the first time.
-        # newpos_e = newpos[0]  # haltpos (at homing.py)
+        # newpos_e = newpos[0]  # kin.calc_position(kin_spos) / haltpos (at homing.py)
         newpos_e = newpos[3]    # rail.get_commanded_position
 
         # NOTE: Log stuff
