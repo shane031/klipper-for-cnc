@@ -1,38 +1,18 @@
 # By naikymen and mdwasp
-# https://discord.com/channels/627982902738681876/1046618170993160202/1046808809894588457
-"""
-look at the chain of ManualStepper via PrinterRail
-    Ref: https://github.com/Klipper3d/klipper/blob/cc63fd51b226f86aa684342241c20e2e2b84f8da/klippy/extras/manual_stepper.py#L14
-then there's some helper methods to emulate a toolhead in ManualStepper
-    Ref: https://github.com/Klipper3d/klipper/blob/cc63fd51b226f86aa684342241c20e2e2b84f8da/klippy/extras/manual_stepper.py#L106
-that virtual "toolhead" is passed into the homing move
-    Ref: https://github.com/Klipper3d/klipper/blob/cc63fd51b226f86aa684342241c20e2e2b84f8da/klippy/extras/manual_stepper.py#L83
-you would need to write a component like "ExtruderHoming" that wraps the original Extruder
-    Extruder kinmatics: https://github.com/Klipper3d/klipper/blob/master/klippy/kinematics/extruder.py
-implement the necessary methods to be a toolhead object for homing moves
-and then register a custom homing command
-maybe 30 lines of python
+# Original idea at: https://discord.com/channels/627982902738681876/1046618170993160202/1046808809894588457
+# Relevatn issue: https://gitlab.com/pipettin-bot/pipettin-grbl/-/issues/47#note_1215525244
+# Module distributed under the terms of the GNU GPL v3 licence.
+#
+#
+# This class loads the stepper of the active extruder and performs homing on it.
+# It is inspired by the manual_stepper module.
+# A config section is required to activate it, and a command must be sent to use it.
+# The module requires a modification in "extruder.py", which will create the extruder
+# stepper from the PrinterRail class, instead of the PrinterStepper class, when an
+# "endstop_pin" is defined in the extruder's config.
+#
+# See "config/configs-pipetting-bot/configs-mainsail/printer.cfg" for an example config.
 
-Q: where does this code go? A manual stepper is defined in "extras", perhaps loaded by this code: https://github.com/Klipper3d/klipper/blob/b026f1d2c975604a0ea7ff939f4c36ef3df80a41/klippy/klippy.py#L108
-
-It's meant to go in a new file in extras.
-You'll have to instantiate a new Endstop instance somewhere (to replace [mcu_endstop]).
-
-Same project here: https://discord.com/channels/431557959978450984/801826273227177984/1022232355705999391
-    I'm adding the extruder stepper to the probe endstop's steppers, then sending a Homing.probing_move that moves the E axis until the probe endstop triggers
-    Then I'm extending the logic in homing.homing_move to update the E position correctly based on the halt_steps / trig_steps similar to how it handles XYZ
-    I seem to have it working except I get an internal flush_handler error for the first move after my probing_move
-    Kevin: Not sure.  As a guess, double check that you are resetting the position throughout the entire chain - for example,
-        by raising a "toolhead:manual_move" event.  It does seem as if the e stepper position has changed and something hasn't 
-        been notified of its new position.
-    Ooh wait, get_mcu_position is not actually callling any ffi stuff so I kinda shouldn't trust it huh...
-        ehh nope, using get_past_mcu_position gives the same answers 
-    Found it, the extruder trapq position wasn't being updated. Homing the E axis works flawlessly now
-
-
-Kevin: The "internal error in stepcompress" is just a cascading error.  The root cause is "move queue overflow".
-
-"""
 import stepper, chelper, logging
 from toolhead import Move
 from collections import namedtuple
