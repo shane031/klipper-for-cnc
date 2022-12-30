@@ -359,8 +359,6 @@ class ExtruderHoming:
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
         #       This now happens only during the first homing move, but not on the second attempt.
         # TODO: A "timer" error appears during homing if an XYZ move is was done just before.
-        # TODO: Spooky! if the X axis is moved a bit, and then the carriage is homed, the X axis is homed too!
-        #       This also happens with the Y axis. Setting kinematic position to 0 prevents the issue.
         # TODO: After the first homing attempt, the carriage barely gets to the endstop. Check move coords.
         self.move_toolhead_drip(newpos, speed, drip_completion)
 
