@@ -358,7 +358,6 @@ class ExtruderHoming:
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
         #       This now happens only during the first homing move, but not on the second attempt.
-        # TODO: After the first homing attempt, the carriage barely gets to the endstop. Check move coords.
         self.move_toolhead_drip(newpos, speed, drip_completion)
 
         # NOTE: option 4, out of ideas.
@@ -472,6 +471,7 @@ class ExtruderHoming:
         # NOTE: I can simply call "set_position" from the toolhead. This is expected for a
         #       complete regular homing move, and shouldnt hurt either.
         self.toolhead.set_position(pos)
+        logging.info(f"\n\nset_position: final TH position={str(self.toolhead.get_position())}\n\n")
         pass
     
     def calc_position(self, stepper_positions):
