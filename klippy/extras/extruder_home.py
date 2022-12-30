@@ -386,7 +386,7 @@ class ExtruderHoming:
         e_pos = self.rail.get_commanded_position()      # NOTE: option 1
         # e_pos = self.extruder.last_position           # NOTE: option 2
 
-        pos = [0., 0., 0., e_pos]
+        pos = self.th_orig_pos[:3] + [e_pos]
         logging.info(f"\n\nget_position output: {str(pos)}\n\n")
         return pos
     
