@@ -93,8 +93,8 @@ class ExtruderHoming:
         # NOTE: get homing information, speed and move coordinate.
         homing_info = self.rail.get_homing_info()
         speed = homing_info.speed
-        pos = [0.0, 0.0, 0.0, None]
-        pos[3] = self.get_movepos(homing_info)
+        # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
+        pos = self.th_orig_pos[:3] + [self.get_movepos(homing_info)]
         
         # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
