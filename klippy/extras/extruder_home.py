@@ -358,7 +358,6 @@ class ExtruderHoming:
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
         #       This now happens only during the first homing move, but not on the second attempt.
-        # TODO: A "timer" error appears during homing if an XYZ move is was done just before.
         # TODO: After the first homing attempt, the carriage barely gets to the endstop. Check move coords.
         self.move_toolhead_drip(newpos, speed, drip_completion)
 
@@ -423,8 +422,9 @@ class ExtruderHoming:
         # TODO: changing this affects the sencond stepper move after homing. Find out why.
         #       Using newpos[0] always showed the second move. Using newpos[3] only shows
         #       a second move the first time.
-        # newpos_e = newpos[0]  # kin.calc_position(kin_spos) / haltpos (at homing.py)
-        newpos_e = newpos[3]    # rail.get_commanded_position
+        # newpos_e = newpos[0]    # kin.calc_position(kin_spos) / haltpos (at homing.py)
+        # newpos_e = newpos[3]    # rail.get_commanded_position
+        newpos_e = 0.0          # just zero
 
         # NOTE: Log stuff
         logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
