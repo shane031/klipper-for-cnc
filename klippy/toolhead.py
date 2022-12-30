@@ -299,18 +299,24 @@ class ToolHead:
         # NOTE: called by "flush_step_generation", "_process_moves", 
         #       "dwell", and "_update_drip_move_time".
         # NOTE: This function updates "self.print_time" directly.
+        #       It updates "self.print_time" until it is greater than
+        #       the provided "next_print_time".
         kin_flush_delay = self.kin_flush_delay
         lkft = self.last_kin_flush_time
+        # TODO: I don't yet understand what the loop is meant to accomplish.
         while 1:
             self.print_time = min(self.print_time + batch_time, next_print_time)
             sg_flush_time = max(lkft, self.print_time - kin_flush_delay)
             for sg in self.step_generators:
+                # NOTE: this list has been populated with "generate_steps" functions,
+                #       one per stepper. Those in turn end up calling "ffi_lib.itersolve_generate_steps"
+                #       which it meant to "Generate step times for a range of moves on the trapq".
                 sg(sg_flush_time)
             free_time = max(lkft, sg_flush_time - kin_flush_delay)
             
-            # NOTE: Update move times on the toolhead; meaning:
-            #           Expire any moves older than `free_time` from
-            #           the trapezoid velocity queue (see trapq.c).
+            # NOTE: Update move times on the toolhead, meaning:
+            #           "Expire any moves older than `free_time` from
+            #           the trapezoid velocity queue" (see trapq.c).
             self.trapq_finalize_moves(self.trapq, free_time)
             
             # NOTE: Update move times on the toolhead;
@@ -319,7 +325,7 @@ class ToolHead:
 
             mcu_flush_time = max(lkft, sg_flush_time - self.move_flush_time)
             for m in self.all_mcus:
-                # NOTE: This may find and transmit any scheduled steps 
+                # NOTE: The following may find and transmit any scheduled steps 
                 #       prior to the given 'mcu_flush_time' (see stepcompress.c).
                 m.flush_moves(mcu_flush_time)
             if self.print_time >= next_print_time:

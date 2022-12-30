@@ -219,7 +219,7 @@ class MCU_stepper:
                 self._active_callbacks = []
                 for cb in cbs:
                     cb(ret)
-        # Generate steps
+        # Generate step times for a range of moves on the trapq
         sk = self._stepper_kinematics
         ret = self._itersolve_generate_steps(sk, flush_time)
         if ret:
