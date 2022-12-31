@@ -357,7 +357,6 @@ class ExtruderHoming:
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
-        #       This now happens only during the first homing move, but not on the second attempt.
         self.move_toolhead_drip(newpos, speed, drip_completion)
 
         # NOTE: option 4, out of ideas.
@@ -441,7 +440,8 @@ class ExtruderHoming:
         # logging.info(f"\n\nset_position output: {str(coord)}\n\n")
         # self.rail.set_position(coord)
 
-        # NOTE: update extruder position, code adapted from "set_position" in toolhead.py
+        # NOTE: update extruder position, 
+        #       code adapted from "set_position" in toolhead.py.
         self.toolhead.flush_step_generation()  # NOTE: runs trapq_finalize_moves on the extruder's trapq too.
         ffi_main, ffi_lib = chelper.get_ffi()
         # NOTE: Dice "// Note a position change in the trapq history" en "trapq.c".
@@ -479,8 +479,8 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by HomingMove.calc_toolhead_pos
         """
-        # TODO: What should I do here? Testing manual_stepper code directly.
-        #       This is also very similar to the CartKinematics method.
+        # TODO: What should I do here?
+        #       The manual_stepper code is similar to the CartKinematics method.
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.

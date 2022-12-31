@@ -113,6 +113,9 @@ class HomingMove:
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
         
+        # NOTE: "Tracking of stepper positions during a homing/probing move"
+        #       Build a "StepperPosition" class for each of the steppers
+        #       associated to each endstop.
         self.stepper_positions = [ StepperPosition(s, name)
                                    for es, name in self.endstops
                                    for s in es.get_steppers() ]
@@ -165,7 +168,14 @@ class HomingMove:
         self.toolhead.flush_step_generation()
         for sp in self.stepper_positions:
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
+            # NOTE: Get and set halt position from `stepper.get_mcu_position`,
+            #       and trigger position from `stepper.get_past_mcu_position(trigger_time)`
+            #       in each StepperPosition class.
             sp.note_home_end(tt)
+        
+        # NOTE: calculate halting position from "oversteps" after triggering.
+        #       This chunk was added in commit:
+        #       https://github.com/Klipper3d/klipper/commit/3814a13251aeca044f6dbbccda706263040e1bec
         if probe_pos:
             halt_steps = {sp.stepper_name: sp.halt_pos - sp.start_pos
                           for sp in self.stepper_positions}
@@ -178,17 +188,32 @@ class HomingMove:
                                                  offsets=halt_steps)
         else:
             haltpos = trigpos = movepos
+            # NOTE: calculate "oversteps" after triggering, for each
+            #       StepperPosition class.
             over_steps = {sp.stepper_name: sp.halt_pos - sp.trig_pos
                           for sp in self.stepper_positions}
             if any(over_steps.values()):
-                self.toolhead.set_position(movepos)  # [0.0, 0.0, 0.0, 150.0]
+                # NOTE: set_position: output=[0.0, 0.0, 0.0, 0.0]
+                self.toolhead.set_position(movepos)
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
+                
+                # NOTE: calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': 399}
+                # NOTE: calc_toolhead_pos output: [1.995, 0.0, 0.0, 0.0]
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
                                                  offsets=over_steps)
+
+        # NOTE: set the toolhead position to the (corrected) halting position.
+        #           set_position: input=[1.995, 0.0, 0.0, 0.0] homing_axes=()
         self.toolhead.set_position(haltpos)
+        
         # Signal homing/probing move complete
         try:
+            # NOTE: event received by:
+            #       - homing_heaters.py
+            #       - probe.py
+            #       - tmc.py
+            #       Probably not relevant to extruder homing.
             self.printer.send_event("homing:homing_move_end", self)
         except self.printer.command_error as e:
             if error is None:
