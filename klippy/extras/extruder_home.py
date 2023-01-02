@@ -400,7 +400,10 @@ class ExtruderHoming:
         #       for to know if all of the endstops have been triggered yet.
 
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
-        # TODO: Couldn't debug "Timer too close" nor "flush_handler" errors (at or after homing).
+        # TODO: Seems to work, but it blocks all movement after the home for some time.
+        #       The problem stems from a "next print time" set too far in the future,
+        #       probably proportional to the expected time the move takes (~displacement/speed).
+        #       Can be mitigated with fast homing. Seems to work flawlessly.
         self.move_toolhead_manual(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
