@@ -93,10 +93,10 @@ class ExtruderHoming:
         self.th_orig_pos = self.toolhead.get_position()
 
         # NOTE: get homing information, speed and move coordinate.
-        homing_info = self.rail.get_homing_info()
-        speed = homing_info.speed
+        self.homing_info = self.rail.get_homing_info()
+        speed = self.homing_info.speed
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
-        pos = self.th_orig_pos[:3] + [self.get_movepos(homing_info)]
+        pos = self.th_orig_pos[:3] + [self.get_movepos(self.homing_info)]
         
         # NOTE: force extruder to a "0.0" starting position
         startpos = self.th_orig_pos[:3] + [0.0]
@@ -393,7 +393,9 @@ class ExtruderHoming:
         """
         # NOTE: try brute force?
         force_move = self.printer.lookup_object("force_move")
-        self.stepper = force_move.manual_move(self.stepper, dist=10.0, speed=speed, accel=100.0)
+        pos = -50.0
+        logging.info(f"\n\nmove_forced: force-moving a distance of {str(pos)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+        self.stepper = force_move.manual_move(self.stepper, dist=pos, speed=speed, accel=100.0)
 
 
     def drip_move(self, newpos, speed, drip_completion):
@@ -413,8 +415,9 @@ class ExtruderHoming:
         # self.move_toolhead_manual(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
-        # TODO: Fails after homing with "Exception in flush_handler" / "Invalid sequence".
-        self.move_extruder(newpos, speed, drip_completion)
+        # TODO: Now it seems to work, but it blocks all movement after the home for some time.
+        #       This is the same issue seen for "move_toolhead_manual".
+        #self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
@@ -422,7 +425,7 @@ class ExtruderHoming:
 
         # NOTE: option 4, out of ideas.
         #       This works flawlessly.
-        # self.move_forced(newpos, speed, drip_completion)
+        self.move_forced(newpos, speed, drip_completion)
 
         # NOTE: option 5, use the "move" method from the ToolHead class.
         # TODO: Couldn't debug "Timer too close" nor "flush_handler" errors (at or after homing).
