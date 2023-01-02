@@ -38,6 +38,8 @@ class ExtruderHoming:
         self.gcmd = None
         self.th_orig_pos = None
 
+        self.corrected_e_pos = None
+
         self.HOMING_DELAY = 0.001
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
@@ -148,6 +150,10 @@ class ExtruderHoming:
         #       Might interfere with extruder move?
         # gcode_move = self.printer.lookup_object('gcode_move')
         # gcode_move.reset_last_position()
+
+        # NOTE: finally, reset "self.corrected_e_pos = None" for a 
+        #       future homing move.
+        self.corrected_e_pos = None
 
     def get_movepos(self, homing_info):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
@@ -435,6 +441,11 @@ class ExtruderHoming:
         Called by:
             -   HomingMove.homing_move
         """
+        
+        # NOTE: Log stuff
+        logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
+        logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
+
         # TODO: What should I do here?
         # NOTE: I am assuming that the "set_position" applies to steppers.
         #       by tracing calls to the "set_position" method in MCU_stepper.
@@ -460,28 +471,42 @@ class ExtruderHoming:
         #       only update the remaining extruder component using the toolhead.set_position
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
-        # NOTE: set_position is called "twice":
-        #       -   The first is set to "movepos": [0.0, 0.0, 0.0, -110.0]
-        #       -   The second is set to "haltpos": [-1.420625, 0.0, 0.0, 0.0]
-        #       The extruder information is, at first, in the last position, 
-        #       and is equal to the output from "get_movepos".
-        #       Then it is in the first position, and is the "corrected" position.
+        # NOTE: This "set_position" is called three times:
+        #       -   The first (above) it receives "startpos": [0.0, 0.0, 0.0, 0.0]  (only the E axis really, the rest is left as it was).
+        #       -   The second it receives "movepos": [0.0, 0.0, 0.0, -110.0]  (before overstep correction).
+        #       -   The third it receives "haltpos": [-1.420625, 0.0, 0.0, -110.0]  (after overstep correction).
+        #       The extruder information is, at first and second times, in the last position, 
+        #       and is equal to "0" or the output from "get_movepos", respectively.
+        #       However, the third time it is in the first position, and corresponds
+        #       to the "corrected" position.
+        #       This must be so because "calc_toolhead_pos" (a HomingMove method) receives
+        #       the output from "calc_position" below, only keeping the first three elements
+        #       (overwritting the fourth with the fourth element of get_position).
         
-        # TODO: changing this affects the sencond stepper move after homing. Find out why.
-        #       Using newpos[0] always showed the second move. Using newpos[3] only shows
-        #       a second move the first time.
-        # newpos_e = newpos[0]    # haltpos=calc_toolhead_pos (at homing.py), example values: [1.995, 0.0, 0.0, 0.0] 
-        # newpos_e = newpos[3]    # rail.get_commanded_position (calls ffi_lib.itersolve_get_commanded_pos at stepper.py)
-        newpos_e = 0.0          # just zero
-        # ! Forcing "0" here means that the corrected "haltpos" is ignored.
+        # TODO: changing this affects the sencond stepper move after homing. Find out how/why.
+        # ! Forcing "0" here means that the corrected "haltpos" is ignored in the "second" call.
+        # newpos_e = newpos[0]
+        # newpos_e = newpos[3]
+        # newpos_e = 0.0
+        # NOTE: to get the 1st element of the vector after calc_toolhead_pos has run,
+        #       i check if a correction has been calculated.
+        if self.corrected_e_pos is None:
+            # NOTE: use the fourth element by default.
+            newpos_e = newpos[3]
+        else:
+            # NOTE: otherwise, a correction has been made, meaning
+            #       that we are parsing the output from "calc_toolhead_pos",
+            #       and the correct "newpos_e" is in the first element.
+            newpos_e = newpos[0]             # Option 1
+            #newpos_e = self.corrected_e_pos  # Option 2
+        
+        # NOTE: setup the final new position vector
+        pos = self.th_orig_pos[:3] + [newpos_e]
         
         # NOTE: Log stuff
-        logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
-        logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
-        pos = self.th_orig_pos[:3] + [newpos_e]
         logging.info(f"\n\nset_position: output={str(pos)}\n\n")
 
-        # TODO: I need to update the "E" queue somehow.
+        # TODO: I now need to update the "E" queue somehow.
         #       When switching extruder steppers, the Extruder class uses the set_position
         #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
         #       Thus, I need a three element list, where the first element is the updated position.
@@ -539,14 +564,18 @@ class ExtruderHoming:
         Virtual toolhead method.
         Called by HomingMove.calc_toolhead_pos
         """
+        
+        logging.info(f"\n\ncalc_position input stepper_positions={str(stepper_positions)}\n\n")
+        
         # TODO: What should I do here?
         #       The manual_stepper code is similar to the CartKinematics method.
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class.
-        # NOTE: This code was grabbed from the cartesian.py calc_position method.
-        pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        logging.info(f"\n\ncalc_position input stepper_positions={str(stepper_positions)}\n\n")
+        # NOTE: This code was grabbed from the cartesian.py "calc_position" method.
+        self.corrected_e_pos = stepper_positions[self.rail.get_name()]
+        pos = [self.corrected_e_pos, 0., 0.]
+
         logging.info(f"\n\ncalc_position return pos={str(pos)}\n\n")
         return pos
 
