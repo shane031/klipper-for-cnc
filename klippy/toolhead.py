@@ -705,9 +705,9 @@ class ToolHead:
             #self.printer.send_event("toolhead:trapq_finalize_extruder_drip_moves", 
             #                        self.reactor.NEVER, self.extruder.name)
             # NOTE: Alternatively, use the "update_move_time" of the extruder object.
-            #       Wether it will mess with XYZ-only homing or not remains to be seen.
             #       This function calls "trapq_finalize_moves(self.trapq, flush_time)"
             #       on the extruder's trapq.
+            # TODO: Whether it will mess with XYZ-only homing or not remains to be tested.
             self.extruder.update_move_time(flush_time=self.reactor.NEVER)
         
         # Exit "Drip" state

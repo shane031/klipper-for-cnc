@@ -60,26 +60,25 @@ class ExtruderHoming:
                                    self.extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
         
-        # NOTE: setup event handler to "finalize" the extruder trapq after
-        #       a drip move, but before the "flush_step_generation" call.
-        ffi_main, ffi_lib = chelper.get_ffi()
-        self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
-        self.printer.register_event_handler("toolhead:trapq_finalize_extruder_drip_moves",
-                                            self.handle_drip_move_end)
-        
         logging.info(f"\n\nExtruderHoming: init complete\n\n")
+
+        # # NOTE: setup event handler to "finalize" the extruder trapq after
+        # #       a drip move, but before the "flush_step_generation" call.
+        # ffi_main, ffi_lib = chelper.get_ffi()
+        # self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        # self.printer.register_event_handler("toolhead:trapq_finalize_extruder_drip_moves",
+        #                                     self.handle_drip_move_end)
     
-    # NOTE: This must only execute in the "right" context (i.e. during extruder homing
-    #       and not duting regular XYZ homing; at least until I test otherwise).
-    def handle_drip_move_end(self, never_time, extruder_name):
-        if (self.homing is True) and (extruder_name == self.extruder_name):
-            logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: calling trapq_finalize_moves on '{extruder_name}'\n\n")
-            self.trapq_finalize_moves(self.extruder_trapq, never_time)
-        else:
-            # NOTE: this will fire either on other instances of "ExtruderHoming",
-            #       or also out of place, during homing of other axis.
-            logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: skipped out of context trapq_finalize_moves \n\n")
-    
+    # # NOTE: This must only execute in the "right" context (i.e. during extruder homing
+    # #       and not duting regular XYZ homing; at least until I test otherwise).
+    # def handle_drip_move_end(self, never_time, extruder_name):
+    #     if (self.homing is True) and (extruder_name == self.extruder_name):
+    #         logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: calling trapq_finalize_moves on '{extruder_name}'\n\n")
+    #         self.trapq_finalize_moves(self.extruder_trapq, never_time)
+    #     else:
+    #         # NOTE: this will fire either on other instances of "ExtruderHoming",
+    #         #       or also out of place, during homing of other axis.
+    #         logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: skipped out of context trapq_finalize_moves \n\n")
     
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
