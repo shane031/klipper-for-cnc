@@ -129,29 +129,53 @@ class MCU_stepper:
         ffi_main, ffi_lib = chelper.get_ffi()
         return ffi_lib.itersolve_calc_position_from_coord(
             self._stepper_kinematics, coord[0], coord[1], coord[2])
+    
     def set_position(self, coord):
+        # NOTE: reads current position from "get_commanded_position()",
+        #       adds the "_mcu_position_offset" and converts to position
+        #       dividing by "_step_dist".
         mcu_pos = self.get_mcu_position()
+
         sk = self._stepper_kinematics
         ffi_main, ffi_lib = chelper.get_ffi()
+
+        # NOTE: "itersolve_set_position" sets "sk->commanded_pos" (at itersolve.c)
         ffi_lib.itersolve_set_position(sk, coord[0], coord[1], coord[2])
+
+        # NOTE: "_set_mcu_position" uses "self.get_commanded_position" 
+        #       and "itersolve_get_commanded_pos" to read "sk->commanded_pos" 
+        #       (at itersolve.c), which has just been set above,
+        #       and updates "self._mcu_position_offset".
         self._set_mcu_position(mcu_pos)
+    
     def get_commanded_position(self):
         ffi_main, ffi_lib = chelper.get_ffi()
+        # NOTE: This probably reads the position previously
+        #       set by "set_position"/"itersolve_set_position"
         return ffi_lib.itersolve_get_commanded_pos(self._stepper_kinematics)
+    
     def get_mcu_position(self):
         mcu_pos_dist = self.get_commanded_position() + self._mcu_position_offset
         mcu_pos = mcu_pos_dist / self._step_dist
+        # TODO: find out what "0.5" means:
         if mcu_pos >= 0.:
             return int(mcu_pos + 0.5)
         return int(mcu_pos - 0.5)
+    
     def _set_mcu_position(self, mcu_pos):
         mcu_pos_dist = mcu_pos * self._step_dist
+        # TODO: find out what "self._mcu_position_offset" is.
+        # NOTE: "get_commanded_position" reads "sk->commanded_pos" using
+        #       the "itersolve_get_commanded_pos" function (at itersolve.c)
         self._mcu_position_offset = mcu_pos_dist - self.get_commanded_position()
+    
     def get_past_mcu_position(self, print_time):
         clock = self._mcu.print_time_to_clock(print_time)
         ffi_main, ffi_lib = chelper.get_ffi()
+        # NOTE: "Search history of moves to find a past position at a given clock"
         pos = ffi_lib.stepcompress_find_past_position(self._stepqueue, clock)
         return int(pos)
+    
     def mcu_to_commanded_position(self, mcu_pos):
         return mcu_pos * self._step_dist - self._mcu_position_offset
     def dump_steps(self, count, start_clock, end_clock):
@@ -171,8 +195,13 @@ class MCU_stepper:
         self.set_trapq(self._trapq)
         self._set_mcu_position(mcu_pos)
         return old_sk
+    
     def note_homing_end(self):
+
         ffi_main, ffi_lib = chelper.get_ffi()
+        # NOTE: - stepcompress_reset:   "Reset the internal state of the stepcompress object"
+        #       - stepcompress_flush:   "Flush pending steps"
+        #       - queue_flush:          "Convert previously scheduled steps into commands for the mcu"
         ret = ffi_lib.stepcompress_reset(self._stepqueue, 0)
         if ret:
             raise error("Internal error in stepcompress")
@@ -181,6 +210,7 @@ class MCU_stepper:
         if ret:
             raise error("Internal error in stepcompress")
         self._query_mcu_position()
+    
     def _query_mcu_position(self):
         if self._mcu.is_fileoutput():
             return

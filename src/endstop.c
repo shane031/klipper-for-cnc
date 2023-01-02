@@ -77,21 +77,22 @@ command_endstop_home(uint32_t *args)
 {
     struct endstop *e = oid_lookup(args[0], command_config_endstop);
     sched_del_timer(&e->time);
-    e->time.waketime = args[1];
-    e->sample_time = args[2];
-    e->sample_count = args[3];
+    e->time.waketime = args[1]; // clock
+    e->sample_time = args[2];   // sample_ticks
+    e->sample_count = args[3];  // sample_count
     if (!e->sample_count) {
         // Disable end stop checking
         e->ts = NULL;
         e->flags = 0;
         return;
     }
-    e->rest_time = args[4];
+    e->rest_time = args[4];                                 // rest_ticks
+    // Timer callback for an end stop (defined above).
     e->time.func = endstop_event;
     e->trigger_count = e->sample_count;
-    e->flags = ESF_HOMING | (args[5] ? ESF_PIN_HIGH : 0);
-    e->ts = trsync_oid_lookup(args[6]);
-    e->trigger_reason = args[7];
+    e->flags = ESF_HOMING | (args[5] ? ESF_PIN_HIGH : 0);   // pin_value
+    e->ts = trsync_oid_lookup(args[6]);                     // trsync_oid
+    e->trigger_reason = args[7];                            // trigger_reason
     sched_add_timer(&e->time);
 }
 DECL_COMMAND(command_endstop_home,

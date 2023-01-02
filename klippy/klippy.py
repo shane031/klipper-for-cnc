@@ -399,7 +399,13 @@ def main():
             bglogger.clear_rollover_info()
             bglogger.set_rollover_info('versions', versions)
         gc.collect()
+
+        # NOTE: from the docs... "the global "event reactor" class.
+        #       This reactor class allows one to schedule timers, 
+        #       wait for input on file descriptors, and to "sleep" 
+        #       the host code."
         main_reactor = reactor.Reactor(gc_checking=True)
+        
         printer = Printer(main_reactor, bglogger, start_args)
         res = printer.run()
         if res in ['exit', 'error_exit']:

@@ -34,7 +34,12 @@ class StepperPosition:
         self.start_pos = stepper.get_mcu_position()
         self.halt_pos = self.trig_pos = None
     def note_home_end(self, trigger_time):
+        # NOTE: method called by "homing_move" to determine halt/trig positions.
+
+        # NOTE: uses "itersolve_get_commanded_pos" to read "sk->commanded_pos" (at itersolve.c)
         self.halt_pos = self.stepper.get_mcu_position()
+        # NOTE: uses "stepcompress_find_past_position" to:
+        #       "Search history of moves to find a past position at a given clock"
         self.trig_pos = self.stepper.get_past_mcu_position(trigger_time)
 
 # Implementation of homing/probing moves
@@ -74,27 +79,45 @@ class HomingMove:
         if max_steps <= 0.:
             return .001
         return move_t / max_steps
+    
     def calc_toolhead_pos(self, kin_spos, offsets):
-        # NOTE: the "kin_spos" received here has "old" values, from
-        #       before sending the move command. For example:
-        #       calc_toolhead_pos input: kin_spos={'extruder1': 3.3249999999999402} offsets={'extruder1': 270}
+        # NOTE: the "kin_spos" received here has values from the
+        #       "halting" position, before "oversteps" are corrected.
+        #       For example:
+        #           calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': 399}
+        # NOTE: "offsets" are probably in "step" units.
         kin_spos = dict(kin_spos)
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
         kin = self.toolhead.get_kinematics()
         for stepper in kin.get_steppers():
             sname = stepper.get_name()
+            # NOTE: update the stepper positions by converting the "offset" steps
+            #       to "mm" units and adding them to the original "halting" position.
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
         
         # NOTE: this call to get_position is only used to acquire the extruder
         #       position, and append it to XYZ components below.
-        thpos = self.toolhead.get_position()  # NOTE example: [0.0, 0.0, 0.0, 3.3249999999999402]
+        #       Example:
+        #           thpos=[0.0, 0.0, 0.0, 3.3249999999999402]
+        thpos = self.toolhead.get_position()
 
-        result = list(kin.calc_position(kin_spos))[:3] + thpos[3:]
+        # NOTE: The "calc_position" iterates over the rails in the (cartesian)
+        #       kinematics and selects "stepper_positions" with matching names.
+        #       Perhaps other kinematics do something more elaborate.
+        # NOTE: Elements 1-3 from the output are combined with element 4 from "thpos".
+        #       This is likely because the 4th element is the extruder, which is not
+        #       normally "homeable". So the last position is re-used to form the
+        #       updated toolhead position vector.
+        result = list(kin.calc_position(stepper_positions=kin_spos))[:3] + thpos[3:]
         
-        # NOTE example: calc_toolhead_pos output=[4.67499999999994, 0.0, 0.0, 3.3249999999999402]
+        # NOTE: example:
+        #       calc_toolhead_pos output=[4.67499999999994, 0.0, 0.0, 3.3249999999999402]
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
 
+        # NOTE: this "result" is used to override "haltpos" below, which
+        #       is then passed to "toolhead.set_position".
         return result
+    
     def homing_move(self, movepos, speed, probe_pos=False,
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move
@@ -126,6 +149,8 @@ class HomingMove:
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
                                                 movepos=movepos,  # [0.0, 0.0, 0.0, 150.0]
                                                 speed=speed)
+            # NOTE: "wait" is a "reactor.completion" object, returned by
+            #       the "home_start" method of "MCU_endstop" (at mcu.py)
             wait = mcu_endstop.home_start(print_time=print_time, 
                                           sample_time=ENDSTOP_SAMPLE_TIME,
                                           sample_count=ENDSTOP_SAMPLE_COUNT, 
@@ -149,14 +174,18 @@ class HomingMove:
             #       See: https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
             self.toolhead.drip_move(newpos=movepos,  # [0.0, 0.0, 0.0, 150.0]
                                     speed=speed, 
+                                    # NOTE: "all_endstop_trigger" is probably made from
+                                    #       the "reactor.completion" objects above.
                                     drip_completion=all_endstop_trigger)
         except self.printer.command_error as e:
             error = "Error during homing move: %s" % (str(e),)
         
         # Wait for endstops to trigger
         trigger_times = {}
+        # TODO: find out if something about "get_last_move_time" is specific to the toolhaed (adn does not apply to the extruder).
         move_end_print_time = self.toolhead.get_last_move_time()
         for mcu_endstop, name in self.endstops:
+            # NOTE: calls the "home_wait" method from "MCU_endstop".
             trigger_time = mcu_endstop.home_wait(move_end_print_time)
             if trigger_time > 0.:
                 trigger_times[name] = trigger_time
@@ -164,13 +193,19 @@ class HomingMove:
                 error = "Communication timeout during homing %s" % (name,)
             elif check_triggered and error is None:
                 error = "No trigger on %s after full movement" % (name,)
+        
         # Determine stepper halt positions
+        # NOTE: "flush_step_generation" calls "flush" on the MoveQueue,
+        #       and "_update_move_time" (which updates "self.print_time"
+        #       and calls "trapq_finalize_moves").
         self.toolhead.flush_step_generation()
+        
         for sp in self.stepper_positions:
+            # NOTE: get the time of endstop triggering
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
-            # NOTE: Get and set halt position from `stepper.get_mcu_position`,
-            #       and trigger position from `stepper.get_past_mcu_position(trigger_time)`
-            #       in each StepperPosition class.
+            # NOTE: Record halt position from `stepper.get_mcu_position`,
+            #       and trigger position from `stepper.get_past_mcu_position(tt)`
+            #       in each StepperPosition class. This information is used below.
             sp.note_home_end(tt)
         
         # NOTE: calculate halting position from "oversteps" after triggering.
@@ -193,8 +228,20 @@ class HomingMove:
             over_steps = {sp.stepper_name: sp.halt_pos - sp.trig_pos
                           for sp in self.stepper_positions}
             if any(over_steps.values()):
-                # NOTE: set_position: output=[0.0, 0.0, 0.0, 0.0]
+                # NOTE: "set_position" calls "flush_step_generation", and
+                #       then uses "trapq_set_position" to write the position.
+                #       It updates "commanded_pos" on the toolhead, and uses
+                #       the "set_position" of the kinematics object (which 
+                #       uses the set_position method of the rails/steppers).
+                #       It ends by emittig a "toolhead:set_position" event.
                 self.toolhead.set_position(movepos)
+                # NOTE: from the "extruder_home" logs:
+                #           set_position: input:  [0.0, 0.0, 0.0, 150.0] homing_axes=()
+                #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
+                
+                # NOTE: uses "ffi_lib.itersolve_get_commanded_pos",
+                #       probably reads the position previously set by
+                #       "stepper.set_position" / "itersolve_set_position".
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
                 
@@ -204,7 +251,11 @@ class HomingMove:
                                                  offsets=over_steps)
 
         # NOTE: set the toolhead position to the (corrected) halting position.
+        # NOTE: for extruder_home this could be:
         #           set_position: input=[1.995, 0.0, 0.0, 0.0] homing_axes=()
+        #       The fourt element comes from "newpos_e" in the call to 
+        #       "toolhead.set_position" above. The first element is the corrected
+        #       "halt" position.
         self.toolhead.set_position(haltpos)
         
         # Signal homing/probing move complete

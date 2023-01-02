@@ -79,9 +79,16 @@ class ManualStepper:
             raise self.printer.command_error(
                 "No endstop for this manual stepper")
         self.homing_accel = accel
+        # NOTE: "movepos" is provided by the user.
         pos = [movepos, 0., 0., 0.]
+        # NOTE: this returns "MCU_endstop" objects.
         endstops = self.rail.get_endstops()
+        # NOTE: this looks up a "PrinterHoming" object.
         phoming = self.printer.lookup_object('homing')
+        # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
+        #       The method instantiates a "HomingMove" class by passing it the
+        #       "endstops" and "toolhead" objects. Here, the "self" object is passed
+        #       as a "virtual toolhead"
         phoming.manual_home(self, endstops, pos, speed,
                             triggered, check_trigger)
     cmd_MANUAL_STEPPER_help = "Command a manually configured stepper"
@@ -107,6 +114,12 @@ class ManualStepper:
             self.sync_print_time()
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
+        # NOTE: this is the first function called by "homing_move",
+        #       before "noting start location". It is also called
+        #       bedore "determining the stepper halt positions".
+        # NOTE: It either sets "self.next_cmd_time" to the value
+        #       of "toolhead.get_last_move_time" or sends a dwell 
+        #       command.
         self.sync_print_time()
     def get_position(self):
         return [self.rail.get_commanded_position(), 0., 0., 0.]

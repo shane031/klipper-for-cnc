@@ -130,7 +130,11 @@ class ExtruderHoming:
         # TODO: consider using those alternative methods.
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
+                            # NOTE: argument passed to "mcu_endstop.home_start",
+                            #       and used directly in the low-level command.
                             triggered=True, 
+                            # NOTE: if True, an "error" is recorded when the move
+                            #       completes without the endstop triggering.
                             check_triggered=True)
 
         # NOTE: Update positions in gcode_move, fixes inaccurate first
@@ -173,7 +177,7 @@ class ExtruderHoming:
             -   HomingMove.homing_move
 
         """
-        # TEST: passes extruder stepper
+        # TEST: passes extruder stepper (list)
         return self.steppers
     
     # TODO: Is this method from manual_stepper required?
@@ -416,14 +420,19 @@ class ExtruderHoming:
         #       only update the remaining extruder component using the toolhead.set_position
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
+        # NOTE:
+        #       -   The "negative"/"retract" E direction is currently "downwards".
+        #       -   The "positive"/"extrude" E direction is currently "upwards".
+        #       -   The axis is currently homing "upwards" (to the "positive" direction).
         
         # TODO: changing this affects the sencond stepper move after homing. Find out why.
         #       Using newpos[0] always showed the second move. Using newpos[3] only shows
         #       a second move the first time.
-        # newpos_e = newpos[0]    # kin.calc_position(kin_spos) / haltpos (at homing.py)
-        # newpos_e = newpos[3]    # rail.get_commanded_position
+        # newpos_e = newpos[0]    # haltpos=calc_toolhead_pos (at homing.py), example values: [1.995, 0.0, 0.0, 0.0] 
+        # newpos_e = newpos[3]    # rail.get_commanded_position (calls ffi_lib.itersolve_get_commanded_pos at stepper.py)
         newpos_e = 0.0          # just zero
-
+        # ! Forcing "0" here means that the corrected "haltpos" is ignored.
+        
         # NOTE: Log stuff
         logging.info(f"\n\nset_position: input={str(newpos)} homing_axes={str(homing_axes)}\n\n")
         logging.info(f"\n\nset_position: old TH position={str(self.th_orig_pos)}\n\n")
@@ -440,21 +449,27 @@ class ExtruderHoming:
         # logging.info(f"\n\nset_position output: {str(coord)}\n\n")
         # self.rail.set_position(coord)
 
-        # NOTE: update extruder position, 
-        #       code adapted from "set_position" in toolhead.py.
-        self.toolhead.flush_step_generation()  # NOTE: runs trapq_finalize_moves on the extruder's trapq too.
+        # NOTE: The next line from toolhead.py is: "self.flush_step_generation()"
+        #       Update extruder position, code adapted from "set_position" in toolhead.py.
+        # NOTE: The "flush_step_generation" toolhead method runs
+        #       "trapq_finalize_moves" on the extruder's "trapq" as well.
+        #       No need to do it here, hopefully.
+        self.toolhead.flush_step_generation()
         ffi_main, ffi_lib = chelper.get_ffi()
         # NOTE: Dice "// Note a position change in the trapq history" en "trapq.c".
         ffi_lib.trapq_set_position(self.extruder_trapq, 
                                    # TODO: check source for print-time is correct
                                    self.toolhead.print_time,
                                    newpos_e, 0., 0.)
+        
         # NOTE: The next line from toolhead.py is: "self.commanded_pos[:] = newpos".
-        #       The most similar line from extryder.py is in "sync_to_extruder",
+        #       The most similar line from extruder.py is in "sync_to_extruder",
         #       from the ExtruderStepper class:
         #           self.stepper.set_position([extruder.last_position, 0., 0.])
-        # NOTE: However, since the next line is equivalent to this one, I'll skip it.
-        #self.extruder_stepper.stepper.set_position([newpos[0], 0., 0.])
+        #self.extruder_stepper.stepper.set_position([newpos_e, 0., 0.])
+        # NOTE: Since the above line is equivalent to the next line , I've commented it.
+        #       Furthermore, "commanded_pos" *will* be updated in the toolhead by the
+        #       last line below, calling "toolhead.set_position".
 
         # NOTE: The next line from toolhead.py is: "self.kin.set_position(newpos, homing_axes)"
         #       It calls "rail.set_position" on all toolhead's rails (which are PrinterRails),
@@ -463,14 +478,17 @@ class ExtruderHoming:
         #       "stepper.set_position" on each of their steppers.
         #       It calls "itersolve_set_position". Replicate here:
         self.rail.set_position([newpos_e, 0., 0.])
+        # NOTE: note that this position will be then read by the 
+        #       call to "stepper.get_commanded_position" in "homing.py".
 
-        # NOTE: The next line from toolhead.py is: self.printer.send_event("toolhead:set_position")
-        #       It runs the "reset_last_position" method in GCodeMove at gcode_move.py,
+        # NOTE: The next line in toolhead.py is: self.printer.send_event("toolhead:set_position")
+        #       It runs the "reset_last_position" method in GCodeMove at "gcode_move.py",
         #       which takes no arguments. It runs the "position_with_transform" method,
-        #       which is apparently "toolhead.get_position".
-        # NOTE: I can simply call "set_position" from the toolhead. This is expected for a
-        #       complete regular homing move, and shouldnt hurt either.
+        #       which is apparently "toolhead.get_position" (simply returning "commanded_pos").
+        # NOTE: Thus, I can simply call "set_position" from the toolhead, that does all of the above.
+        #       This is expected for a complete regular homing move, guessing it shouldn't hurt.
         self.toolhead.set_position(pos)
+
         logging.info(f"\n\nset_position: final TH position={str(self.toolhead.get_position())}\n\n")
         pass
     
