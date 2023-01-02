@@ -553,7 +553,10 @@ class ToolHead:
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         self.commanded_pos[:] = newpos
+        
+        # NOTE: calls "rail.set_position"/"itersolve_set_position"
         self.kin.set_position(newpos, homing_axes)
+        
         self.printer.send_event("toolhead:set_position")
     
     def move(self, newpos, speed):

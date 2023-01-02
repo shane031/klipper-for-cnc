@@ -87,7 +87,7 @@ class ExtruderHoming:
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
 
-        # NOTE: Get toolhead position 
+        # NOTE: Get original toolhead position 
         self.th_orig_pos = self.toolhead.get_position()
 
         # NOTE: get homing information, speed and move coordinate.
@@ -95,6 +95,10 @@ class ExtruderHoming:
         speed = homing_info.speed
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
         pos = self.th_orig_pos[:3] + [self.get_movepos(homing_info)]
+        
+        # NOTE: force extruder to a "0.0" starting position
+        startpos = self.th_orig_pos[:3] + [0.0]
+        self.set_position(startpos)
         
         # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
@@ -152,17 +156,19 @@ class ExtruderHoming:
         position_min, position_max = self.rail.get_range()
         movepos = homing_info.position_endstop
 
-        # !BUG: The logic in cartesian.py and stepper.py is broken.
-        #       The "guessing" logic is backwards, given:
+        # NOTE: The logic in cartesian.py and stepper.py is convoluted, 
+        #       but not broken. Given:
         #       - min  = 0
         #       - stop = 10
         #       - max = 100
         #       The logic will correctly assign "homing_positive_dir=False",
-        #       but then set "movepos=145", which is a _positive_ direction.
+        #       but then set "pos=145", which is a _positive_ direction.
+        #       The "logic" here is that the _current_ position of the 
+        #       toolhead will be set to "145", and the homing position
+        #       will be set to the endstop's position afterwords.
         #       See "_home_axis" (CartKinematics) and init (PrinterRail).
-        #       I also do not see why and endstop would _not_ be at the _ends_
-        #       (i.e. at the "min" or "max" positions).
-        #       The logic has been replaced here by common sense:
+        # NOTE: That logic has been replaced here by common sense: start at 0, 
+        #       and move in the sensible direction for the expected distance.
         if homing_info.positive_dir:
             # NOTE: for a "positive side" endstop, the toolhead will
             #       move _at most_ the distance between "min" and "stop",
@@ -411,8 +417,16 @@ class ExtruderHoming:
         e_pos = self.rail.get_commanded_position()      # NOTE: option 1
         # e_pos = self.extruder.last_position           # NOTE: option 2
 
-        pos = self.th_orig_pos[:3] + [e_pos]
+        # NOTE: here I use the first 3 elements of the original toolhead
+        #       position (which came from toolhead.get_position) and
+        #       the fourth one comes directly from the extruder rail/stepper.
+        #       A second option would be to just use "toolhead.get_position",
+        #       as it returns all of the needed elements
+        pos = self.th_orig_pos[:3] + [e_pos]  # Option 1
+        #pos = self.toolhead.get_position()    # Option 2
+        
         logging.info(f"\n\nget_position output: {str(pos)}\n\n")
+        logging.info(f"\n\nget_position current TH pos: {str(self.toolhead.get_position())}\n\n")
         return pos
     
     def set_position(self, newpos, homing_axes=()):

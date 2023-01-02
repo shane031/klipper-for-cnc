@@ -57,6 +57,7 @@ class CartKinematics:
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
         for i, rail in enumerate(self.rails):
+            # NOTE: calls "itersolve_set_position".
             rail.set_position(newpos)
             if i in homing_axes:
                 self.limits[i] = rail.get_range()

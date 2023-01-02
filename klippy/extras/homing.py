@@ -153,8 +153,9 @@ class HomingMove:
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
         for mcu_endstop, name in self.endstops:
+            # NOTE: this calls "toolhead.get_position" to get "startpos".
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
-                                                movepos=movepos,  # [0.0, 0.0, 0.0, 150.0]
+                                                movepos=movepos,  # [0.0, 0.0, 0.0, -110.0]
                                                 speed=speed)
             # NOTE: "wait" is a "reactor.completion" object, returned by
             #       the "home_start" method of "MCU_endstop" (at mcu.py)
@@ -179,7 +180,7 @@ class HomingMove:
             # NOTE: Before the "drip" commit, the following command 
             #       used to be: self.toolhead.move(movepos, speed)
             #       See: https://github.com/Klipper3d/klipper/commit/43064d197d6fd6bcc55217c5e9298d86bf4ecde7
-            self.toolhead.drip_move(newpos=movepos,  # [0.0, 0.0, 0.0, 150.0]
+            self.toolhead.drip_move(newpos=movepos,  # [0.0, 0.0, 0.0, -110.0]
                                     speed=speed, 
                                     # NOTE: "all_endstop_trigger" is probably made from
                                     #       the "reactor.completion" objects above.
