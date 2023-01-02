@@ -67,7 +67,7 @@ class HomingMove:
     # NOTE: "_calc_endstop_rate" calculates the max amount of steps for the
     #       move, and the time the move will take. It then returns the "rate"
     #       of "time per step".
-    def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, 150.0]
+    def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, -110]
         startpos = self.toolhead.get_position()                 # startpos = [0.0, 0.0, 0.0, 0.0]
         axes_d = [mp - sp for mp, sp in zip(movepos, startpos)]
         move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))      # 150.0
@@ -84,10 +84,13 @@ class HomingMove:
         # NOTE: the "kin_spos" received here has values from the
         #       "halting" position, before "oversteps" are corrected.
         #       For example:
-        #           calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': 399}
+        #           calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
         # NOTE: "offsets" are probably in "step" units.
         kin_spos = dict(kin_spos)
+        
+        # NOTE: log input for reference
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
+
         kin = self.toolhead.get_kinematics()
         for stepper in kin.get_steppers():
             sname = stepper.get_name()
@@ -98,7 +101,7 @@ class HomingMove:
         # NOTE: this call to get_position is only used to acquire the extruder
         #       position, and append it to XYZ components below.
         #       Example:
-        #           thpos=[0.0, 0.0, 0.0, 3.3249999999999402]
+        #           thpos=[0.0, 0.0, 0.0, 0.0]
         thpos = self.toolhead.get_position()
 
         # NOTE: The "calc_position" iterates over the rails in the (cartesian)
@@ -108,11 +111,15 @@ class HomingMove:
         #       This is likely because the 4th element is the extruder, which is not
         #       normally "homeable". So the last position is re-used to form the
         #       updated toolhead position vector.
+        # NOTE: Examples (CartKinematics):
+        #       -   calc_position input stepper_positions={'extruder': -1.420625}
+        #       -   calc_position return pos=[-1.420625, 0.0, 0.0]
         result = list(kin.calc_position(stepper_positions=kin_spos))[:3] + thpos[3:]
         
-        # NOTE: example:
-        #       calc_toolhead_pos output=[4.67499999999994, 0.0, 0.0, 3.3249999999999402]
+        # NOTE: log output for reference
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
+        # NOTE: example:
+        #       calc_toolhead_pos output=[-1.420625, 0.0, 0.0, 0.0]
 
         # NOTE: this "result" is used to override "haltpos" below, which
         #       is then passed to "toolhead.set_position".
@@ -236,7 +243,7 @@ class HomingMove:
                 #       It ends by emittig a "toolhead:set_position" event.
                 self.toolhead.set_position(movepos)
                 # NOTE: from the "extruder_home" logs:
-                #           set_position: input:  [0.0, 0.0, 0.0, 150.0] homing_axes=()
+                #           set_position: input:  [0.0, 0.0, 0.0, -110.0] homing_axes=()
                 #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
                 
                 # NOTE: uses "ffi_lib.itersolve_get_commanded_pos",
@@ -245,14 +252,14 @@ class HomingMove:
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
                 
-                # NOTE: calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': 399}
-                # NOTE: calc_toolhead_pos output: [1.995, 0.0, 0.0, 0.0]
+                # NOTE: calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
+                # NOTE: calc_toolhead_pos output: [-1.420625, 0.0, 0.0, 0.0]
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
                                                  offsets=over_steps)
 
         # NOTE: set the toolhead position to the (corrected) halting position.
         # NOTE: for extruder_home this could be:
-        #           set_position: input=[1.995, 0.0, 0.0, 0.0] homing_axes=()
+        #           set_position: input=[-1.420625, 0.0, 0.0, 0.0] homing_axes=()
         #       The fourt element comes from "newpos_e" in the call to 
         #       "toolhead.set_position" above. The first element is the corrected
         #       "halt" position.
@@ -306,6 +313,7 @@ class Homing:
         return thcoord
     def set_homed_position(self, pos):
         self.toolhead.set_position(self._fill_coord(pos))
+    
     def home_rails(self, rails, forcepos, movepos):
         # NOTE: this method is used by the home method of the 
         #       cartesian kinematics, in response to a G28 command.
@@ -410,6 +418,7 @@ class PrinterHoming:
         homing_state.set_axes(axes)
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         try:
+            # NOTE: In the cart kinematics, this uses "home_rails" above.
             kin.home(homing_state)
         except self.printer.command_error:
             if self.printer.is_shutdown():

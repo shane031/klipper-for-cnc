@@ -128,6 +128,7 @@ class ExtruderHoming:
         #       - probing_move ???
         #       - cmd_G28: ???
         # TODO: consider using those alternative methods.
+        logging.info(f"\n\ncmd_HOME_EXTRUDER: pos={str(pos)}\n\n")
         phoming.manual_home(toolhead=self, endstops=endstops,
                             pos=pos, speed=speed,
                             # NOTE: argument passed to "mcu_endstop.home_start",
@@ -148,12 +149,37 @@ class ExtruderHoming:
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
         #       the distance to move for homing, at least for a G28 command.
         # Determine movement
-        position_min, position_max = self.rail.get_range()  # 0, 100
+        position_min, position_max = self.rail.get_range()
         movepos = homing_info.position_endstop
+
+        # !BUG: The logic in cartesian.py and stepper.py is broken.
+        #       The "guessing" logic is backwards, given:
+        #       - min  = 0
+        #       - stop = 10
+        #       - max = 100
+        #       The logic will correctly assign "homing_positive_dir=False",
+        #       but then set "movepos=145", which is a _positive_ direction.
+        #       See "_home_axis" (CartKinematics) and init (PrinterRail).
+        #       I also do not see why and endstop would _not_ be at the _ends_
+        #       (i.e. at the "min" or "max" positions).
+        #       The logic has been replaced here by common sense:
         if homing_info.positive_dir:
-            movepos -= 1.5 * (homing_info.position_endstop - position_min)  #   (0 - 0)*1.5 = 0
+            # NOTE: for a "positive side" endstop, the toolhead will
+            #       move _at most_ the distance between "min" and "stop",
+            #       and it is ensured that it will be positive:
+            movepos = (homing_info.position_endstop - position_min)
+            # NOTE: for example:
+            #       movepos = (100 - 0) = 100
         else:
-            movepos += 1.5 * (position_max - homing_info.position_endstop)  # (100 - 0)*1.5 = 150
+            # NOTE: for a "negative side" endstop, the toolhead will
+            #       move _at most_ the distance between "stop" and "max",
+            #       and it is ensured that it will be negative:
+            movepos = (homing_info.position_endstop - position_max)
+            # NOTE: for example:
+            #       movepos = (0.0 - 100) = -100
+        
+        # NOTE: adding a small amount just in case:
+        movepos = 1.1 * movepos
 
         logging.info(f"\n\nget_movepos: movepos={str(movepos)}\n\n")
         return movepos
@@ -420,10 +446,12 @@ class ExtruderHoming:
         #       only update the remaining extruder component using the toolhead.set_position
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
-        # NOTE:
-        #       -   The "negative"/"retract" E direction is currently "downwards".
-        #       -   The "positive"/"extrude" E direction is currently "upwards".
-        #       -   The axis is currently homing "upwards" (to the "positive" direction).
+        # NOTE: set_position is called "twice":
+        #       -   The first is set to "movepos": [0.0, 0.0, 0.0, -110.0]
+        #       -   The second is set to "haltpos": [-1.420625, 0.0, 0.0, 0.0]
+        #       The extruder information is, at first, in the last position, 
+        #       and is equal to the output from "get_movepos".
+        #       Then it is in the first position, and is the "corrected" position.
         
         # TODO: changing this affects the sencond stepper move after homing. Find out why.
         #       Using newpos[0] always showed the second move. Using newpos[3] only shows
@@ -504,7 +532,7 @@ class ExtruderHoming:
         #       PrinterRail class.
         # NOTE: This code was grabbed from the cartesian.py calc_position method.
         pos = [stepper_positions[self.rail.get_name()], 0., 0.]
-        logging.info(f"\n\ncalc_position input calc_position={str(stepper_positions)}\n\n")
+        logging.info(f"\n\ncalc_position input stepper_positions={str(stepper_positions)}\n\n")
         logging.info(f"\n\ncalc_position return pos={str(pos)}\n\n")
         return pos
 
