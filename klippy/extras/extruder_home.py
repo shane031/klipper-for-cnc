@@ -334,12 +334,12 @@ class ExtruderHoming:
         self.toolhead.last_kin_move_time = next_move_time
 
         pass
-    
-    def move_toolhead(self, newpos, speed, drip_completion):
+
+    def move_toolhead_manual(self, newpos, speed, drip_completion):
         """
         This method is an alternative to implement "drip_move",
         using the ToolHead.manual_move command. To use it instead of other
-        methods in this class, uncomment it in the "drip_move" method,
+        methods in this class, uncomment it in the "move_toolhead_manual" method,
         and comment the others.
         """
         # NOTE: Explanation of drip_move arguments:
@@ -352,13 +352,23 @@ class ExtruderHoming:
         
         # NOTE: using "toolhead.manual_move" allows None values, is simpler
         #       to use in that sense, and also ends up calling "toolhead.move".
-        # extra = 0.0
-        # e_newpos = newpos[3] + extra
-        # coord = [None, None, None, e_newpos]
-        # logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
-        # self.toolhead.manual_move(coord=coord, speed=speed)
+        e_newpos = newpos[3]
+        coord = [None, None, None, e_newpos]
+        logging.info(f"\n\nmove_toolhead: Moving {self.extruder.name} to {str(coord)} for homing.\n\n")  # Can be [None, None, None, 0.0]
+        self.toolhead.manual_move(coord=coord, speed=speed)
+        logging.info(f"\n\nmove_toolhead: move completed.\n\n")
+        
+        pass
 
-        # NOTE: using "toolhead.move" should be similar.
+    def move_toolhead(self, newpos, speed, drip_completion):
+        """
+        This method is an alternative to implement "drip_move",
+        using the ToolHead.move command. To use it instead of other
+        methods in this class, uncomment it in the "move_toolhead" method,
+        and comment the others.
+        """
+
+        # NOTE: using "toolhead.move" should be similar to "toolhead.manual_move".
         logging.info(f"\n\nmove_toolhead: moving toolhead to {str(newpos)} for homing.\n\n")
         self.toolhead.move(newpos=newpos, speed=speed)
         logging.info(f"\n\nmove_toolhead: move completed.\n\n")
@@ -391,7 +401,7 @@ class ExtruderHoming:
 
         # NOTE: option 1, use the "manual_move" method from the ToolHead class.
         # TODO: Couldn't debug "Timer too close" nor "flush_handler" errors (at or after homing).
-        #self.move_toolhead(newpos, speed, drip_completion)
+        self.move_toolhead_manual(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
         # TODO: Fails after homing with "Exception in flush_handler" / "Invalid sequence".
@@ -399,11 +409,15 @@ class ExtruderHoming:
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
-        self.move_toolhead_drip(newpos, speed, drip_completion)
+        # self.move_toolhead_drip(newpos, speed, drip_completion)
 
         # NOTE: option 4, out of ideas.
         #       This works flawlessly.
         # self.move_forced(newpos, speed, drip_completion)
+
+        # NOTE: option 5, use the "move" method from the ToolHead class.
+        # TODO: Couldn't debug "Timer too close" nor "flush_handler" errors (at or after homing).
+        #self.move_toolhead(newpos, speed, drip_completion)
 
     def get_position(self):
         """
