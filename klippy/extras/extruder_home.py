@@ -404,11 +404,11 @@ class ExtruderHoming:
         #       The problem stems from a "next print time" set too far in the future,
         #       probably proportional to the expected time the move takes (~displacement/speed).
         #       Can be mitigated with fast homing. Seems to work flawlessly.
-        self.move_toolhead_manual(newpos, speed, drip_completion)
+        # self.move_toolhead_manual(newpos, speed, drip_completion)
         
         # NOTE: option 2, use the "move" method from the Extruder class.
         # TODO: Fails after homing with "Exception in flush_handler" / "Invalid sequence".
-        # self.move_extruder(newpos, speed, drip_completion)
+        self.move_extruder(newpos, speed, drip_completion)
 
         # NOTE: option 3, use the "drop move" method from the ToolHead class.
         # TODO: It's strange that the stepper stops at the endstop, and then moves a bit more... it shouldn't!
