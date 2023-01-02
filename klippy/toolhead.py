@@ -28,7 +28,7 @@ class Move:
         # NOTE: compute the euclidean magnitude of the displacement vector.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
         
-        # TODO: this seems strange:
+        # TODO: this seems strange, some numerical instability handling, probably.
         if move_d < .000000001:
             # Extrude only move
             self.end_pos = (start_pos[0], start_pos[1], start_pos[2],

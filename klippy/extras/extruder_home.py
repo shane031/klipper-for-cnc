@@ -320,9 +320,10 @@ class ExtruderHoming:
         #             start_pos=curpos,
         #             end_pos=curpos[:3] + [25.0],  # TODO: base this on the config
         #             speed=self.velocity)
-        newpos_e = -25.0
+        extruder_r = -1.0
+        newpos_e = 25.0
         ntMove = namedtuple('Move', "axes_r accel start_v cruise_v axes_d accel_t cruise_t decel_t start_pos end_pos")
-        move = ntMove(axes_r=[0,0,0,1.0], accel=20.0, start_v=0.0, cruise_v=20.0, axes_d=[None,None,None,newpos_e],
+        move = ntMove(axes_r=[0,0,0,extruder_r], accel=20.0, start_v=0.0, cruise_v=20.0, axes_d=[None,None,None,newpos_e],
                       accel_t=1.0, cruise_t=5.0, decel_t=1.0, start_pos=[0.0,0.0,0.0,0.0], end_pos=[0.0,0.0,0.0,0.0])
         
         # TODO: this should be OK if the dwell above is enough? IDK
