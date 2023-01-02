@@ -698,11 +698,17 @@ class ToolHead:
             #       I am guessing here that "older" means "with a smaller timestamp",
             #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
             #       extruder trapq as well.
-            self.printer.send_event("toolhead:trapq_finalize_extruder_drip_moves", 
-                                    self.reactor.NEVER, self.extruder.name)
+            #self.printer.send_event("toolhead:trapq_finalize_extruder_drip_moves", 
+            #                        self.reactor.NEVER, self.extruder.name)
+            # NOTE: Alternatively, use the "update_move_time" of the extruder object.
+            #       Wether it will mess with XYZ-only homing or not remains to be seen.
+            #       This function calls "trapq_finalize_moves(self.trapq, flush_time)"
+            #       on the extruder's trapq.
+            self.extruder.update_move_time(flush_time=self.reactor.NEVER)
         
         # Exit "Drip" state
         # NOTE: logging for tracing activity
