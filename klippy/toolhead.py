@@ -656,22 +656,32 @@ class ToolHead:
         self.move_queue.set_flush_time(self.buffer_time_high)
         self.idle_flush_print_time = 0.
         self.drip_completion = drip_completion
+        
         # Submit move
         try:
+            # NOTE: uses "add_move", to add a move to the "move_queue".
+            # NOTE: logging for tracing activity
+            logging.info("drip_move: sending move to the queue.")
             self.move(newpos, speed)
         except self.printer.command_error as e:
             self.flush_step_generation()
             raise
+        
         # Transmit move in "drip" mode
         try:
             # NOTE: because the flush function is called with a 
             #       not None "special_queuing_state", the "_process_moves" 
             #       call will use "_update_drip_move_time".
+            # NOTE: logging for tracing activity
+            logging.info("drip_move: flushing move queue / transmitting move.")
             self.move_queue.flush()
         except DripModeEndSignal as e:
             self.move_queue.reset()
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+        
         # Exit "Drip" state
+        # NOTE: logging for tracing activity
+        logging.info("drip_move: calling flush_step_generation / exit drip state.")
         self.flush_step_generation()
     
     # Misc commands
