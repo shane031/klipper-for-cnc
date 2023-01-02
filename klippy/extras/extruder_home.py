@@ -1,17 +1,22 @@
 # By naikymen and mdwasp
 # Original idea at: https://discord.com/channels/627982902738681876/1046618170993160202/1046808809894588457
-# Relevatn issue: https://gitlab.com/pipettin-bot/pipettin-grbl/-/issues/47#note_1215525244
+# Relevant issue: https://gitlab.com/pipettin-bot/pipettin-grbl/-/issues/47#note_1215525244
 # Module distributed under the terms of the GNU GPL v3 licence.
 #
 #
 # This class loads the stepper of the active extruder and performs homing on it.
-# It is inspired by the manual_stepper module.
-# A config section is required to activate it, and a command must be sent to use it.
+# It is inspired by the manual_stepper module, and it requires a few changes in
+# homing.py and toolhead.py to work: https://github.com/Klipper3d/klipper/pull/5950
+#
 # The module requires a modification in "extruder.py", which will create the extruder
 # stepper from the PrinterRail class, instead of the PrinterStepper class, when an
 # "endstop_pin" is defined in the extruder's config.
 #
-# See "config/configs-pipetting-bot/configs-mainsail/printer.cfg" for an example config.
+# A config section is required to activate it, and a command must be sent to use it.
+# When activated, some additional parameters must be provided to each [extruder] section.
+# For example configuration files, see:
+#   config/configs-pipetting-bot/configs-mainsail/printer.cfg
+#   config/configs-pipetting-bot/configs-mainsail/home_extruder.cfg
 
 import stepper, chelper, logging
 from toolhead import Move
@@ -19,7 +24,7 @@ from collections import namedtuple
 
 class ExtruderHoming:
     """
-    ! WARNING EXPERIMENTAL UNTESTED
+    ! WARNING EXPERIMENTAL
     This class registers a command to home an extruder's stepper.
     This is made possible due to a change in the Extruder class,
     which can now add an endstop to the extruder stepper, if a
@@ -37,18 +42,24 @@ class ExtruderHoming:
         self.extruder = None
         self.gcmd = None
         self.th_orig_pos = None
-
+        
+        # To check if a "overstep" correction has 
+        # already been computed after a drip_move.
         self.corrected_e_pos = None
-
+        
+        # Not really used by the current move method
         self.HOMING_DELAY = 0.001
-
+        
+        # To check if a "HOME_EXTRUDER" command has been received already.
         self.homing = False
 
-        # NOTE: some parameters are loaded from the "extruder_homing" config section.
+        # NOTE: some parameters are loaded from the "extruder_homing" config section,
+        #       and used by some of the move methods (not necesarily by drip_move).
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
 
         # TODO: find out what this is. The same is used in manual_stepper.py
+        #       No longer required, it used to be updated by sync_print_time.
         self.next_cmd_time = 0.
         
         # NOTE: The following command will become available with the syntax:
@@ -133,8 +144,8 @@ class ExtruderHoming:
         #       as a "virtual toolhead", similar to what is done in manual_stepper.
         #       The provided endstops are from the extruder PrinterRail.
         # NOTE: "PrinterHoming.manual_home" then calls "HomingMove.homing_move".
-        #       The "HomingMove" class downstream methods use the
-        #       following methods from a provided "toolhead" object:
+        #       The downstream methods in the "HomingMove" class use the
+        #       following methods from a provided "virtual toolhead" object:
         #       - flush_step_generation
         #       - get_kinematics:           returning a "kin" object with methods:
         #           - kin.get_steppers:     returning a list of stepper objects.
@@ -190,19 +201,20 @@ class ExtruderHoming:
         position_min, position_max = self.rail.get_range()
         movepos = homing_info.position_endstop
 
-        # NOTE: The logic in cartesian.py and stepper.py is convoluted, 
-        #       but not broken. Given:
-        #       - min  = 0
-        #       - stop = 10
-        #       - max = 100
-        #       The logic will correctly assign "homing_positive_dir=False",
+        # NOTE: The logic in cartesian.py and stepper.py is slightly convoluted.
+        #       Given:
+        #       -   min  = 0
+        #       -   stop = 10
+        #       -   max = 100
+        #       The code will correctly assign "homing_positive_dir=False",
         #       but then set "pos=145", which is a _positive_ direction.
-        #       The "logic" here is that the _current_ position of the 
+        #       The idea is that the _current_ position of the 
         #       toolhead will be set to "145", and the homing position
         #       will be set to the endstop's position afterwords.
         #       See "_home_axis" (CartKinematics) and init (PrinterRail).
-        # NOTE: That logic has been replaced here by common sense: start at 0, 
-        #       and move in the sensible direction for the expected distance.
+        # NOTE: That logic has been replaced here: start at 0, 
+        #       and move towards the sensible direction for the 
+        #       expected distance.
         if homing_info.positive_dir:
             # NOTE: for a "positive side" endstop, the toolhead will
             #       move _at most_ the distance between "min" and "stop",
@@ -295,7 +307,7 @@ class ExtruderHoming:
         """
         # TODO: What should I do here? Using toolhead method.
         #self.next_cmd_time += max(0., delay)
-        # NOTE: once upon a time, there was no "drip_move" for homing.
+        # NOTE: Once upon a time, there was no "drip_move" for homing.
         #       so a "dwell" was added to give an old RPi2 enough time
         #       to compute stuff:
         #       - https://github.com/Klipper3d/klipper/commit/78f4c25a14099564cf731bdaf5b97492a3a6fb47
@@ -512,7 +524,7 @@ class ExtruderHoming:
         #       but from the "itersolve_set_position" code, they seem to be x,y,z 
         #       components.
         # self.do_set_position(newpos[0])
-        # NOTE: the set_position method in a toolhead calls set_position in a
+        # NOTE: the "toolhead.set_position" method calls "set_position" in a
         #       PrinterRail object, which we have here. That method calls 
         #       the set_position method in each of the steppers in the rail.
         # NOTE: At this point, this method receives a vector: 
@@ -529,24 +541,23 @@ class ExtruderHoming:
         #       method. However it only sets the XYZ components in the XYZ "trapq".
 
         # NOTE: This "set_position" is called three times:
-        #       -   The first (above) it receives "startpos": [0.0, 0.0, 0.0, 0.0]  (only the E axis really, the rest is left as it was).
-        #       -   The second it receives "movepos": [0.0, 0.0, 0.0, -110.0]  (before overstep correction).
-        #       -   The third it receives "haltpos": [-1.420625, 0.0, 0.0, -110.0]  (after overstep correction).
-        #       The extruder information is, at first and second times, in the last position, 
-        #       and is equal to "0" or the output from "get_movepos", respectively.
-        #       However, the third time it is in the first position, and corresponds
-        #       to the "corrected" position.
-        #       This must be so because "calc_toolhead_pos" (a HomingMove method) receives
+        #       -   The first (above) receives "startpos": [0.0, 0.0, 0.0, 0.0]  (only the E axis really, the rest is left as it was).
+        #       -   The second receives "movepos": [0.0, 0.0, 0.0, -110.0]  (just before overstep correction).
+        #       -   The third receives "haltpos": [-1.420625, 0.0, 0.0, -110.0]  (after overstep correction).
+        #       The extruder information is, at the first and second times, in the last element
+        #       of the list, and is equal to "0" or the output from "get_movepos", respectively.
+        #       However, the third time the E position is in the first list element, and corresponds
+        #       to the "corrected" extruder position.
+        #       This cannot be avoided because "calc_toolhead_pos" (a HomingMove method) receives
         #       the output from "calc_position" below, only keeping the first three elements
-        #       (overwritting the fourth with the fourth element of get_position).
+        #       (overwritting the fourth element with the fourth element of get_position).
         
-        # TODO: changing this affects the sencond stepper move after homing. Find out how/why.
-        # ! Forcing "0" here means that the corrected "haltpos" is ignored in the "second" call.
+        # NOTE: Forcing "0" here means that the corrected "haltpos" is ignored in the "second" call.
         # newpos_e = newpos[0]
         # newpos_e = newpos[3]
         # newpos_e = 0.0
         # NOTE: to get the 1st element of the vector after calc_toolhead_pos has run,
-        #       i check if a correction has been calculated.
+        #       check if a correction has been calculated below.
         if self.corrected_e_pos is None:
             # NOTE: use the fourth element by default.
             newpos_e = newpos[3]
@@ -557,7 +568,8 @@ class ExtruderHoming:
             newpos_e = newpos[0]             # Option 1
             #newpos_e = self.corrected_e_pos  # Option 2
         
-        # NOTE: setup the final new position vector
+        # NOTE: setup the final new position vector, using th_orig_pos
+        #       because it is not expected to change during E homing.
         pos = self.th_orig_pos[:3] + [newpos_e]
         
         # NOTE: Log stuff
@@ -567,11 +579,6 @@ class ExtruderHoming:
         #       When switching extruder steppers, the Extruder class uses the set_position
         #       method in its stepper object, passing it: [extruder.last_position, 0., 0.]
         #       Thus, I need a three element list, where the first element is the updated position.
-
-        # logging.info(f"\n\nset_position input: {str(newpos)}\n\n")
-        # coord = [newpos[0], 0.0, 0.0]
-        # logging.info(f"\n\nset_position output: {str(coord)}\n\n")
-        # self.rail.set_position(coord)
 
         # NOTE: The next line from toolhead.py is: "self.flush_step_generation()"
         #       Update extruder position, code adapted from "set_position" in toolhead.py.
