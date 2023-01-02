@@ -48,8 +48,11 @@ class PrinterProbe:
                                                  minval=0.)
         self.samples_retries = config.getint('samples_tolerance_retries', 0,
                                              minval=0)
+        
         # Register z_virtual_endstop pin
+        # TODO: study this to implement probing on any direction.
         self.printer.lookup_object('pins').register_chip('probe', self)
+        
         # Register homing event handlers
         self.printer.register_event_handler("homing:homing_move_begin",
                                             self._handle_homing_move_begin)
@@ -144,6 +147,8 @@ class PrinterProbe:
             return z_sorted[middle]
         # even number of samples
         return self._calc_mean(z_sorted[middle-1:middle+1])
+    
+    # TODO: reuse this for probing on any direction.
     def run_probe(self, gcmd):
         speed = gcmd.get_float("PROBE_SPEED", self.speed, above=0.)
         lift_speed = self.get_lift_speed(gcmd)
@@ -182,11 +187,14 @@ class PrinterProbe:
         if samples_result == 'median':
             return self._calc_median(positions)
         return self._calc_mean(positions)
+    
+    # TODO: reuse this for probing on any direction.
     cmd_PROBE_help = "Probe Z-height at current XY position"
     def cmd_PROBE(self, gcmd):
         pos = self.run_probe(gcmd)
         gcmd.respond_info("Result is z=%.6f" % (pos[2],))
         self.last_z_result = pos[2]
+    
     cmd_QUERY_PROBE_help = "Return the status of the z-probe"
     def cmd_QUERY_PROBE(self, gcmd):
         toolhead = self.printer.lookup_object('toolhead')
