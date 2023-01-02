@@ -67,7 +67,7 @@ class ExtruderHoming:
         # Get gcmd object, for later.
         self.gcmd = gcmd
         
-        # NOTE: Get the toolhead and its extruder
+        # NOTE: Get the toolhead and its *current* extruder.
         self.toolhead = self.printer.lookup_object("toolhead")
         self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
         self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)

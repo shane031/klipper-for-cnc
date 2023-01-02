@@ -5,6 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import math, logging, importlib
 import mcu, chelper, kinematics.extruder
+import time
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
@@ -475,8 +476,10 @@ class ToolHead:
         flush_time = max(flush_time, self.print_time - self.kin_flush_delay)
         # NOTE: this is the only place where "last_kin_flush_time" is updated.
         self.last_kin_flush_time = max(self.last_kin_flush_time, flush_time)
-        # NOTE: update "self.print_time" and call "trapq_finalize_moves".
-        self._update_move_time(next_print_time=max(self.print_time, self.last_kin_flush_time))
+        # NOTE: the following updates "self.print_time" and 
+        #       calls "trapq_finalize_moves".
+        self._update_move_time(next_print_time=max(self.print_time, 
+                                                   self.last_kin_flush_time))
     
     def _flush_lookahead(self):
         if self.special_queuing_state:
@@ -630,7 +633,15 @@ class ToolHead:
         #       (i.e. when its value is not "" or None).
         flush_delay = DRIP_TIME + self.move_flush_time + self.kin_flush_delay
         while self.print_time < next_print_time:
+            # NOTE: "drip_completion.test" is likely a method from "ReactorCompletion",
+            #       but is beyond my understanding and deathwishes for spelunking.
+            # TODO: ask what it is for!
             if self.drip_completion.test():
+                # NOTE: this "exception" does nothing, it "passes",
+                #       but it is caught at the "drip_move" method,
+                #       which runs "move_queue.reset" and "trapq_finalize_moves"
+                #       in response. This must be an "alternate" way to break
+                #       the while loop. A bit hacky though.
                 raise DripModeEndSignal()
             curtime = self.reactor.monotonic()
             est_print_time = self.mcu.estimated_print_time(curtime)
@@ -647,6 +658,8 @@ class ToolHead:
             #       before "self.print_time >= next_print_time" by "MOVE_BATCH_TIME".
     
     def drip_move(self, newpos, speed, drip_completion):
+        # NOTE: "drip_completion=all_endstop_trigger" is 
+        #       probably made from "reactor.completion" objects.
         self.dwell(self.kin_flush_delay)
         # Transition from "Flushed"/"Priming"/main state to "Drip" state
         self.move_queue.flush()
@@ -676,12 +689,27 @@ class ToolHead:
             logging.info("drip_move: flushing move queue / transmitting move.")
             self.move_queue.flush()
         except DripModeEndSignal as e:
+            logging.info("drip_move: resetting move queue / DripModeEndSignal caught.")
+            # NOTE: deletes al moves in the queue
             self.move_queue.reset()
+            # NOTE: This calls a function in "trapq.c", described as:
+            #       - Expire any moves older than `print_time` from the trapezoid velocity queue
+            #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
+            #       I am guessing here that "older" means "with a smaller timestamp",
+            #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
         
         # Exit "Drip" state
         # NOTE: logging for tracing activity
         logging.info("drip_move: calling flush_step_generation / exit drip state.")
+        # NOTE: the "flush_step_generation" method, which calls:
+        #       - "flush", which should do nothing (dine just above, and the queue is empty).
+        #       - "reactor.update_timer"
+        #       - "move_queue.set_flush_time"
+        #       - "_update_move_time"
+        # NOTE: interrupting the program here prevents the "second home" move
+        #       issue during homing the extruder with a drip move.
+        # time.sleep(2)
         self.flush_step_generation()
     
     # Misc commands
