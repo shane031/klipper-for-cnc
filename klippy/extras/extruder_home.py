@@ -42,6 +42,8 @@ class ExtruderHoming:
 
         self.HOMING_DELAY = 0.001
 
+        self.homing = False
+
         # NOTE: some parameters are loaded from the "extruder_homing" config section.
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
@@ -57,6 +59,27 @@ class ExtruderHoming:
         gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
                                    self.extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
+        
+        # NOTE: setup event handler to "finalize" the extruder trapq after
+        #       a drip move, but before the "flush_step_generation" call.
+        ffi_main, ffi_lib = chelper.get_ffi()
+        self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        self.printer.register_event_handler("toolhead:trapq_finalize_extruder_drip_moves",
+                                            self.handle_drip_move_end)
+        
+        logging.info(f"\n\nExtruderHoming: init complete\n\n")
+    
+    # NOTE: This must only execute in the "right" context (i.e. during extruder homing
+    #       and not duting regular XYZ homing; at least until I test otherwise).
+    def handle_drip_move_end(self, never_time, extruder_name):
+        if (self.homing is True) and (extruder_name == self.extruder_name):
+            logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: calling trapq_finalize_moves on '{extruder_name}'\n\n")
+            self.trapq_finalize_moves(self.extruder_trapq, never_time)
+        else:
+            # NOTE: this will fire either on other instances of "ExtruderHoming",
+            #       or also out of place, during homing of other axis.
+            logging.info(f"\n\n{self.extruder_name} handle_drip_move_end: skipped out of context trapq_finalize_moves \n\n")
+    
     
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
@@ -101,6 +124,9 @@ class ExtruderHoming:
         # NOTE: force extruder to a "0.0" starting position
         startpos = self.th_orig_pos[:3] + [0.0]
         self.set_position(startpos)
+
+        # NOTE: flag homing start
+        self.homing = True
         
         # NOTE: "manual_home" is defined in the PrinterHoming class (at homing.py).
         #       The method instantiates a "HomingMove" class by passing it the
@@ -154,6 +180,9 @@ class ExtruderHoming:
         # NOTE: finally, reset "self.corrected_e_pos = None" for a 
         #       future homing move.
         self.corrected_e_pos = None
+
+        # NOTE: flag homing end
+        self.homing = False
 
     def get_movepos(self, homing_info):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates

@@ -143,7 +143,7 @@ class MoveQueue:
         self.junction_flush = LOOKAHEAD_FLUSH_TIME
         
         # NOTE: logging for tracing activity
-        logging.info("MoveQueue flush: function triggered")
+        logging.info("\n\nMoveQueue flush: function triggered.\n\n")
         
         update_flush_count = lazy
         queue = self.queue
@@ -379,7 +379,7 @@ class ToolHead:
         #       The "moves" argument receives a "queue" of moves "ready to be flushed".
         
         # NOTE: logging for tracing activity
-        logging.info("ToolHead _process_moves: function triggered")
+        logging.info("\n\nToolHead _process_moves: function triggered.\n\n")
         
         # Resync print_time if necessary
         if self.special_queuing_state:
@@ -396,7 +396,7 @@ class ToolHead:
             #       "handle_sync_print_time" at "idle_timeout.py". It calls
             #       "reactor.update_timer" and sends an "idle_timeout:printing" 
             #       event (which is only handled by tmc2660.py).
-            logging.info(f"ToolHead _process_moves: self.print_time={str(self.print_time)}")
+            logging.info(f"\n\nToolHead _process_moves: self.print_time={str(self.print_time)}\n\n")
         
         # Queue moves into trapezoid motion queue (trapq)
         # NOTE: the "trapq" is possibly something like a CFFI object.
@@ -429,9 +429,9 @@ class ToolHead:
         if self.special_queuing_state:
             # NOTE: this block is executed when "special_queuing_state" is not None.
             # NOTE: loging "next_move_time" for tracing.
-            logging.info("ToolHead _process_moves: " +
+            logging.info("\n\nToolHead _process_moves: " +
                          "calling _update_drip_move_time with " +
-                         f"next_move_time={str(next_move_time)}")
+                         f"next_move_time={str(next_move_time)}\n\n")
             # NOTE: this function loops "while self.print_time < next_print_time".
             #       It "pauses before sending more steps" using "drip_completion.wait",
             #       and calls "_update_move_time". 
@@ -442,9 +442,9 @@ class ToolHead:
         #       Here, it is passed to "_update_move_time" (which updates
         #       "self.print_time" and calls "trapq_finalize_moves") and
         #       to overwrite "self.last_kin_move_time".
-        logging.info(f"ToolHead _process_moves: _update_move_time with next_move_time={str(next_move_time)}")
+        logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={str(next_move_time)}\n\n")
         self._update_move_time(next_move_time)
-        logging.info(f"ToolHead _process_moves: last_kin_move_time set to next_move_time={str(next_move_time)}")
+        logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={str(next_move_time)}\n\n")
         self.last_kin_move_time = next_move_time
         
     def flush_step_generation(self):
@@ -674,7 +674,7 @@ class ToolHead:
         try:
             # NOTE: uses "add_move", to add a move to the "move_queue".
             # NOTE: logging for tracing activity
-            logging.info("drip_move: sending move to the queue.")
+            logging.info("\n\ndrip_move: sending move to the queue.\n\n")
             self.move(newpos, speed)
         except self.printer.command_error as e:
             self.flush_step_generation()
@@ -686,10 +686,10 @@ class ToolHead:
             #       not None "special_queuing_state", the "_process_moves" 
             #       call will use "_update_drip_move_time".
             # NOTE: logging for tracing activity
-            logging.info("drip_move: flushing move queue / transmitting move.")
+            logging.info("\n\ndrip_move: flushing move queue / transmitting move.\n\n")
             self.move_queue.flush()
         except DripModeEndSignal as e:
-            logging.info("drip_move: resetting move queue / DripModeEndSignal caught.")
+            logging.info("\n\ndrip_move: resetting move queue / DripModeEndSignal caught.\n\n")
             # NOTE: deletes al moves in the queue
             self.move_queue.reset()
             # NOTE: This calls a function in "trapq.c", described as:
@@ -698,18 +698,24 @@ class ToolHead:
             #       I am guessing here that "older" means "with a smaller timestamp",
             #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            # NOTE: the above may be specific to toolhead and not to extruder...
+            #       Add an "event" that calls this same method on the 
+            #       extruder trapq as well.
+            self.printer.send_event("toolhead:trapq_finalize_extruder_drip_moves", 
+                                    self.reactor.NEVER, self.extruder.name)
         
         # Exit "Drip" state
         # NOTE: logging for tracing activity
-        logging.info("drip_move: calling flush_step_generation / exit drip state.")
+        logging.info("\n\ndrip_move: calling flush_step_generation / exit drip state.\n\n")
         # NOTE: the "flush_step_generation" method, which calls:
         #       - "flush", which should do nothing (dine just above, and the queue is empty).
         #       - "reactor.update_timer"
         #       - "move_queue.set_flush_time"
         #       - "_update_move_time"
-        # NOTE: interrupting the program here prevents the "second home" move
-        #       issue during homing the extruder with a drip move.
-        # time.sleep(2)
+        # NOTE: pausing the program here prevented the "second home" move
+        #       issue during homing the extruder with a drip move. The solution
+        #       was to also call "trapq_finalize_moves" on the extruder's "trapq"
+        #       above, and just before "flush_step_generation" below.
         self.flush_step_generation()
     
     # Misc commands
