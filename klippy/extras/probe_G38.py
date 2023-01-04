@@ -96,8 +96,8 @@ class ProbeG38:
         # NOTE: instantiate:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
-        self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        #self.probe = probe.PrinterProbe(config, ProbeEndstopWrapperG38(config))
+        #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
+        self.probe = probe.PrinterProbe(config, ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
 
         # NOTE: not setup by "load_config", not needed either.
