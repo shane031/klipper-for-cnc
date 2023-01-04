@@ -489,7 +489,7 @@ class ToolHead:
     def get_last_move_time(self):
         # NOTE: this method probably returns a "safe" time
         #       which can be used to schedule a new move,
-        #       (i.e. after the ).
+        #       after others have finished.
 
         # NOTE: The "_flush_lookahead" method calls:
         #       - flush_step_generation: which updates "self.print_time" through "_update_move_time".

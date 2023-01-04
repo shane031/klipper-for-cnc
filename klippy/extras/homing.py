@@ -62,8 +62,13 @@ class HomingMove:
             toolhead = printer.lookup_object('toolhead')
         self.toolhead = toolhead
         self.stepper_positions = []
+    
     def get_mcu_endstops(self):
+        # NOTE: "self.endstops" is a list of tuples,
+        #       containing elements like: (MCU_endstop, "name")
+        #       This gets the MCU objects in a simple list.
         return [es for es, name in self.endstops]
+    
     # NOTE: "_calc_endstop_rate" calculates the max amount of steps for the
     #       move, and the time the move will take. It then returns the "rate"
     #       of "time per step".
@@ -190,7 +195,7 @@ class HomingMove:
         
         # Wait for endstops to trigger
         trigger_times = {}
-        # TODO: find out if something about "get_last_move_time" is specific to the toolhaed (adn does not apply to the extruder).
+        # NOTE: probably gets the time just after the alst move.
         move_end_print_time = self.toolhead.get_last_move_time()
         for mcu_endstop, name in self.endstops:
             # NOTE: calls the "home_wait" method from "MCU_endstop".
@@ -277,9 +282,14 @@ class HomingMove:
         except self.printer.command_error as e:
             if error is None:
                 error = str(e)
+        
         if error is not None:
             raise self.printer.command_error(error)
+
+        # NOTE: returns "trigpos", which is the position of the toolhead
+        #       when the endstop triggered.
         return trigpos
+    
     def check_no_movement(self):
         if self.printer.get_start_args().get('debuginput') is not None:
             return None
@@ -394,6 +404,11 @@ class PrinterHoming:
                     "Homing failed due to printer shutdown")
             raise
     def probing_move(self, mcu_probe, pos, speed):
+        """
+        mcu_probe
+        pos
+        speed
+        """
         endstops = [(mcu_probe, "probe")]
         hmove = HomingMove(self.printer, endstops)
         try:
