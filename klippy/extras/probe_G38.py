@@ -17,6 +17,9 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # Instantiate the base "ProbeEndstopWrapper" class, as usual
         super(ProbeEndstopWrapperG38, self).__init__(config)
 
+        # NOTE: recovery stuff
+        self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
+
     # Overwrite only the "probe_prepare" method, to include the dwell.
     def probe_prepare(self, hmove):
         if self.multi == 'OFF' or self.multi == 'FIRST':
