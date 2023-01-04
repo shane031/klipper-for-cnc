@@ -17,6 +17,8 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # Instantiate the base "ProbeEndstopWrapper" class, as usual
         super(ProbeEndstopWrapperG38, self).__init__(config)
 
+        self.printer = config.get_printer()
+
         # NOTE: recovery stuff
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
@@ -30,6 +32,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # NOTE: borrowed code from "smart_effector", trying to
         #       avoid the "Probe triggered prior to movement" error.
         if self.recovery_time:
+            toolhead = self.printer.lookup_object('toolhead')
             toolhead.dwell(self.recovery_time)
 
 class ProbeG38:
