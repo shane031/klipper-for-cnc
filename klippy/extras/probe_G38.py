@@ -155,6 +155,9 @@ class ProbeG38:
         # NOTE: Dummy objects for the G1 command parser
         self.speed_factor = 1
 
+        # NOTE: probing axes
+        probe_axes = []
+
         # NOTE: coordinate code parser copied from "cmd_G1" at "gcode_move.py".
         params = gcmd.get_command_parameters()
         try:
@@ -167,6 +170,8 @@ class ProbeG38:
                     else:
                         # value relative to base coordinate position
                         self.last_position[pos] = v + self.base_position[pos]
+                    # NOTE: register which axes are being probed
+                    probe_axes.append(axis.lower())  # Append "X", "Y", or "Z".
             if 'E' in params:
                 v = float(params['E']) * self.extrude_factor
                 if not self.absolute_coord or not self.absolute_extrude:
@@ -175,6 +180,8 @@ class ProbeG38:
                 else:
                     # value relative to base coordinate position
                     self.last_position[3] = v + self.base_position[3]
+                # NOTE: register which axes are being probed
+                probe_axes.append("extruder")  # Append "extruder"
             if 'F' in params:
                 gcode_speed = float(params['F'])
                 if gcode_speed <= 0.:
@@ -192,9 +199,9 @@ class ProbeG38:
             toolhead.dwell(self.recovery_time)
         
         # NOTE: my probe works!
-        self.probe_g38(pos=self.last_position, speed=self.speed, error_out=error_out, gcmd=gcmd)
+        self.probe_g38(pos=self.last_position, speed=self.speed, error_out=error_out, gcmd=gcmd, probe_axes=probe_axes)
 
-    def probe_g38(self, pos, speed, error_out, gcmd):
+    def probe_g38(self, pos, speed, error_out, gcmd, probe_axes=None):
         # NOTE: code copied from "probe._probe".
 
         toolhead = self.printer.lookup_object('toolhead')
@@ -232,10 +239,12 @@ class ProbeG38:
             #       current XYE toolhead coordinates (see notes above). 
             # NOTE: I had to add a "check_triggered" argument to 
             #       "probing_move" for G38.3 to work properly.
+            logging.info(f"\n\n" + "probe_g38 probing with axes: " + str(probe_axes) + "\n\n")
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
                                         pos=pos,
                                         speed=speed,
-                                        check_triggered=error_out)
+                                        check_triggered=error_out,
+                                        probe_axes=probe_axes)
 
         except self.printer.command_error as e:
             # NOTE: the "fail" logic of the G38 gcode could be
