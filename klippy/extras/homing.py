@@ -283,6 +283,9 @@ class HomingMove:
             if error is None:
                 error = str(e)
         
+        # NOTE: raise any errors if found.
+        #       This does not include the "trigger timeout" if
+        #       if "check_triggered=False".
         if error is not None:
             raise self.printer.command_error(error)
 
@@ -403,7 +406,7 @@ class PrinterHoming:
                 raise self.printer.command_error(
                     "Homing failed due to printer shutdown")
             raise
-    def probing_move(self, mcu_probe, pos, speed):
+    def probing_move(self, mcu_probe, pos, speed, check_triggered=True):
         """
         mcu_probe
         pos
@@ -412,7 +415,10 @@ class PrinterHoming:
         endstops = [(mcu_probe, "probe")]
         hmove = HomingMove(self.printer, endstops)
         try:
-            epos = hmove.homing_move(pos, speed, probe_pos=True)
+            epos = hmove.homing_move(pos, speed, probe_pos=True, 
+                                     # NOTE: add argument to "probing_move", to
+                                     #       support G38.3 probing gcodes.
+                                     check_triggered=check_triggered)
         except self.printer.command_error:
             if self.printer.is_shutdown():
                 raise self.printer.command_error(

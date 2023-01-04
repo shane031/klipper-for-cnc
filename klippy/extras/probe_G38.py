@@ -14,6 +14,11 @@ from . import probe
 class ProbeG38:
     """
     ! WARNING EXPERIMENTAL
+    
+    ! Known problems:
+    ! 15:13 Communication timeout during homing probe
+    ! 15:13 G38.2 X150 F10
+
     This class registers G38 commands to probe in general directions.
 
     From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
@@ -158,7 +163,12 @@ class ProbeG38:
             # NOTE: the method is passed "pos", which is "min_position"
             #       parameter from the "z_stepper" section, and the
             #       current XYE toolhead coordinates (see notes above). 
-            epos = phoming.probing_move(self.probe.mcu_probe, pos, speed)
+            # NOTE: I had to add a "check_triggered" argument to 
+            #       "probing_move" for G38.3 to work properly.
+            epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
+                                        pos=pos,
+                                        speed=speed
+                                        check_triggered=error_out)
 
         except self.printer.command_error as e:
             # NOTE: the "fail" logic of the G38 gcode could be
