@@ -28,10 +28,13 @@ class GCodeMove:
             'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
             'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE',
         ]
+        # NOTE: this iterates over the commands above and finds the functions
+        #       and description strings by their names (as they appear in "handlers").
         for cmd in handlers:
             func = getattr(self, 'cmd_' + cmd)
             desc = getattr(self, 'cmd_' + cmd + '_help', None)
-            gcode.register_command(cmd, func, False, desc)
+            gcode.register_command(cmd, func, when_not_ready=False, desc=desc)
+        
         gcode.register_command('G0', self.cmd_G1)
         gcode.register_command('M114', self.cmd_M114, True)
         gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, True,
