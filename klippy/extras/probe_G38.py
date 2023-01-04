@@ -67,8 +67,11 @@ class ProbeG38:
     ! G38.2 X150 F10
     TODO: This i have no idea how to fix.
 
-    !   "Probe triggered prior to movement"
-    !   G38.3 X10 F10
+    #   "Probe triggered prior to movement"
+    #   G38.3 X10 F10
+    # NOTE: issue solved by:
+    #       -   
+    #       -   
     From: https://www.klipper3d.org/Config_Reference.html#smart_effector
         A delay between the travel moves and the probing moves in seconds. A fast
         travel move prior to probing may result in a spurious probe triggering.
@@ -155,7 +158,13 @@ class ProbeG38:
         # NOTE: Dummy objects for the G1 command parser
         self.speed_factor = 1
 
-        # NOTE: probing axes
+        # NOTE: probing axes list. This is populated with strings matching
+        #       stepper names, coming from the axes involved in the probing
+        #       move. For example, a probing move to X10,Y10 will have
+        #       elements ["x", "y"]. These will then be matched to stepper
+        #       names at the end of "probing_move" (see probing_move below 
+        #       and homing.py), to prevent raising "Probe triggered 
+        #       prior to movement" errors accidentally.
         probe_axes = []
 
         # NOTE: coordinate code parser copied from "cmd_G1" at "gcode_move.py".
