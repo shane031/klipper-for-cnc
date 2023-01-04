@@ -165,10 +165,12 @@ class PrinterProbe:
     
     def _move(self, coord, speed):
         self.printer.lookup_object('toolhead').manual_move(coord, speed)
+
     def _calc_mean(self, positions):
         count = float(len(positions))
         return [sum([pos[i] for pos in positions]) / count
                 for i in range(3)]
+
     def _calc_median(self, positions):
         z_sorted = sorted(positions, key=(lambda p: p[2]))
         middle = len(positions) // 2
@@ -182,6 +184,7 @@ class PrinterProbe:
     # NOTE: actually... it might be simpler to use the "_probe" method above directly.
     #       This function does a lot more than I need for G38.X.
     def run_probe(self, gcmd):
+        # NOTE: this command is called by the "cmd_PROBE" handler immediately.
         speed = gcmd.get_float("PROBE_SPEED", self.speed, above=0.)
         lift_speed = self.get_lift_speed(gcmd)
         sample_count = gcmd.get_int("SAMPLES", self.sample_count, minval=1)

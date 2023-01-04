@@ -38,6 +38,9 @@ class ProbeG38:
         # NOTE: Dummy position vector, populated later.
         self.last_position = [None, None, None, None]
 
+        # NOTE: default probing speed
+        self.speed = 100
+
         # NOTE: Register commands
         gcode = self.printer.lookup_object('gcode')
         self.gcode.register_command("G38.2",
@@ -48,7 +51,8 @@ class ProbeG38:
     
     cmd_PROBE_G38_2_help = "Probe towards workpiece with error."
     def cmd_PROBE_G38_2(self, gcmd):
-        # NOTE: get the toolhead's last position.
+        # NOTE: Get the toolhead's last position.
+        #       This will be updated below.
         toolhead = self.printer.lookup_object('toolhead')
         self.last_position = toolhead.get_position()
 
@@ -56,6 +60,13 @@ class ProbeG38:
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move = self.printer.lookup_object('gcode_move')
         self.absolute_coord = gcode_move.absolute_coord
+
+        # NOTE: also get the "base position". This is required to compute
+        #       the absolute move, ¿relative to it? Weird...
+        self.base_position = gcode_move.base_position
+
+        # NOTE: Dummy objects for the G1 command parser
+        self.speed_factor = 1
 
         # NOTE: coordinate code parser copied from "cmd_G1" at "gcode_move.py".
         params = gcmd.get_command_parameters()
@@ -89,9 +100,62 @@ class ProbeG38:
         
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
-        # TODO: define the "_probe move here".
-
         
+        # TODO: define the "_probe move here".
+        self.probe_g38(self.last_position, self.speed)
+
+    def probe_g38(self, pos, speed):
+        # NOTE: code copied from "probe._probe".
+
+        toolhead = self.printer.lookup_object('toolhead')
+
+        # TODO: rethink if homing is neccessary for homing.
+        # curtime = self.printer.get_reactor().monotonic()
+        # if 'z' not in toolhead.get_status(curtime)['homed_axes']:
+        #     raise self.printer.command_error("Must home before probe")
+        
+        phoming = self.printer.lookup_object('homing')
+
+        # NOTE: This is no longer necessary, because I've passed
+        #       the "pos" argument from "cmd_PROBE_G38_2".
+        # pos = toolhead.get_position()
+
+        # NOTE: This is also no longer necessary.
+        # NOTE: "self.z_position" is equal to the "min_position"
+        #       parameter from the "z_stepper" section.
+        #       It is used to override the Z component of the 
+        #       current toolhead position, probably to generate
+        #       the target coordinates for the homing move.
+        # pos[2] = self.z_position
+        
+        try:
+            # NOTE: This probe method uses "phoming.probing_move",
+            #       passing it "mcu_probe" which is an instance of 
+            #       "ProbeEndstopWrapper", a wrapper for the probes'
+            #       MCU_endstop object.
+            # NOTE: This is in contrast to "phoming.manual_home",
+            #       which additionally requires a toolhead object.
+            #       It turns out that, if not provided, HomingMove
+            #       will get the main toolhead by lookup and use it.
+            # NOTE: the method is passed "pos", which is "min_position"
+            #       parameter from the "z_stepper" section, and the
+            #       current XYE toolhead coordinates (see notes above). 
+            epos = phoming.probing_move(self.probe.mcu_probe, pos, speed)
+
+        except self.printer.command_error as e:
+            # NOTE: the "fail" logic of the G38 gcode could be
+            #       based on this behaviour.
+            reason = str(e)
+            if "Timeout during endstop homing" in reason:
+                reason += HINT_TIMEOUT
+            raise self.printer.command_error(reason)
+        
+        self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
+                                % (epos[0], epos[1], epos[2]))
+        
+        # TODO: find out why it returns the fourth position.
+        return epos[:3]
+    
         
 
 def load_config(config):
