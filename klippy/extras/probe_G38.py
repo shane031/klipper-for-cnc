@@ -15,6 +15,14 @@ class ProbeG38:
     """
     ! WARNING EXPERIMENTAL
     This class registers G38 commands to probe in general directions.
+
+    From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
+        - G38.2 - (True/True) probe toward workpiece, stop on contact, signal error if failure.
+        - G38.3 - (True/False) probe toward workpiece, stop on contact.
+        - G38.4 - (False/True) probe away from workpiece, stop on loss of contact, signal error if failure.
+        - G38.5 - (False/False) probe away from workpiece, stop on loss of contact.
+    
+    For now, only the G38.2 command has been implemented.
     """
     def __init__(self, config):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
@@ -50,10 +58,18 @@ class ProbeG38:
                                     self.cmd_PROBE_G38_2,
                                     when_not_ready=False,
                                     desc=self.cmd_PROBE_G38_2_help)
+        self.gcode.register_command("G38.3",
+                                    self.cmd_PROBE_G38_3,
+                                    when_not_ready=False,
+                                    desc=self.cmd_PROBE_G38_3_help)
         # TODO: register the rest of the G38 probing commands.
-    
+        
+    cmd_PROBE_G38_3_help = "Probe towards workpiece without error."
+    def cmd_PROBE_G38_3(self, gcmd):
+        self.cmd_PROBE_G38_2(gcmd, error_out=False)
+
     cmd_PROBE_G38_2_help = "Probe towards workpiece with error."
-    def cmd_PROBE_G38_2(self, gcmd):
+    def cmd_PROBE_G38_2(self, gcmd, error_out=True):
         # NOTE: Get the toolhead's last position.
         #       This will be updated below.
         toolhead = self.printer.lookup_object('toolhead')
@@ -98,15 +114,15 @@ class ProbeG38:
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
         except ValueError as e:
-            raise gcmd.error(f"cmd_PROBE_G38_2: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
+            raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
         
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
         
-        # TODO: define the "_probe move here".
-        self.probe_g38(self.last_position, self.speed)
+        # NOTE: my probe works!
+        self.probe_g38(pos=self.last_position, speed=self.speed, error_out=error_out, gcmd=gcmd)
 
-    def probe_g38(self, pos, speed):
+    def probe_g38(self, pos, speed, error_out, gcmd):
         # NOTE: code copied from "probe._probe".
 
         toolhead = self.printer.lookup_object('toolhead')
@@ -148,9 +164,21 @@ class ProbeG38:
             # NOTE: the "fail" logic of the G38 gcode could be
             #       based on this behaviour.
             reason = str(e)
+            
+            # NOTE: to respect the original logic, only "timeout" errors
+            #       can be ignored. Else, the error should be logged with
+            #       the "command_error" method, as always.
             if "Timeout during endstop homing" in reason:
                 reason += HINT_TIMEOUT
-            raise self.printer.command_error(reason)
+                if error_out:
+                    # NOTE: log the error as usual if it was requested.
+                    raise self.printer.command_error(reason)
+                else:
+                    # NOTE: log as a "gcmd response"
+                    gcmd.respond_info("G38 timeout without error, reason: " + reason)
+            else:
+                # NOTE: log the error as usual if it is was not a timeout error.
+                raise self.printer.command_error(reason)
         
         self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
                                 % (epos[0], epos[1], epos[2]))
