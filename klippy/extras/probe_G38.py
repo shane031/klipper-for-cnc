@@ -26,11 +26,14 @@ class ProbeG38:
         #       -   "PrinterProbe": ?
         self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
         self.printer = config.get_printer()
-        self.probe_name = config.get_name().split()[1]
 
-        # NOTE: override some things from the PrinterProbe init.
-        self.probe_pos = config.getfloat('endstop_position', self.probe.speed)
-        self.probe.z_position = self.probe_pos
+        # NOTE: not setup by "load_config", not needed either.
+        #self.probe_name = config.get_name().split()[1]
+
+        # NOTE: Override some things from the PrinterProbe init.
+        # NOTE: They are no longer needed.
+        #self.probe_pos = config.getfloat('endstop_position', self.probe.speed)
+        #self.probe.z_position = self.probe_pos
 
         # NOTE: configure whether te move will be in absolute or relative coordinates
         #self.absolute_coord = config.getboolean('absolute_coord', True)
@@ -42,7 +45,7 @@ class ProbeG38:
         self.speed = 100
 
         # NOTE: Register commands
-        gcode = self.printer.lookup_object('gcode')
+        self.gcode = self.printer.lookup_object('gcode')
         self.gcode.register_command("G38.2",
                                     self.cmd_PROBE_G38_2,
                                     when_not_ready=False,
@@ -155,8 +158,7 @@ class ProbeG38:
         
         # TODO: find out why it returns the fourth position.
         return epos[:3]
-    
-        
+
 
 def load_config(config):
     return ProbeG38(config)
