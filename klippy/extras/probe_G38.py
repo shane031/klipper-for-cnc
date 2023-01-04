@@ -4,20 +4,47 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+# TODO: check if this is useful.
+# from . import manual_probe
+
 import logging
 import pins
 from . import probe
 
-# TODO: check if this is useful.
-# from . import manual_probe
+
+class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
+    def __init__(self, config):
+        # Instantiate the base "ProbeEndstopWrapper" class, as usual
+        super(ProbeEndstopWrapperG38, self).__init__(config)
+
+    # Overwrite only the "probe_prepare" method, to include the dwell.
+    def probe_prepare(self, hmove):
+        if self.multi == 'OFF' or self.multi == 'FIRST':
+            self.lower_probe()
+            if self.multi == 'FIRST':
+                self.multi = 'ON'
+            
+        # NOTE: borrowed code from "smart_effector", trying to
+        #       avoid the "Probe triggered prior to movement" error.
+        if self.recovery_time:
+            toolhead.dwell(self.recovery_time)
 
 class ProbeG38:
     """
     ! WARNING EXPERIMENTAL
     
     ! Known problems:
-    ! 15:13 Communication timeout during homing probe
-    ! 15:13 G38.2 X150 F10
+
+    ! "Communication timeout during homing probe"
+    ! G38.2 X150 F10
+
+    ! "Probe triggered prior to movement"
+    ! G38.3 X10 F10
+    ! From: https://www.klipper3d.org/Config_Reference.html#smart_effector
+    !   A delay between the travel moves and the probing moves in seconds. A fast
+    !   travel move prior to probing may result in a spurious probe triggering.
+    !   This may cause 'Probe triggered prior to movement' errors if no delay
+    !   is set. Value 0 disables the recovery delay.
 
     This class registers G38 commands to probe in general directions.
 
@@ -37,7 +64,8 @@ class ProbeG38:
         # NOTE: instantiate:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
-        self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
+        #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
+        self.probe = probe.PrinterProbe(config, ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
 
         # NOTE: not setup by "load_config", not needed either.
@@ -56,6 +84,9 @@ class ProbeG38:
 
         # NOTE: default probing speed
         self.speed = 100
+
+        # NOTE: recovery stuff
+        self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
         # NOTE: Register commands
         self.gcode = self.printer.lookup_object('gcode')
@@ -123,6 +154,10 @@ class ProbeG38:
         
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
+
+        # TODO: should this go here?
+        if self.recovery_time:
+            toolhead.dwell(self.recovery_time)
         
         # NOTE: my probe works!
         self.probe_g38(pos=self.last_position, speed=self.speed, error_out=error_out, gcmd=gcmd)
