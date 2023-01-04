@@ -22,6 +22,10 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # NOTE: recovery stuff
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
+        # NOTE: add XY steppers too
+        self.printer.register_event_handler('klippy:mcu_identify',
+                                            self._handle_mcu_identify)
+
     # Overwrite only the "probe_prepare" method, to include the dwell.
     def probe_prepare(self, hmove):
         if self.multi == 'OFF' or self.multi == 'FIRST':
@@ -35,22 +39,17 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             toolhead = self.printer.lookup_object('toolhead')
             toolhead.dwell(self.recovery_time)
 
+    # NOTE: trying to solve the "Probe triggered prior to movement" issue.
+    def _handle_mcu_identify(self):
+        logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZ axes)" + "\n\n")
+        kin = self.printer.lookup_object('toolhead').get_kinematics()
+        for stepper in kin.get_steppers():
+            if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
+                self.add_stepper(stepper)
+
 class ProbeG38:
     """
     ! WARNING EXPERIMENTAL
-    
-    ! Known problems:
-
-    ! "Communication timeout during homing probe"
-    ! G38.2 X150 F10
-
-    ! "Probe triggered prior to movement"
-    ! G38.3 X10 F10
-    ! From: https://www.klipper3d.org/Config_Reference.html#smart_effector
-    !   A delay between the travel moves and the probing moves in seconds. A fast
-    !   travel move prior to probing may result in a spurious probe triggering.
-    !   This may cause 'Probe triggered prior to movement' errors if no delay
-    !   is set. Value 0 disables the recovery delay.
 
     This class registers G38 commands to probe in general directions.
 
@@ -60,7 +59,34 @@ class ProbeG38:
         - G38.4 - (False/True) probe away from workpiece, stop on loss of contact, signal error if failure.
         - G38.5 - (False/False) probe away from workpiece, stop on loss of contact.
     
-    For now, only the G38.2 command has been implemented.
+    For now, only the G38.2 and G38.3 commands have been implemented.
+        
+    ! Known problems:
+
+    ! "Communication timeout during homing probe"
+    ! G38.2 X150 F10
+    TODO: This i have no idea how to fix.
+
+    !   "Probe triggered prior to movement"
+    !   G38.3 X10 F10
+    From: https://www.klipper3d.org/Config_Reference.html#smart_effector
+        A delay between the travel moves and the probing moves in seconds. A fast
+        travel move prior to probing may result in a spurious probe triggering.
+        This may cause 'Probe triggered prior to movement' errors if no delay
+        is set. Value 0 disables the recovery delay.
+    Unfortunately the "recovery_time"/dwell thing did not help.
+    The error is raised by "check_no_movement", called by "probing_move" at
+    the end of the move; which checks if ths start and trigger positions of the
+    steppers are the same.
+    Perhaps the trigger positions are not updated correctly, because the 
+    endstops are associated to only one stepper: the Z.
+    Indeed, the probe finishes without errors for a Z probe move.
+
+    The "add_stepper" function in ProbeEndstopWrapper is called by "_handle_mcu_identify",
+    which responds to the 'klippy:mcu_identify' event.
+
+
+
     """
     def __init__(self, config):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,

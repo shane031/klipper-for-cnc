@@ -296,6 +296,9 @@ class HomingMove:
     def check_no_movement(self):
         if self.printer.get_start_args().get('debuginput') is not None:
             return None
+        # NOTE: from the StepperPosition class:
+        #       -   self.start_pos = stepper.get_mcu_position()
+        #       -   self.trig_pos = self.stepper.get_past_mcu_position(trigger_time)
         for sp in self.stepper_positions:
             if sp.start_pos == sp.trig_pos:
                 return sp.endstop_name
@@ -424,9 +427,16 @@ class PrinterHoming:
                 raise self.printer.command_error(
                     "Probing failed due to printer shutdown")
             raise
+        
+        # NOTE: this is getting raised for the G38 moves.
+        #       "check_no_movement" looks at the stepper 
+        #       start and trigger positions. If they are
+        #       the same, then the error below is raised.
+        #           "Probe triggered prior to movement"
         if hmove.check_no_movement() is not None:
             raise self.printer.command_error(
                 "Probe triggered prior to movement")
+        
         return epos
     def cmd_G28(self, gcmd):
         # Move to origin

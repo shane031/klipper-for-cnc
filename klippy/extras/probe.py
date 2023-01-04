@@ -371,6 +371,7 @@ class ProbeEndstopWrapper:
         self.multi = 'OFF'
     
     def _handle_mcu_identify(self):
+        logging.info(f"\n\n" + "ProbeEndstopWrapper._handle_mcu_identify activated" + "\n\n")
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         for stepper in kin.get_steppers():
             if stepper.is_active_axis('z'):
