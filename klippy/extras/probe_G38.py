@@ -167,7 +167,7 @@ class ProbeG38:
             #       "probing_move" for G38.3 to work properly.
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
                                         pos=pos,
-                                        speed=speed
+                                        speed=speed,
                                         check_triggered=error_out)
 
         except self.printer.command_error as e:
