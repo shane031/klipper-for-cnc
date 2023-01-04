@@ -98,8 +98,7 @@ class ProbeG38:
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
         except ValueError as e:
-            raise gcmd.error("cmd_PROBE_G38_2: Unable to parse move '%s'"
-                             % (gcmd.get_commandline(),))
+            raise gcmd.error(f"cmd_PROBE_G38_2: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
         
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
