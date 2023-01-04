@@ -42,6 +42,8 @@ class GCodeCommand:
             rawparams = rawparams[1:]
         return rawparams
     def ack(self, msg=None):
+        # NOTE: response messages appear to start with "ok",
+        #       but may have more content to the right.
         if not self._need_ack:
             return False
         ok_msg = "ok"
