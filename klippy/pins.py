@@ -73,9 +73,12 @@ class PrinterPins:
             if desc.startswith('~'):
                 pullup = -1
             desc = desc[1:].strip()
+        
+        # NOTE: Pin invertion logic setup.
         if can_invert and desc.startswith('!'):
             invert = 1
             desc = desc[1:].strip()
+        
         if ':' not in desc:
             chip_name, pin = 'mcu', desc
         else:

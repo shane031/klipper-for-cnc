@@ -425,7 +425,15 @@ class PrinterHoming:
                 raise self.printer.command_error(
                     "Homing failed due to printer shutdown")
             raise
+    
     def probing_move(self, mcu_probe, pos, speed, check_triggered=True, 
+                     # NOTE: Add a "triggered" argument. This is eventually used
+                     #       to invert the probing logic at "_home_cmd.send()" 
+                     #       in "mcu.py" to make the low-level "endstop_home" MCU command.
+                     # NOTE: It is passed below to "homing_move". Reusing here the 
+                     #       default "True" value from that method (to avoid issues
+                     #       with other uses of probing_move).
+                     triggered=True,
                      # NOTE: "probe_axes" should be a list of the axes
                      #       moving in this probing move.
                      probe_axes=None):
@@ -438,8 +446,11 @@ class PrinterHoming:
         hmove = HomingMove(self.printer, endstops)
         try:
             epos = hmove.homing_move(pos, speed, probe_pos=True, 
-                                     # NOTE: add argument to "probing_move", to
-                                     #       support G38.3 probing gcodes.
+                                     # NOTE: Pass argument from "probing_move",
+                                     #       to support G38.4/5 probing gcodes.
+                                     triggered=triggered,
+                                     # NOTE: Pass argument from "probing_move",
+                                     #       to support G38.3/5 probing gcodes.
                                      check_triggered=check_triggered)
         except self.printer.command_error:
             if self.printer.is_shutdown():

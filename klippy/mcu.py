@@ -96,6 +96,7 @@ class MCU_trsync:
     
     def start(self, print_time, trigger_completion, expire_timeout):
         # NOTE: called by "home_start" from "MCU_endstop".
+        
         self._trigger_completion = trigger_completion
         self._home_end_clock = None
         clock = self._mcu.print_time_to_clock(print_time)
@@ -139,7 +140,12 @@ class MCU_endstop:
         self._mcu = mcu
         self._pin = pin_params['pin']
         self._pullup = pin_params['pullup']
+        
+        # NOTE: either 0 (default) or 1, if a "!" was found
+        #       in the configuration file. See the "PrinterPins"
+        #       class at "pins.py".
         self._invert = pin_params['invert']
+
         self._oid = self._mcu.create_oid()
         self._home_cmd = self._query_cmd = None
         self._mcu.register_config_callback(self._build_config)
@@ -203,6 +209,13 @@ class MCU_endstop:
         etrsync = self._trsyncs[0]
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trdispatch_start(self._trdispatch, etrsync.REASON_HOST_REQUEST)
+        # NOTE: Here the pin logic is finally used to make the endstop_home 
+        #       low level command. It uses "triggered ^ self._invert" which has
+        #       the following logic table:
+        #           >>> 1 ^ 1 = 0
+        #           >>> 0 ^ 0 = 0
+        #           >>> 1 ^ 0 = 1
+        #           >>> 0 ^ 1 = 1
         self._home_cmd.send(
             [self._oid, clock, self._mcu.seconds_to_clock(sample_time),
              sample_count, rest_ticks, triggered ^ self._invert,
