@@ -24,10 +24,9 @@ This fork implements:
 - Homing on the steppers of `[extruder]`s.
     - See: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Note: this may not work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
-- Probing in arbitrary directions with `G38.2` and `G38.3`.
+- Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5`.
     - See: [probe_G38.py](./klippy/extras/probe_G38.py)
-    - `G38.4` and `G38.5` could work by inverting the endstop pin signal, but implementing all four commands seems harder.
-    - If someone knows how to have klipper trigger and endstop on deactivation and activation, all four commands could be implemented.
+    - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
 
 Minor modifications in Klippy's core were made to accommodate these features.
 
