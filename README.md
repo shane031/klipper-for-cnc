@@ -21,8 +21,9 @@ the generous support from our
 
 This fork implements:
 
-- Homing on the extruder steppers.
+- Homing on the steppers of `[extruder]`s.
     - See: [extruder_home.py](./klippy/extras/extruder_home.py)
+    - Note: this may not work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
 - Probing in arbitrary directions with `G38.2` and `G38.3`.
     - See: [probe_G38.py](./klippy/extras/probe_G38.py)
     - `G38.4` and `G38.5` could work by inverting the endstop pin signal, but implementing all four commands seems harder.
