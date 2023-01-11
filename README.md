@@ -33,6 +33,12 @@ This fork implements:
 
 Minor modifications in Klippy's core were made to accommodate these features.
 
+## Interested in CNC stuff for Klipper?
+
+Let's chat over here: https://klipper.discourse.group/t/klipper-forks-for-cnc/5698
+
+Cheers!
+
 ## Configs
 
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
@@ -86,8 +92,3 @@ pin: gpio19
 z_offset: 0
 ```
 
-# Interested in CNC stuff for Klipper?
-
-Let's chat over here: https://klipper.discourse.group/t/klipper-forks-for-cnc/5698
-
-Cheers!
