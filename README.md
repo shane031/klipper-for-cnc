@@ -22,10 +22,13 @@ the generous support from our
 This fork implements:
 
 - Homing on the steppers of `[extruder]`s.
-    - See: [extruder_home.py](./klippy/extras/extruder_home.py)
-    - Note: this may not work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
+    - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
+    - Command: `HOME_EXTRUDER EXTRUDER=extruder`.
+    - Caveats: `extruder` must be active (use [this](https://github.com/naikymen/klipper-homing-extruder/blob/pipetting/config/configs-pipetting-bot/config-pi-pico-mainsail/home_extruder.cfg#L21) macro for convenience). No "second home" is performed. It probably won't work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
 - Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5`.
     - See: [probe_G38.py](./klippy/extras/probe_G38.py)
+    - Example command: `G38.2 X20 F10`
+    - Notes: affected by `G90`/`G91`.
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
 
 Minor modifications in Klippy's core were made to accommodate these features.
