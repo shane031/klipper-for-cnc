@@ -152,7 +152,6 @@ class ProbeG38:
                                     self.cmd_PROBE_G38_5,
                                     when_not_ready=False,
                                     desc=self.cmd_PROBE_G38_5_help)
-        # TODO: register the rest of the G38 probing commands.
     
     # Probe command variants
     cmd_PROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact."
