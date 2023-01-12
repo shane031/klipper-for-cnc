@@ -59,22 +59,22 @@ class ProbeG38multi(probe_G38.ProbeG38):
         
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
-        self.gcode.register_mux_command("G38n2", "PROBE_NAME",
+        self.gcode.register_mux_command("MULTIPROBE", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_2,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_2_help)
         #       - G38.3 - Probe toward workpiece, stop on contact.
-        self.gcode.register_mux_command("G38n3", "PROBE_NAME",
+        self.gcode.register_mux_command("MULTIPROBE", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_3,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_3_help)
         #       - G38.4 - Probe away from workpiece, stop on loss of contact, signal error if failure.
-        self.gcode.register_mux_command("G38n4", "PROBE_NAME",
+        self.gcode.register_mux_command("MULTIPROBE", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_4,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_4_help)
         #       - G38.5 - Probe away from workpiece, stop on loss of contact.
-        self.gcode.register_mux_command("G38n5", "PROBE_NAME",
+        self.gcode.register_mux_command("MULTIPROBE", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_5,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_5_help)
