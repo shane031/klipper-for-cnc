@@ -9,9 +9,9 @@
 
 import logging
 import pins
-from . import probe, ProbeEndstopWrapperG38, ProbeG38
+from . import probe, 
 
-class ProbeG38multi(ProbeG38):
+class ProbeG38multi(probeG38.ProbeG38):
     def __init__(self, config):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
         #       it will require all the parameters that they require, plus the ones specific
@@ -21,7 +21,7 @@ class ProbeG38multi(ProbeG38):
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
         #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.probe = probe.PrinterProbe(config, ProbeEndstopWrapperG38(config))
+        self.probe = probe.PrinterProbe(config, probeG38.ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
 
         # NOTE: save original probing config logic.
