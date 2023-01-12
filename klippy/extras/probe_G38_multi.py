@@ -59,25 +59,109 @@ class ProbeG38multi(probe_G38.ProbeG38):
         
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
-        self.gcode.register_mux_command("LALA", "PNAME",
+        self.gcode.register_mux_command("G38.2", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_2,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_2_help)
         #       - G38.3 - Probe toward workpiece, stop on contact.
-        self.gcode.register_mux_command("G38.3", "PNAME",
+        self.gcode.register_mux_command("G38.3", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_3,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_3_help)
         #       - G38.4 - Probe away from workpiece, stop on loss of contact, signal error if failure.
-        self.gcode.register_mux_command("G38.4", "PNAME",
+        self.gcode.register_mux_command("G38.4", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_4,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_4_help)
         #       - G38.5 - Probe away from workpiece, stop on loss of contact.
-        self.gcode.register_mux_command("G38.5", "PNAME",
+        self.gcode.register_mux_command("G38.5", "PROBE_NAME",
                                         self.probe_name, self.cmd_PROBE_G38_5,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_5_help)
+        
+    # Main probe command
+    cmd_PROBE_G38_2_help = "G38.2 Probe toward workpiece, stop on contact, signal error if failure."
+    def cmd_PROBE_G38_2(self, gcmd, error_out=True, trigger_invert=True):
+        # Error on failure, do not invert probe logic.
+
+        # NOTE: Get the toolhead's last position.
+        #       This will be updated below.
+        toolhead = self.printer.lookup_object('toolhead')
+        self.last_position = toolhead.get_position()
+
+        # NOTE: configure whether te move will be in absolute 
+        #       or relative coordinates. Respect the G90/G91 setting.
+        gcode_move = self.printer.lookup_object('gcode_move')
+        self.absolute_coord = gcode_move.absolute_coord
+
+        # NOTE: also get the "base position". This is required to compute
+        #       the absolute move, ¿relative to it? Weird...
+        self.base_position = gcode_move.base_position
+
+        # NOTE: Dummy objects for the G1 command parser
+        self.speed_factor = 1
+
+        # NOTE: probing axes list. This is populated with strings matching
+        #       stepper names, coming from the axes involved in the probing
+        #       move. For example, a probing move to X10,Y10 will have
+        #       elements ["x", "y"]. These will then be matched to stepper
+        #       names at the end of "probing_move" (see probing_move below 
+        #       and homing.py), to prevent raising "Probe triggered 
+        #       prior to movement" errors accidentally.
+        probe_axes = []
+
+        # NOTE: parse coordinates
+        try:
+            for pos, axis in enumerate('XYZ'):
+                # NOTE: "pos" is 0, 1, 2.
+                # NOTE: "axis" is X, Y, Z.
+                coord = gcmd.get_float(axis, None)
+                if coord is not None:
+                    v = float(coord)
+                    if not self.absolute_coord:
+                        # value relative to position of last move
+                        self.last_position[pos] += v
+                    else:
+                        # value relative to base coordinate position
+                        self.last_position[pos] = v + self.base_position[pos]
+                    # NOTE: register which axes are being probed
+                    probe_axes.append(axis.lower())  # Append "X", "Y", or "Z".
+            
+            coord = gcmd.get_float('E', None)
+            if coord is not None:
+                v = float(coord) * self.extrude_factor
+                if not self.absolute_coord or not self.absolute_extrude:
+                    # value relative to position of last move
+                    self.last_position[3] += v
+                else:
+                    # value relative to base coordinate position
+                    self.last_position[3] = v + self.base_position[3]
+                # NOTE: register which axes are being probed
+                probe_axes.append("extruder")  # Append "extruder"
+            
+            feed = gcmd.get_float('F', None)
+            if feed is not None:
+                gcode_speed = float(feed)
+                if gcode_speed <= 0.:
+                    raise gcmd.error("Invalid speed in '%s'"
+                                     % (gcmd.get_commandline(),))
+                self.speed = gcode_speed * self.speed_factor
+        except ValueError as e:
+            raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
+        
+        # NOTE: "move_with_transform" is just "toolhead.move":
+        # self.move_with_transform(self.last_position, self.speed)
+
+        # TODO: should this go here?
+        if self.recovery_time:
+            toolhead.dwell(self.recovery_time)
+        
+        # NOTE: my probe works!
+        self.probe_g38(pos=self.last_position, speed=self.speed, 
+                       error_out=error_out, gcmd=gcmd, 
+                       trigger_invert=trigger_invert,
+                       probe_axes=probe_axes)
+
 
 
 class PrinterProbeMux(probe.PrinterProbe):
