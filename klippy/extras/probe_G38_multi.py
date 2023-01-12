@@ -59,7 +59,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
-        self.gcode.register_mux_command("G38.2", "PNAME",
+        self.gcode.register_mux_command("lala", "PNAME",
                                         self.probe_name, self.cmd_PROBE_G38_2,
                                         #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_2_help)
