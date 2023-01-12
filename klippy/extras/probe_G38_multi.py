@@ -9,7 +9,7 @@
 
 import logging
 import pins
-from . import probe
+from . import probe, probeG38
 
 class ProbeG38multi(probeG38.ProbeG38):
     def __init__(self, config):
