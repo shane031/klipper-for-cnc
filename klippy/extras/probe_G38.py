@@ -91,7 +91,7 @@ class ProbeG38:
 
 
     """
-    def __init__(self, config):
+    def __init__(self, config, mcu_probe_name='probe'):
         # NOTE: because the "config" is passed to PrinterProbe and ProbeEndstopWrapper,
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
@@ -100,7 +100,8 @@ class ProbeG38:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
         #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.probe = probe.PrinterProbe(config, ProbeEndstopWrapperG38(config))
+        self.mcu_probe_name=mcu_probe_name
+        self.probe = probe.PrinterProbe(config=config, mcu_probe=ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
 
         # NOTE: save original probing config logic.

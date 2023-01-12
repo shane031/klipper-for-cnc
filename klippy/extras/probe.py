@@ -14,13 +14,14 @@ can travel further (the Z minimum position can be negative).
 """
 
 class PrinterProbe:
-    def __init__(self, config, mcu_probe):
+    def __init__(self, config, mcu_probe, mcu_probe_name='probe'):
         """
         config: ?
         mcu_probe: this is of "ProbeEndstopWrapper" class, which is a wrapper for "MCU_endstop".
         """
         self.printer = config.get_printer()
         self.name = config.get_name()
+        self.mcu_probe_name=mcu_probe_name
         self.mcu_probe = mcu_probe
         self.speed = config.getfloat('speed', 5.0, above=0.)
         self.lift_speed = config.getfloat('lift_speed', self.speed, above=0.)
@@ -55,7 +56,7 @@ class PrinterProbe:
         
         # Register z_virtual_endstop pin
         # TODO: study this to implement probing on any direction.
-        self.printer.lookup_object('pins').register_chip('probe', self)
+        self.printer.lookup_object('pins').register_chip(self.mcu_probe_name, self)
         
         # Register homing event handlers
         self.printer.register_event_handler("homing:homing_move_begin",
@@ -466,7 +467,7 @@ class ProbePointsHelper:
     def start_probe(self, gcmd):
         manual_probe.verify_no_manual_probe(self.printer)
         # Lookup objects
-        probe = self.printer.lookup_object('probe', None)
+        probe = self.printer.lookup_object(self.mcu_probe_name, None)
         method = gcmd.get('METHOD', 'automatic').lower()
         self.results = []
         if probe is None or method != 'automatic':

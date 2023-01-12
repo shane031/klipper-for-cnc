@@ -17,11 +17,16 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       it will require all the parameters that they require, plus the ones specific
         #       to this class.
 
+        # NOTE: get name of the probe from the config
+        self.probe_name = config.get_name().split()[1]
+
         # NOTE: instantiate:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
         #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.probe = probe.PrinterProbe(config, probe_G38.ProbeEndstopWrapperG38(config))
+        self.probe = probe.PrinterProbe(config=config,
+                                        mcu_probe=probe_G38.ProbeEndstopWrapperG38(config),
+                                        mcu_probe_name='probe_'+self.probe_name)
         self.printer = config.get_printer()
 
         # NOTE: save original probing config logic.
@@ -51,9 +56,6 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: Register commands
         self.gcode = self.printer.lookup_object('gcode')
-        
-        # NOTE: get name of the probe from the config
-        self.probe_name = config.get_name().split()[1]
         
         # NOTE: From LinuxCNC: https://linuxcnc.org/docs/2.6/html/gcode/gcode.html
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
