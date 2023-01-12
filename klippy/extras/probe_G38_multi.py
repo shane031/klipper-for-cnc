@@ -24,9 +24,9 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
         #       -   "PrinterProbe": ?
         #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.probe = probe.PrinterProbeMux(config=config,
-                                           mcu_probe=probe_G38.ProbeEndstopWrapperG38(config),
-                                           mcu_probe_name='probe_'+self.probe_name)
+        self.probe = PrinterProbeMux(config=config,
+                                     mcu_probe=probe_G38.ProbeEndstopWrapperG38(config),
+                                     mcu_probe_name='probe_'+self.probe_name)
         self.printer = config.get_printer()
 
         # NOTE: save original probing config logic.
