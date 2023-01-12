@@ -59,22 +59,22 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       - G38.2 - Probe toward workpiece, stop on contact, signal error if failure.
         self.gcode.register_mux_command("G38.2", "PROBE",
                                         self.probe_name, self.cmd_PROBE_G38_2,
-                                        when_not_ready=False,
+                                        #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_2_help)
         #       - G38.3 - Probe toward workpiece, stop on contact.
         self.gcode.register_mux_command("G38.3", "PROBE",
                                         self.probe_name, self.cmd_PROBE_G38_3,
-                                        when_not_ready=False,
+                                        #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_3_help)
         #       - G38.4 - Probe away from workpiece, stop on loss of contact, signal error if failure.
         self.gcode.register_mux_command("G38.4", "PROBE",
                                         self.probe_name, self.cmd_PROBE_G38_4,
-                                        when_not_ready=False,
+                                        #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_4_help)
         #       - G38.5 - Probe away from workpiece, stop on loss of contact.
         self.gcode.register_mux_command("G38.5", "PROBE",
                                         self.probe_name, self.cmd_PROBE_G38_5,
-                                        when_not_ready=False,
+                                        #when_not_ready=False,
                                         desc=self.cmd_PROBE_G38_5_help)
     
 def load_config_prefix(config):
