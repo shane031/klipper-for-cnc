@@ -25,15 +25,18 @@ This fork implements:
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_EXTRUDER EXTRUDER=extruder`.
     - Caveats: `extruder` must be active (use [this](https://github.com/naikymen/klipper-homing-extruder/blob/pipetting/config/configs-pipetting-bot/config-pi-pico-mainsail/home_extruder.cfg#L21) macro for convenience). No "second home" is performed. It probably won't work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
-- Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5`.
+- Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5` (single-probe version).
     - Module: [probe_G38.py](./klippy/extras/probe_G38.py)
     - Example command: `G38.2 X20 F10`
-    - Notes: affected by `G90`/`G91`.
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
-- General probing with multiple pins is supported by an experimental module:
+    - Note: affected by `G90`/`G91` and `M82`/ `M83`.
+    - Known incompatibilites: `[probe_G38_multi ...]`
+- General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
-    - Example command: `MULTIPROBE2 PROBE_NAME=p20 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
-    - Notes: affected by `G90`/`G91`.
+    - Example multi-command: `MULTIPROBE2 PROBE_NAME=p20 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
+    - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
+    - Note: affected by `G90`/`G91` and `M82`/ `M83`.
+    - Known incompatibilites: `[probe_G38]`
 
 Minor modifications in Klippy's core were made to accommodate these features.
 
@@ -47,7 +50,7 @@ Cheers!
 
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
 
-### Minimal homing config
+### Extruder homing config
 
 Main config: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer.cfg)
 
@@ -89,7 +92,7 @@ velocity: 25.0
 accel: 100.0
 ```
 
-### Minimal probing config
+### Probing config
 
 Config: [probe_G38.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38.cfg)
 
@@ -100,7 +103,7 @@ pin: gpio19
 z_offset: 0
 ```
 
-### Minimal multi-probing config
+### Multi-probing config
 
 Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38_multi.cfg)
 
@@ -108,22 +111,26 @@ Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/la
 # CNC shield v3.0 pin map:
 # https://gitlab.com/pipettin-bot/pipettin-grbl/-/blob/master/doc/electronica/arduino_cnc_shield/klipper_pin_map.svg
 
-[probe_G38_multi p20]
+[probe_G38_multi extruder]
 # Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
+# The name in the config section **must** match the name of an [extruder] section,
+# in order to find the probe object for the current extruder automatically.
 #
 # Settings borrowed from "[smart_effector]".
 recovery_time: 0.0
 # Settings from original "[probe]" section.
-pin: ^tools:PB4
+pin: ^tools:PC5
 z_offset: 0
 
 
-[probe_G38_multi p200]
+[probe_G38_multi extruder1]
 # Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
+# The name in the config section **must** match the name of an [extruder] section,
+# in order to find the probe object for the current extruder automatically.
 #
 # Settings borrowed from "[smart_effector]".
 recovery_time: 0.0
 # Settings from original "[probe]" section.
-pin: ^tools:PC0
+pin: ^tools:PB1
 z_offset: 0
 ```
