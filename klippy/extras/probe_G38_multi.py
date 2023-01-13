@@ -119,7 +119,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         
         # Look for the active probe object, by the extruder name.
         # This will raise an error if no match is found (see "klippy.py").
-        probe_object = self.printer.lookup_object(module='probe_G38_multi' + ' ' + extruder_name)
+        probe_object = self.printer.lookup_object(name='probe_G38_multi' + ' ' + extruder_name)
         
         # Alternatively, all objects can be looked up.
         # probe_objects = self.printer.lookup_objects(module='probe_G38_multi')
