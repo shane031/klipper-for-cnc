@@ -33,7 +33,7 @@ This fork implements:
     - Known incompatibilites: `[probe_G38_multi ...]`
 - General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
-    - Example multi-command: `MULTIPROBE2 PROBE_NAME=p20 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
+    - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
     - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Known incompatibilites: `[probe_G38]`
