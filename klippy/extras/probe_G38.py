@@ -188,6 +188,7 @@ class ProbeG38:
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move = self.printer.lookup_object('gcode_move')
         self.absolute_coord = gcode_move.absolute_coord
+        self.absolute_extrude = gcode_move.absolute_extrude
 
         # NOTE: also get the "base position". This is required to compute
         #       the absolute move, ¿relative to it? Weird...
@@ -241,7 +242,7 @@ class ProbeG38:
         # NOTE: "move_with_transform" is just "toolhead.move":
         # self.move_with_transform(self.last_position, self.speed)
 
-        # TODO: should this go here?
+        # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
             toolhead.dwell(self.recovery_time)
         
