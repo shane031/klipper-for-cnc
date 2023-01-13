@@ -26,10 +26,14 @@ This fork implements:
     - Command: `HOME_EXTRUDER EXTRUDER=extruder`.
     - Caveats: `extruder` must be active (use [this](https://github.com/naikymen/klipper-homing-extruder/blob/pipetting/config/configs-pipetting-bot/config-pi-pico-mainsail/home_extruder.cfg#L21) macro for convenience). No "second home" is performed. It probably won't work on extruder steppers configured as `[extruder_stepper]` later synced to an `[extruder]`.
 - Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5`.
-    - See: [probe_G38.py](./klippy/extras/probe_G38.py)
+    - Module: [probe_G38.py](./klippy/extras/probe_G38.py)
     - Example command: `G38.2 X20 F10`
     - Notes: affected by `G90`/`G91`.
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
+- General probing with multiple pins is supported by an experimental module:
+    - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
+    - Example command: `MULTIPROBE2 PROBE_NAME=p20 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
+    - Notes: affected by `G90`/`G91`.
 
 Minor modifications in Klippy's core were made to accommodate these features.
 
@@ -44,6 +48,8 @@ Cheers!
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
 
 ### Minimal homing config
+
+Main config: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer.cfg)
 
 ```yaml
 [extruder]
@@ -85,6 +91,8 @@ accel: 100.0
 
 ### Minimal probing config
 
+Config: [probe_G38.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38.cfg)
+
 ```yaml
 [probe_G38]
 recovery_time: 0.4
@@ -92,3 +100,30 @@ pin: gpio19
 z_offset: 0
 ```
 
+### Minimal multi-probing config
+
+Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38_multi.cfg)
+
+```yaml
+# CNC shield v3.0 pin map:
+# https://gitlab.com/pipettin-bot/pipettin-grbl/-/blob/master/doc/electronica/arduino_cnc_shield/klipper_pin_map.svg
+
+[probe_G38_multi p20]
+# Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
+#
+# Settings borrowed from "[smart_effector]".
+recovery_time: 0.0
+# Settings from original "[probe]" section.
+pin: ^tools:PB4
+z_offset: 0
+
+
+[probe_G38_multi p200]
+# Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
+#
+# Settings borrowed from "[smart_effector]".
+recovery_time: 0.0
+# Settings from original "[probe]" section.
+pin: ^tools:PC0
+z_offset: 0
+```
