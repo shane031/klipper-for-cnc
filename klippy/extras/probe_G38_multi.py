@@ -80,7 +80,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
                                         desc=self.cmd_PROBE_G38_5_help)
         
     # Main probe command
-    cmd_PROBE_G38_2_help = "G38.2 Probe toward workpiece, stop on contact, signal error if failure."
+    cmd_PROBE_G38_2_help = "G38.2-style probe toward workpiece, stop on contact, signal error if failure. Usage: MULTIPROBEn PROBE_NAME=configname [X=x] [Y=x] [Z=x] [E=x]"
+    cmd_PROBE_G38_3_help = "G38.3 Probe toward workpiece, stop on contact. Usage: MULTIPROBEn PROBE_NAME=configname [X=x] [Y=x] [Z=x] [E=x]"
+    cmd_PROBE_G38_4_help = "G38.4 Probe away from workpiece, stop on loss of contact, signal error if failure. Usage: MULTIPROBEn PROBE_NAME=configname [X=x] [Y=x] [Z=x] [E=x]"
+    cmd_PROBE_G38_5_help = "G38.5 Probe away from workpiece, stop on loss of contact. Usage: MULTIPROBEn PROBE_NAME=configname [X=x] [Y=x] [Z=x] [E=x]"
     def cmd_PROBE_G38_2(self, gcmd, error_out=True, trigger_invert=True):
         # Error on failure, do not invert probe logic.
 
