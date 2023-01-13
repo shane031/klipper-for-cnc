@@ -146,10 +146,6 @@ class ProbeG38multi(probe_G38.ProbeG38):
     cmd_MONOPROBE_G38_2_help = "G38.2 Probe toward workpiece, stop on contact, signal error if failure."
     def cmd_MONOPROBE_G38_2(self, gcmd, error_out=True, trigger_invert=True):
         # Error on failure, do not invert probe logic.
-        
-        # Get active probe object, which might be the current ProbeG38multi instance,
-        # or an instance for another probe pin. It is based on the active extruder name.
-        probe_object = self.get_active_probe()
 
         # NOTE: Get the toolhead's last position.
         #       This will be updated below.
@@ -223,6 +219,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
         # TODO: should this go here? borrowed code from "smart_effector"
         if self.recovery_time:
             toolhead.dwell(self.recovery_time)
+            
+        # Get active probe object, which might be the current ProbeG38multi instance,
+        # or an instance for another probe pin. It is based on the active extruder name.
+        probe_object = self.get_active_probe()
         
         # Get the probe_g38 method, corresponding to the current probe_object/extruder.
         probe_g38 = probe_object.probe_g38
