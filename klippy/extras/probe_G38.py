@@ -14,15 +14,19 @@ from . import probe
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
     def __init__(self, config):
-        # Instantiate the base "ProbeEndstopWrapper" class, as usual
+        
+        # Instantiate the base "ProbeEndstopWrapper" class, as usual.
+        # The parent class only reads from the "config" the "pin" parameter,
+        # it does not require a name for it.
         super(ProbeEndstopWrapperG38, self).__init__(config)
 
+        # NOTE: not really needed, its done already by super()
         self.printer = config.get_printer()
 
-        # NOTE: recovery stuff
+        # NOTE: recovery stuff, see "probe_prepare" below. Not needed.
         self.recovery_time = config.getfloat('recovery_time', 0.4, minval=0.)
 
-        # NOTE: add XY steppers too
+        # NOTE: add XY steppers too, see "_handle_mcu_identify" below.
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
 
@@ -39,7 +43,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             toolhead = self.printer.lookup_object('toolhead')
             toolhead.dwell(self.recovery_time)
 
-    # NOTE: trying to solve the "Probe triggered prior to movement" issue.
+    # NOTE: register XY steppers in the endstop too.
     def _handle_mcu_identify(self):
         logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZ axes)" + "\n\n")
         kin = self.printer.lookup_object('toolhead').get_kinematics()
