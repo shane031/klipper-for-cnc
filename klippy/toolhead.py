@@ -20,6 +20,11 @@ class Move:
         self.accel = toolhead.max_accel
         self.junction_deviation = toolhead.junction_deviation
         self.timing_callbacks = []
+        # NOTE: "toolhead.max_velocity" contains the value from the config file.
+        #       The "speed" argument comes from the call at "toolhead.move",
+        #       which is the feedrate "F" GCODE argument times a factor:
+        #           gcode_speed * self.speed_factor
+        #       This factor is by default "1. / 60." without explanation.
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
 

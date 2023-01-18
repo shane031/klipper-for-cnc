@@ -46,6 +46,7 @@ class GCodeMove:
         self.last_position = [0.0, 0.0, 0.0, 0.0]
         self.homing_position = [0.0, 0.0, 0.0, 0.0]
         self.speed = 25.
+        # TODO: Why is this 1/60 by default?
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
         # G-Code state
@@ -143,7 +144,7 @@ class GCodeMove:
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        # NOTE: this is just "toolhead.move":
+        # NOTE: this is just a call to "toolhead.move".
         self.move_with_transform(self.last_position, self.speed)
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
@@ -178,11 +179,19 @@ class GCodeMove:
         # Get Current Position
         p = self._get_gcode_position()
         gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f E:%.3f" % tuple(p))
+    
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
-        value = gcmd.get_float('S', 100., above=0.) / (60. * 100.)
+        # NOTE: a value between "0" and "1/60".
+        value = (gcmd.get_float('S', 100.0, above=0.0) / 100.0) / 60.0
+        # NOTE: This is the same as:
+        #           (self.speed / self.speed_factor) * value
+        #       Since "self.speed_factor" has not yet been updated, it contains
+        #       the older value. Dividing by the old factor must then remove its
+        #       effect, and multiplying by the new one applies it.
         self.speed = self._get_gcode_speed() * value
         self.speed_factor = value
+    
     def cmd_M221(self, gcmd):
         # Set extrude factor override percentage
         new_extrude_factor = gcmd.get_float('S', 100., above=0.) / 100.
