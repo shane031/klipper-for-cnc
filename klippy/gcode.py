@@ -246,13 +246,16 @@ class GCodeDispatch:
         r'(?P<args>[^#*;]*?)'
         r'\s*(?:[#*;].*)?$')
     def _get_extended_params(self, gcmd):
+        # NOTE: called for "non-traditional" GCODEs.
         m = self.extended_r.match(gcmd.get_commandline())
         if m is None:
             raise self.error("Malformed command '%s' (regex mismatch)"
                              % (gcmd.get_commandline(),))
         eargs = m.group('args')
         try:
+            # NOTE: get "KEY=VALUE" parameters.
             eparams = [earg.split('=', 1) for earg in shlex.split(eargs)]
+            # NOTE: Prepare a dictionary from the extracted parameters.
             eparams = { k.upper(): v for k, v in eparams }
             gcmd._params.clear()
             gcmd._params.update(eparams)
