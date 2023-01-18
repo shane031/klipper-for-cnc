@@ -46,7 +46,10 @@ class GCodeMove:
         self.last_position = [0.0, 0.0, 0.0, 0.0]
         self.homing_position = [0.0, 0.0, 0.0, 0.0]
         self.speed = 25.
-        # TODO: Why is this 1/60 by default?
+        # TODO: This 1/60 by default, because "feedrates" 
+        #       provided by the "F" GCODE are in "mm/min",
+        #       which contrasts with the usual "mm/sec" unit
+        #       used throughout Klipper.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
         # G-Code state

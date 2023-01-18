@@ -24,7 +24,8 @@ class Move:
         #       The "speed" argument comes from the call at "toolhead.move",
         #       which is the feedrate "F" GCODE argument times a factor:
         #           gcode_speed * self.speed_factor
-        #       This factor is by default "1. / 60." without explanation.
+        #       This factor is by default "1. / 60." to convert feedrate units
+        #       from mm/min to mm/sec (e.g. F600 is 10 mm/sec).
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
 
