@@ -248,7 +248,7 @@ class GCodeDispatch:
     def _get_extended_params(self, gcmd):
         m = self.extended_r.match(gcmd.get_commandline())
         if m is None:
-            raise self.error("Malformed command '%s'"
+            raise self.error("Malformed command '%s' (regex mismatch)"
                              % (gcmd.get_commandline(),))
         eargs = m.group('args')
         try:
@@ -258,7 +258,7 @@ class GCodeDispatch:
             gcmd._params.update(eparams)
             return gcmd
         except ValueError as e:
-            raise self.error("Malformed command '%s'"
+            raise self.error("Malformed command '%s' (value error)"
                              % (gcmd.get_commandline(),))
     # G-Code special command handlers
     def cmd_default(self, gcmd):
