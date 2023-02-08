@@ -611,7 +611,7 @@ class ExtruderHoming:
         # NOTE: The "flush_step_generation" toolhead method runs
         #       "trapq_finalize_moves" on the extruder's "trapq" as well.
         #       No need to do it here, hopefully.
-        self.set_position2(newpos)
+        self.set_position2(newpos_e)
         
         # NOTE: The next line from toolhead.py is: "self.commanded_pos[:] = newpos".
         #       The most similar line from extruder.py is in "sync_to_extruder",
@@ -643,7 +643,7 @@ class ExtruderHoming:
         logging.info(f"\n\nset_position: final TH position={str(self.toolhead.get_position())}\n\n")
         pass
     
-    def set_position2(self, newpos):
+    def set_position2(self, newpos_e):
         """Quick and dirty version of set_position."""
         # NOTES: See notes from "set_position" above.
         pos = self.th_orig_pos[:3] + [newpos_e]
