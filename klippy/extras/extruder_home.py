@@ -124,15 +124,24 @@ class ExtruderHoming:
 
         # NOTE: Get original toolhead position 
         self.th_orig_pos = self.toolhead.get_position()
-
+        
         # NOTE: get homing information, speed and move coordinate.
         self.homing_info = self.rail.get_homing_info()
         speed = self.homing_info.speed
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
         pos = self.th_orig_pos[:3] + [self.get_movepos(self.homing_info)]
+
+        # Get rail limits
+        position_min, position_max = self.rail.get_range()
         
-        # NOTE: force extruder to a "0.0" starting position
-        startpos = self.th_orig_pos[:3] + [0.0]
+        # NOTE: force extruder to a certain starting position.
+        #       Originally 0.0, now position_max, which requires an
+        #       endstop position of 0.0 to home in the right direction.
+        if self.homing_info.positive_dir:
+            e_startpos = position_min
+        else:
+            e_startpos = position_max
+        startpos = self.th_orig_pos[:3] + [e_startpos]
         self.set_position(startpos)
 
         # NOTE: flag homing start
@@ -197,10 +206,15 @@ class ExtruderHoming:
     def get_movepos(self, homing_info):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
         #       the distance to move for homing, at least for a G28 command.
-        # Determine movement
+        
+        # Determine movement, example config values:
+        #   position_endstop: 0.0
+        #   position_min: 0.0
+        #   position_max: 30.0
+        #   homing_positive_dir: False
         position_min, position_max = self.rail.get_range()
-        movepos = homing_info.position_endstop
-
+        
+        # NOTE: The following movepos is overriden below. Left here for reference.
         # NOTE: The logic in cartesian.py and stepper.py is slightly convoluted.
         #       Given:
         #       -   min  = 0
@@ -221,19 +235,31 @@ class ExtruderHoming:
             #       and it is ensured that it will be positive:
             movepos = (homing_info.position_endstop - position_min)
             # NOTE: for example:
-            #       movepos = (100 - 0) = 100
+            #       movepos = (30 - 0) = 30
         else:
             # NOTE: for a "negative side" endstop, the toolhead will
             #       move _at most_ the distance between "stop" and "max",
             #       and it is ensured that it will be negative:
             movepos = (homing_info.position_endstop - position_max)
             # NOTE: for example:
-            #       movepos = (0.0 - 100) = -100
+            #       movepos = (0.0 - 30) = -30
+        
+        # NOTE: movepos override here. Use the endstop's position.
+        #       This requires a "negative side" endstop, and an initial
+        #       "startpos" axis position greater than 0 (setup above as,
+        #       position_max of the stepper rail).
+        movepos = homing_info.position_endstop
         
         # NOTE: adding a small amount just in case:
         movepos = 1.1 * movepos
-
         logging.info(f"\n\nget_movepos: movepos={str(movepos)}\n\n")
+
+        # NOTE: movepos will be the target coordinate for the move,
+        #       and will also be the final position registered internally.
+        #       This means that GET_POSITION will return an extruder
+        #       position equal to movepos (plus trigger point corrections),
+        #       for example: E=-33.000625
+        
         return movepos
 
     def get_kinematics(self):
@@ -585,13 +611,7 @@ class ExtruderHoming:
         # NOTE: The "flush_step_generation" toolhead method runs
         #       "trapq_finalize_moves" on the extruder's "trapq" as well.
         #       No need to do it here, hopefully.
-        self.toolhead.flush_step_generation()
-        ffi_main, ffi_lib = chelper.get_ffi()
-        # NOTE: Dice "// Note a position change in the trapq history" en "trapq.c".
-        ffi_lib.trapq_set_position(self.extruder_trapq, 
-                                   # TODO: check source for print-time is correct
-                                   self.toolhead.print_time,
-                                   newpos_e, 0., 0.)
+        self.set_position2(newpos)
         
         # NOTE: The next line from toolhead.py is: "self.commanded_pos[:] = newpos".
         #       The most similar line from extruder.py is in "sync_to_extruder",
@@ -622,6 +642,18 @@ class ExtruderHoming:
 
         logging.info(f"\n\nset_position: final TH position={str(self.toolhead.get_position())}\n\n")
         pass
+    
+    def set_position2(self, newpos):
+        """Quick and dirty version of set_position."""
+        # NOTES: See notes from "set_position" above.
+        pos = self.th_orig_pos[:3] + [newpos_e]
+        self.toolhead.flush_step_generation()
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trapq_set_position(self.extruder_trapq, 
+                                   self.toolhead.print_time,
+                                   newpos_e, 0., 0.)
+        self.rail.set_position([newpos_e, 0., 0.])
+        self.toolhead.set_position(pos)
     
     def calc_position(self, stepper_positions):
         """
