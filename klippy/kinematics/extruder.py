@@ -358,7 +358,13 @@ class PrinterExtruder:
             return
         gcmd.respond_info("Activating extruder %s" % (self.name,))
         toolhead.flush_step_generation()
+        # NOTE: the following "set_extruder" method replaces the extruder
+        #       object in the toolhead with "self" (this extruder instance),
+        #       and replaces the fourth coordinate of the toolhead's "commanded
+        #       position" with the "last position" of this extruder.
         toolhead.set_extruder(extruder=self, extrude_pos=self.last_position)
+        # NOTE: the following triggers the "_handle_activate_extruder" method
+        #       in "gcode_move.py".
         self.printer.send_event("extruder:activate_extruder")
 
 # Dummy extruder class used when a printer has no extruder at all

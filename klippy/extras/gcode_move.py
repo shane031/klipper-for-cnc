@@ -75,8 +75,18 @@ class GCodeMove:
                      self.homing_position, self.speed_factor,
                      self.extrude_factor, self.speed)
     def _handle_activate_extruder(self):
+        # NOTE: the "reset_last_position" method overwrites "last_position"
+        #       with the position returned by "position_with_transform",
+        #       which is apparently "toolhead.get_position", returning the
+        #       toolhead's "commanded_pos".
+        #       This seems reasonable because the fourth coordinate of "commanded_pos"
+        #       would have just been set to the "last position" of the new extruder
+        #       (by the cmd_ACTIVATE_EXTRUDER method in "extruder.py").
         self.reset_last_position()
+        # TODO: why would the factor be set to 1 here?
         self.extrude_factor = 1.
+        # TODO: why would the base position be set to the last position of 
+        #       the new extruder?
         self.base_position[3] = self.last_position[3]
     def _handle_home_rails_end(self, homing_state, rails):
         self.reset_last_position()
