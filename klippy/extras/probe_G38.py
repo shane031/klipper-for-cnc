@@ -107,6 +107,9 @@ class ProbeG38:
         self.mcu_probe_name=mcu_probe_name
         self.probe = probe.PrinterProbe(config=config, mcu_probe=ProbeEndstopWrapperG38(config))
         self.printer = config.get_printer()
+        
+        # NOTE: dummy extrude factor
+        self.extrude_factor = 1.0
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
