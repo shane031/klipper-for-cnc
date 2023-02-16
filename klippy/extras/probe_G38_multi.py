@@ -19,6 +19,9 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: get name of the probe from the config
         self.probe_name = config.get_name().split()[1]
+        
+        # NOTE: dummy extrude factor
+        self.extrude_factor = 1.0
 
         # NOTE: instantiate:
         #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
