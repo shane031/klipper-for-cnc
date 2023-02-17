@@ -275,7 +275,7 @@ class ToolHead:
         # Kinematic step generation scan window time tracking
         self.kin_flush_delay = SDS_CHECK_TIME
         self.kin_flush_times = []
-        self.last_kin_flush_time = self.last_kin_move_time = 0.
+        self.force_flush_time = self.last_kin_move_time = 0.
         # Setup iterative solver
         ffi_main, ffi_lib = chelper.get_ffi()
         self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
@@ -323,17 +323,17 @@ class ToolHead:
         #           "Generate steps for moves"
 
         kin_flush_delay = self.kin_flush_delay
-        lkft = self.last_kin_flush_time
+        fft = self.force_flush_time
         # TODO: I don't yet understand what the loop is meant to accomplish.
         while 1:
             self.print_time = min(self.print_time + batch_time, next_print_time)
-            sg_flush_time = max(lkft, self.print_time - kin_flush_delay)
+            sg_flush_time = max(fft, self.print_time - kin_flush_delay)
             for sg in self.step_generators:
                 # NOTE: this list has been populated with "generate_steps" functions,
                 #       one per stepper. Those in turn end up calling "ffi_lib.itersolve_generate_steps"
                 #       which it meant to "Generate step times for a range of moves on the trapq".
                 sg(sg_flush_time)
-            free_time = max(lkft, sg_flush_time - kin_flush_delay)
+            free_time = max(fft, sg_flush_time - kin_flush_delay)
             
             # NOTE: Update move times on the toolhead, meaning:
             #           "Expire any moves older than `free_time` from
@@ -344,7 +344,7 @@ class ToolHead:
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
             self.extruder.update_move_time(free_time)
 
-            mcu_flush_time = max(lkft, sg_flush_time - self.move_flush_time)
+            mcu_flush_time = max(fft, sg_flush_time - self.move_flush_time)
             for m in self.all_mcus:
                 # NOTE: The following may find and transmit any scheduled steps 
                 #       prior to the given 'mcu_flush_time' (see stepcompress.c).
@@ -371,7 +371,7 @@ class ToolHead:
 
         # NOTE: Guessing that the following adds potential delays to 
         #       the MCU time, estimating a "minimum print time".
-        kin_time = max(est_print_time + MIN_KIN_TIME, self.last_kin_flush_time)
+        kin_time = max(est_print_time + MIN_KIN_TIME, self.force_flush_time)
         kin_time += self.kin_flush_delay
         min_print_time = max(est_print_time + self.buffer_time_start, kin_time)
 
@@ -451,7 +451,7 @@ class ToolHead:
         logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={str(next_move_time)}\n\n")
         self._update_move_time(next_move_time)
         logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={str(next_move_time)}\n\n")
-        self.last_kin_move_time = next_move_time
+        self.last_kin_move_time = max(self.last_kin_move_time, next_move_time)
         
     def flush_step_generation(self):
         # Transition from "Flushed"/"Priming"/main state to "Flushed" state
@@ -478,15 +478,19 @@ class ToolHead:
         self.move_queue.set_flush_time(self.buffer_time_high)
 
         self.idle_flush_print_time = 0.
-        flush_time = self.last_kin_move_time + self.kin_flush_delay
-        flush_time = max(flush_time, self.print_time - self.kin_flush_delay)
-        # NOTE: this is the only place where "last_kin_flush_time" is updated.
-        self.last_kin_flush_time = max(self.last_kin_flush_time, flush_time)
-        # NOTE: the following updates "self.print_time" and 
-        #       calls "trapq_finalize_moves".
-        self._update_move_time(next_print_time=max(self.print_time, 
-                                                   self.last_kin_flush_time))
-    
+        # Determine actual last "itersolve" flush time
+        lastf = self.print_time - self.kin_flush_delay
+        # Calculate flush time that includes kinematic scan windows
+        flush_time = max(lastf, self.last_kin_move_time + self.kin_flush_delay)
+        if flush_time > self.print_time:
+            # Flush in small time chunks
+            # NOTE: the following updates "self.print_time" and
+            #       calls "trapq_finalize_moves".
+            self._update_move_time(flush_time)
+        # Flush kinematic scan windows and step buffers
+        self.force_flush_time = max(self.force_flush_time, flush_time)
+        self._update_move_time(next_print_time=max(self.print_time,
+                                                   self.force_flush_time))
     def _flush_lookahead(self):
         if self.special_queuing_state:
             return self.flush_step_generation()
@@ -704,7 +708,7 @@ class ToolHead:
             #       I am guessing here that "older" means "with a smaller timestamp",
             #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
-            
+
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
             #       extruder trapq as well.
