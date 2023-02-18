@@ -136,3 +136,66 @@ recovery_time: 0.0
 pin: ^tools:PB1
 z_offset: 0
 ```
+
+# Installation
+
+The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://github.com/th33xitus/kiauh/blob/master/klipper_repos.txt.example
+
+1. SSH into the Pi.
+2. Copy "klipper_repos.txt.example" to "klipper_repos.txt".
+    - Use the command: `cp kiauh/klipper_repos.txt.example  kiauh/klipper_repos.txt`
+4. Edit the `kiauh/klipper_repos.txt` file to append "`naikymen/klipper-homing-extruder,pipetting`" after the last line.
+    - Use the command: `echo "naikymen/klipper-homing-extruder,pipetting" >> kiauh/klipper_repos.txt`
+5. Start KIAUH.
+    - Use the command: `./kiauh/kiauh.sh`
+7. Choose option "`6) [Settings]`".
+8. Choose option "`1) Set custom Klipper repository`".
+9. Choose the option corresonding to "`naikymen/klipper-homing-extruder -> pipetting`"
+10. Use KIAUH to uninstall and reinstall Klipper.
+
+## Updates through moonraker
+
+Unfortunately the differing repo and branch names dont play well with the hard-coded stuff in Moonraker.
+
+However by applying this simple diff to `~/moonraker` it will just work:
+
+```diff
+diff --git a/moonraker/components/simplyprint.py b/moonraker/components/simplyprint.py
+index a3bfac3..ba33057 100644
+--- a/moonraker/components/simplyprint.py
++++ b/moonraker/components/simplyprint.py
+@@ -1002,7 +1002,8 @@ class SimplyPrint(Subscribable):
+             "firmware": "Klipper",
+             "firmware_version": version,
+             "firmware_date": firmware_date,
+-            "firmware_link": "https://github.com/Klipper3d/klipper",
++            # "firmware_link": "https://github.com/Klipper3d/klipper",
++            "firmware_link": "https://github.com/naikymen/klipper-homing-extruder",
+         }
+         diff = self._get_object_diff(fw_info, self.cache.firmware_info)
+         if diff:
+diff --git a/moonraker/components/update_manager/base_config.py b/moonraker/components/update_manager/base_config.py
+index 4bcccbc..7c48aef 100644
+--- a/moonraker/components/update_manager/base_config.py
++++ b/moonraker/components/update_manager/base_config.py
+@@ -34,7 +34,9 @@ BASE_CONFIG: Dict[str, Dict[str, str]] = {
+     },
+     "klipper": {
+         "moved_origin": "https://github.com/kevinoconnor/klipper.git",
+-        "origin": "https://github.com/Klipper3d/klipper.git",
++        # "origin": "https://github.com/Klipper3d/klipper.git",
++        "origin": "https://github.com/naikymen/klipper-homing-extruder.git",
++        "primary_branch": "pipetting",
+         "requirements": "scripts/klippy-requirements.txt",
+         "venv_args": "-p python2",
+         "install_script": "scripts/install-octopi.sh",
+```
+
+![pipetting_moonraker.png](./docs/img/pipetting_moonraker.png)
+
+Since this modifies the Moonraker source, now Moonraker won't be updatable because it will have diverged and thus "invalid".
+
+![moonraker_pipetting.png](./docs/img/moonraker_pipetting.png)
+
+A price I am willing to pay (?)
+
