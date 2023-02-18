@@ -55,8 +55,8 @@ class ExtruderHoming:
 
         # NOTE: some parameters are loaded from the "extruder_homing" config section,
         #       and used by some of the move methods (not necesarily by drip_move).
-        self.velocity = config.getfloat('velocity', 5., above=0.)
-        self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
+        # self.velocity = config.getfloat('velocity', 5., above=0.)
+        # self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
 
         # TODO: find out what this is. The same is used in manual_stepper.py
         #       No longer required, it used to be updated by sync_print_time.

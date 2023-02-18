@@ -50,15 +50,19 @@ Cheers!
 
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
 
+These are meant as reference configs; you _must_ adjust them to match your setup first.
+
 ### Extruder homing config
 
 Main config: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer.cfg)
+
+At a glance:
 
 ```yaml
 [extruder]
 # ...
 # ...
-# Setup all the usual endstop parameters before these:
+# Setup all the usual extruder parameters before these:
 position_endstop: 0.0
 position_min: 0.0
 position_max: 100.0
@@ -66,17 +70,16 @@ homing_speed: 25.0
 second_homing_speed: 25.0
 homing_retract_speed: 25.0
 homing_retract_dist: 2.0
-homing_positive_dir: False
-endstop_pin: gpio15
+homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
+endstop_pin: gpio15  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 
 [extruder_home extruder]
-velocity: 25.0
-accel: 100.0
+# No parameters needed.
 
 [extruder1]
 # ...
 # ...
-# Setup all the usual endstop parameters before these:
+# Setup all the usual extruder parameters before these.
 position_endstop: 0.0
 position_min: 0.0
 position_max: 100.0
@@ -84,12 +87,11 @@ homing_speed: 25.0
 second_homing_speed: 25.0
 homing_retract_speed: 25.0
 homing_retract_dist: 2.0
-homing_positive_dir: False
-endstop_pin: gpio18
+homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
+endstop_pin: gpio18  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 
 [extruder_home extruder1]
-velocity: 25.0
-accel: 100.0
+# No parameters needed.
 ```
 
 ### Probing config
