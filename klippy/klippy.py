@@ -118,6 +118,16 @@ class Printer:
         objs = [(name, self.objects[name])
                 for name in self.objects if pattern.match(name)]
         return objs
+
+    def lookup_extruder_steppers(self):
+        extruder_steppers = []
+        extruder_objs = self.lookup_extruders()
+        for extruder_obj in extruder_objs:
+            extruder_name = extruder_obj[0]
+            extruder = extruder_obj[1]                      # PrinterExtruder
+            extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
+            extruder_steppers.append(extruder_stepper)
+        return extruder_steppers
     
     def load_object(self, config, section, default=configfile.sentinel):
         # NOTE: I believe that this function "loads" all python

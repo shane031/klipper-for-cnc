@@ -152,12 +152,10 @@ class HomingMove:
 
         # NOTE: Repeat the above for the extruders, adding them to the "kin_spos" dict.
         #       This is important later on, when calling "calc_toolhead_pos".
-        extruder_objs = self.printer.lookup_extruders()
-        for extruder_obj in extruder_objs:
-            extruder_name = extruder_obj[0]
-            extruder = extruder_obj[1]                      # PrinterExtruder
-            extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
-            for s in extruder_stepper.rail.get_steppers():  # Get PrinterStepper (MCU_stepper) objects.
+        extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
+        for extruder_stepper in extruder_steppers:
+            # Get PrinterStepper (MCU_stepper) objects.
+            for s in extruder_stepper.rail.get_steppers():
                 kin_spos.update({s.get_name(): s.get_commanded_position()})
         
         # NOTE: "Tracking of stepper positions during a homing/probing move"
