@@ -204,7 +204,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     last_position[3] += v
                 else:
                     # value relative to base coordinate position
-                    last_position[3] = v + self.base_position[3]
+                    last_position[3] = v + base_position[3]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
             
@@ -267,7 +267,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: also get the "base position". This is required to compute
         #       the absolute move, ¿relative to it? Weird...
-        self.base_position = gcode_move.base_position
+        base_position = gcode_move.base_position
 
         # NOTE: Dummy objects for the G1 command parser
         self.speed_factor = 1
@@ -294,7 +294,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                         self.last_position[pos] += v
                     else:
                         # value relative to base coordinate position
-                        self.last_position[pos] = v + self.base_position[pos]
+                        self.last_position[pos] = v + base_position[pos]
                     # NOTE: register which axes are being probed
                     probe_axes.append(axis.lower())  # Append "X", "Y", or "Z".
             
@@ -306,7 +306,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     self.last_position[3] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[3] = v + self.base_position[3]
+                    self.last_position[3] = v + base_position[3]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
             
