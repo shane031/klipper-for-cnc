@@ -588,21 +588,26 @@ class ToolHead:
 
     def set_position_e(self, newpos_e):
         """Extruder version of set_position."""
-
-        # Get the "trapq" from the active extruder.
+        # Get the active extruder
         extruder = self.get_extruder()  # PrinterExtruder
-        extruder_trapq = extruder.get_trapq()  # extruder trapq (from ffi)
+        
+        if extruder.get_name() is "":
+            # Do nothing if the extruder is a "Dummy" extruder.
+            pass
+        else:
+            # Get the "trapq" from the active extruder.
+            extruder_trapq = extruder.get_trapq()  # extruder trapq (from ffi)
 
-        # Get the stepper
-        extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
-        rail = extruder_stepper.rail                  # PrinterRail
+            # Get the stepper
+            extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
+            rail = extruder_stepper.rail                  # PrinterRail
 
-        # Set its position
-        ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.trapq_set_position(extruder_trapq, 
-                                   self.print_time,
-                                   newpos_e, 0., 0.)
-        rail.set_position([newpos_e, 0., 0.])
+            # Set its position
+            ffi_main, ffi_lib = chelper.get_ffi()
+            ffi_lib.trapq_set_position(extruder_trapq, 
+                                    self.print_time,
+                                    newpos_e, 0., 0.)
+            rail.set_position([newpos_e, 0., 0.])
     
     def move(self, newpos, speed):
         move = Move(toolhead=self, 
