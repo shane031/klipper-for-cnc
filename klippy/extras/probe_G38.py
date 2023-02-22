@@ -78,36 +78,12 @@ class ProbeG38:
         - G38.4 - (False/True) probe away from workpiece, stop on loss of contact, signal error if failure.
         - G38.5 - (False/False) probe away from workpiece, stop on loss of contact.
     
-    For now, only the G38.2 and G38.3 commands have been implemented.
-        
-    ! Known problems:
-
-    ! "Communication timeout during homing probe"
-    ! G38.2 X150 F10
-    TODO: This i have no idea how to fix.
-
-    #   "Probe triggered prior to movement"
-    #   G38.3 X10 F10
-    # NOTE: issue solved by:
-    #       -   
-    #       -   
-    From: https://www.klipper3d.org/Config_Reference.html#smart_effector
-        A delay between the travel moves and the probing moves in seconds. A fast
-        travel move prior to probing may result in a spurious probe triggering.
-        This may cause 'Probe triggered prior to movement' errors if no delay
-        is set. Value 0 disables the recovery delay.
-    Unfortunately the "recovery_time"/dwell thing did not help.
-    The error is raised by "check_no_movement", called by "probing_move" at
-    the end of the move; which checks if ths start and trigger positions of the
-    steppers are the same.
-    Perhaps the trigger positions are not updated correctly, because the 
-    endstops are associated to only one stepper: the Z.
-    Indeed, the probe finishes without errors for a Z probe move.
-
-    The "add_stepper" function in ProbeEndstopWrapper is called by "_handle_mcu_identify",
-    which responds to the 'klippy:mcu_identify' event.
-
-
+    This feature relies on a great patch for the HomingMove class at "homing.py",
+    and small patches in the ToolHead class at "toolhead.py", which
+    enable support for extruder homing/probing. These are mainly:
+      - Added logic for calculating the extruder's kin_spos/haltpos/trigpos/etc.
+      - Added logic to handle the active extruder in "check_no_movement".
+      - Added "set_position_e" to the toolhead.
 
     """
     def __init__(self, config, mcu_probe_name='probe'):

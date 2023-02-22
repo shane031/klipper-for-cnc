@@ -30,9 +30,19 @@ class ExtruderHoming:
     which can now add an endstop to the extruder stepper, if a
     config parameter is provided.
 
-    The "toolhead" passed to the PrinterHoming.manual_home method
-    is not entirely "virtual". All methods are defined here, but
-    some of them call the methods of the actual toolhead.
+    It relies on a great patch for the HomingMove class at "homing.py",
+    and small patches in the ToolHead class at "toolhead.py", which
+    enable support for extruder homing/probing. These are mainly:
+      - Added logic for calculating the extruder's kin_spos/haltpos/trigpos/etc.
+      - Added "set_position_e" to the toolhead.
+
+    A note for achaeologists:
+    The "toolhead" object that used to be passed to the 
+    PrinterHoming.manual_home method was mostly "virtual".
+    Many methods are defined here, but some of them call the
+    methods of the actual toolhead. All of these methods are 
+    commented out below.
+    See commit: 8eb3366b6ee1eb74c70a715db66152b13a2d4372
     """
     def __init__(self, config):
         self.printer = config.get_printer()
