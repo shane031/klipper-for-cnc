@@ -193,9 +193,11 @@ index 4bcccbc..7c48aef 100644
 
 ![pipetting_moonraker.png](./docs/img/pipetting_moonraker.png)
 
-Since this modifies the Moonraker source, now Moonraker won't be updatable because it will have diverged and thus "invalid".
+Since this modifies the Moonraker source, now Moonraker won't be updatable because it will have diverged and thus "invalid" or "dirty" (rawr?).
 
 ![moonraker_pipetting.png](./docs/img/moonraker_pipetting.png)
 
 A price I am willing to pay (?)
+
+Raise your hand here to change this: https://github.com/Arksine/moonraker/issues/615
 
