@@ -103,6 +103,13 @@ class HomingMove:
             # NOTE: update the stepper positions by converting the "offset" steps
             #       to "mm" units and adding them to the original "halting" position.
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
+
+        # NOTE: Repeat the above for the extruders.
+        extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
+        for extruder_stepper in extruder_steppers:
+            for stepper in extruder_stepper.rail.get_steppers():    # PrinterStepper (MCU_stepper)
+                sname = stepper.get_name()
+                kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
         
         # NOTE: this call to get_position is only used to acquire the extruder
         #       position, and append it to XYZ components below.
@@ -110,7 +117,7 @@ class HomingMove:
         #           thpos=[0.0, 0.0, 0.0, 0.0]
         thpos = self.toolhead.get_position()
 
-        # NOTE: The "calc_position" iterates over the rails in the (cartesian)
+        # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
         #       kinematics and selects "stepper_positions" with matching names.
         #       Perhaps other kinematics do something more elaborate.
         # NOTE: Elements 1-3 from the output are combined with element 4 from "thpos".
@@ -121,6 +128,11 @@ class HomingMove:
         #       -   calc_position input stepper_positions={'extruder': -1.420625}
         #       -   calc_position return pos=[-1.420625, 0.0, 0.0]
         result = list(kin.calc_position(stepper_positions=kin_spos))[:3] + thpos[3:]
+
+        # NOTE: now ditch "thpos" (toolhead.get_position()), replacing 
+        #       it by the equivalent for the active extruder.
+        extruder = self.printer.lookup_object('toolhead').get_extruder()
+        result[3] = stepper_positions[extruder.name]
         
         # NOTE: log output for reference
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
