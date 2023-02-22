@@ -231,6 +231,7 @@ class ProbeG38:
         # NOTE: coordinate code parser copied from "cmd_G1" at "gcode_move.py".
         params = gcmd.get_command_parameters()
         try:
+            # Parse axis coordinates
             for pos, axis in enumerate('XYZ'):
                 if axis in params:
                     v = float(params[axis])
@@ -252,12 +253,15 @@ class ProbeG38:
                     self.last_position[3] = v + self.base_position[3]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
+            
+            # Parse feedrate
             if 'F' in params:
                 gcode_speed = float(params['F'])
                 if gcode_speed <= 0.:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
+        
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
         

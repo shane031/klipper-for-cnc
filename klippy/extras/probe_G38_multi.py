@@ -155,6 +155,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
         toolhead = self.printer.lookup_object('toolhead')
         last_position = toolhead.get_position()
 
+        # NOTE: get the name of the active extruder.
+        extruder = toolhead.get_extruder()
+        active_extruder_name = extruder.name
+
         # NOTE: configure whether te move will be in absolute 
         #       or relative coordinates. Respect the G90/G91 setting.
         gcode_move = self.printer.lookup_object('gcode_move')
@@ -202,7 +206,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     # value relative to base coordinate position
                     last_position[3] = v + self.base_position[3]
                 # NOTE: register which axes are being probed
-                probe_axes.append("extruder")  # Append "extruder"
+                probe_axes.append(active_extruder_name)  # Append "extruderN"
             
             # Parse feedrate
             speed = self.speed  # Default
@@ -250,6 +254,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
         #       This will be updated below.
         toolhead = self.printer.lookup_object('toolhead')
         self.last_position = toolhead.get_position()
+
+        # NOTE: get the name of the active extruder.
+        extruder = toolhead.get_extruder()
+        active_extruder_name = extruder.name
 
         # NOTE: configure whether te move will be in absolute 
         #       or relative coordinates. Respect the G90/G91 setting.
@@ -300,8 +308,9 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     # value relative to base coordinate position
                     self.last_position[3] = v + self.base_position[3]
                 # NOTE: register which axes are being probed
-                probe_axes.append("extruder")  # Append "extruder"
+                probe_axes.append(active_extruder_name)  # Append "extruderN"
             
+            # Parse feedrate
             feed = gcmd.get_float('F', None)
             if feed is not None:
                 gcode_speed = float(feed)
@@ -309,6 +318,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
+        
         except ValueError as e:
             raise gcmd.error(f"ProbeG38: Unable to parse move {gcmd.get_commandline()} with exception: {str(e)}")
         

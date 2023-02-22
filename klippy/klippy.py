@@ -120,6 +120,10 @@ class Printer:
         return objs
 
     def lookup_extruder_steppers(self):
+        # NOTE: convenience function to get the "ExtruderStepper" 
+        #       objects from all extruder/extruderN objects.
+        # NOTE: use "extruder_stepper.rail.get_steppers()" to access
+        #       the "PrinterStepper (MCU_stepper)" objects.
         extruder_steppers = []
         extruder_objs = self.lookup_extruders()
         for extruder_obj in extruder_objs:
