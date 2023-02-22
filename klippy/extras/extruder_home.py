@@ -180,7 +180,7 @@ class ExtruderHoming:
         #       - cmd_G28: ???
         # TODO: consider using those alternative methods.
         logging.info(f"\n\ncmd_HOME_EXTRUDER: pos={str(pos)}\n\n")
-        phoming.manual_home(toolhead=self, endstops=endstops,
+        phoming.manual_home(toolhead=self.toolhead, endstops=endstops,
                             pos=pos, speed=speed,
                             # NOTE: argument passed to "mcu_endstop.home_start",
                             #       and used directly in the low-level command.

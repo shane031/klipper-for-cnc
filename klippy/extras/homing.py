@@ -280,6 +280,12 @@ class HomingMove:
                 #       "stepper.set_position" / "itersolve_set_position".
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
+
+                # NOTE: Repeat the above for the extruder steppers (defined above).
+                for extruder_stepper in extruder_steppers:
+                    # Get PrinterStepper (MCU_stepper) objects.
+                    for s in extruder_stepper.rail.get_steppers():
+                        halt_kin_spos.update({s.get_name(): s.get_commanded_position()})
                 
                 # NOTE: calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
                 # NOTE: calc_toolhead_pos output: [-1.420625, 0.0, 0.0, 0.0]
