@@ -591,7 +591,7 @@ class ToolHead:
         # Get the active extruder
         extruder = self.get_extruder()  # PrinterExtruder
         
-        if extruder.get_name() is "":
+        if extruder.get_name() == "":
             # Do nothing if the extruder is a "Dummy" extruder.
             pass
         else:
