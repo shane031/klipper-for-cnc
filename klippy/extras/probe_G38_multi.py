@@ -36,7 +36,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
                                      mcu_probe_name=self.mcu_probe_name)
         
         # NOTE: register "mcu_probe" for endstop querying.
-        self.mcu_probe.register_query_endstop(name=self.mcu_probe_name)
+        self.mcu_probe.register_query_endstop(name=self.mcu_probe_name, config=config)
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
