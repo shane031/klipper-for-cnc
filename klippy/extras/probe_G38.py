@@ -58,8 +58,10 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                 self.add_stepper(stepper)
         
         # NOTE: register steppers from all extruders.
-        extruders = self.lookup_extruders()
-        for extruder in extruders:
+        extruder_objs = self.lookup_extruders()
+        for extruder_obj in extruder_objs:
+            extruder_name = extruder_obj(0)
+            extruder = extruder_obj(1)
             for stepper in extruder.rail.get_steppers():
                 self.add_stepper(stepper)
 
