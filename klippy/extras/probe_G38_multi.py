@@ -23,14 +23,20 @@ class ProbeG38multi(probe_G38.ProbeG38):
         # NOTE: dummy extrude factor
         self.extrude_factor = 1.0
 
-        # NOTE: instantiate:
-        #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
-        #       -   "PrinterProbe": ?
-        #self.probe = probe.PrinterProbe(config, probe.ProbeEndstopWrapper(config))
-        self.probe = PrinterProbeMux(config=config,
-                                     mcu_probe=probe_G38.ProbeEndstopWrapperG38(config),
-                                     mcu_probe_name='probe_'+self.probe_name)
         self.printer = config.get_printer()
+        
+        # NOTE: Instantiate probe objects:
+        #       -   "ProbeEndstopWrapper": Endstop wrapper that enables probe specific features.
+        self.mcu_probe =probe_G38.ProbeEndstopWrapperG38(config)
+        #       -   "mcu_probe_name": Readable name for the probe/endstop.
+        self.mcu_probe_name ='probe_'+self.probe_name
+        #       -   "PrinterProbe"/"PrinterProbeMux": Object registering the GCODE commands for probing.
+        self.probe = PrinterProbeMux(config=config,
+                                     mcu_probe=self.mcu_probe,
+                                     mcu_probe_name=self.mcu_probe_name)
+        
+        # NOTE: register "mcu_probe" for endstop querying.
+        self.mcu_probe.register_query_endstop(name=self.mcu_probe_name)
 
         # NOTE: save original probing config logic.
         #       This logic is used at "_home_cmd.send()" in "mcu.py"
@@ -338,6 +344,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
 class PrinterProbeMux(probe.PrinterProbe):
     def __init__(self, config, mcu_probe, mcu_probe_name='probe'):
         """
+        This class inherits methods from "probe.PrinterProbe", 
+        but the commands are setup as "Mux" instead of "regular"
+        GCODE commands. This is required to setup multiple probes.
+        
         config: ?
         mcu_probe: this is of "ProbeEndstopWrapper" class, which is a wrapper for "MCU_endstop".
         """
@@ -355,6 +365,7 @@ class PrinterProbeMux(probe.PrinterProbe):
         self.last_state = False
         self.last_z_result = 0.
         self.gcode_move = self.printer.load_object(config, "gcode_move")
+        
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
             zconfig = config.getsection('stepper_z')
@@ -364,6 +375,7 @@ class PrinterProbeMux(probe.PrinterProbe):
             pconfig = config.getsection('printer')
             self.z_position = pconfig.getfloat('minimum_z_position', 0.,
                                                note_valid=False)
+        
         # Multi-sample support (for improved accuracy)
         self.sample_count = config.getint('samples', 1, minval=1)
         self.sample_retract_dist = config.getfloat('sample_retract_dist', 2.,
@@ -391,6 +403,7 @@ class PrinterProbeMux(probe.PrinterProbe):
                                             self._handle_home_rails_end)
         self.printer.register_event_handler("gcode:command_error",
                                             self._handle_command_error)
+        
         # Register PROBE/QUERY_PROBE commands
         self.gcode = self.printer.lookup_object('gcode')
         
