@@ -153,6 +153,18 @@ The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://
 
 ## Updates through moonraker
 
+### Using the fork
+
+I've made a Moonraker fork to avoid the issues explained below: https://github.com/naikymen/moonraker-pipetting
+
+Keeing it updated will be cumbersome, but there is no alternative to get everything tidy:
+
+![moonraker_fork.png](./docs/img/pipetting/moonraker_fork.png)
+
+To install, use SSH to replace the moonraker directory. Go to mainsail, restart moonraker, and refresh the "Update Manager". If an "invalid" state appears, click the button and do a "hard reset". Everything should look nice!
+
+### Editing the source
+
 Unfortunately the differing repo and branch names dont play well with the hard-coded stuff in Moonraker.
 
 However by applying this simple diff to `~/moonraker` it will just work:
