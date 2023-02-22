@@ -61,8 +61,9 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         extruder_objs = self.lookup_extruders()
         for extruder_obj in extruder_objs:
             extruder_name = extruder_obj[0]
-            extruder = extruder_obj[1]
-            for stepper in extruder.rail.get_steppers():
+            extruder = extruder_obj[1]                      # PrinterExtruder
+            extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
+            for stepper in extruder_stepper.rail.get_steppers():
                 self.add_stepper(stepper)
 
     def lookup_extruders(self):
