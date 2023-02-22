@@ -132,7 +132,7 @@ class HomingMove:
         # NOTE: now ditch "thpos" (toolhead.get_position()), replacing 
         #       it by the equivalent for the active extruder.
         extruder = self.printer.lookup_object('toolhead').get_extruder()
-        result[3] = stepper_positions[extruder.name]
+        result[3] = kin_spos[extruder.name]
         
         # NOTE: log output for reference
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
