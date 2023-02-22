@@ -1,21 +1,19 @@
-Welcome to the Klipper project!
+Welcome to my fork of the Klipper project, with awesome home-able extruders and CNC-style probing!
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
+
+# General docs on Klipper
 
 https://www.klipper3d.org/
 
 Klipper is a 3d-Printer firmware. It combines the power of a general
 purpose computer with one or more micro-controllers. See the
-[features document](https://www.klipper3d.org/Features.html) for more
-information on why you should use Klipper.
+[features document](https://www.klipper3d.org/Features.html) for more information on why you should use Klipper.
 
-To begin using Klipper start by
-[installing](https://www.klipper3d.org/Installation.html) it.
+To begin using Klipper start by [installing](https://www.klipper3d.org/Installation.html) it.
 
-Klipper is Free Software. See the [license](COPYING) or read the
-[documentation](https://www.klipper3d.org/Overview.html). We depend on
-the generous support from our
-[sponsors](https://www.klipper3d.org/Sponsors.html).
+Klipper is Free Software. See the [license](COPYING) or read the [documentation](https://www.klipper3d.org/Overview.html). We depend on
+the generous support from our [sponsors](https://www.klipper3d.org/Sponsors.html).
 
 # Fork notes
 
@@ -37,8 +35,10 @@ This fork implements:
     - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Known incompatibilites: `[probe_G38]`
+- The `SET_KINEMATIC_POSITION` command now works with extruder position as well.
+    - Try this out: `SET_KINEMATIC_POSITION E=66.6`
 
-Minor modifications in Klippy's core were made to accommodate these features.
+Rather minor modifications in Klippy's core were made to accommodate these features. This fork exists because a massive amount of effort is needed to merge new stuff into "main" Klipper. Fortunately this means that pull requests would be very welcome here, even for cool but half-baked features.
 
 ## Interested in CNC stuff for Klipper?
 
