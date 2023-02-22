@@ -258,6 +258,11 @@ class MCU_stepper:
         ffi_main, ffi_lib = chelper.get_ffi()
         a = axis.encode()
         return ffi_lib.itersolve_is_active_axis(self._stepper_kinematics, a)
+    
+    def get_steppers(self):
+        # NOTE: dummy method for "_handle_mcu_identify" at "probe_G38.py".
+        return [self]
+
 
 # Helper code to build a stepper object from a config section
 def PrinterStepper(config, units_in_radians=False):
