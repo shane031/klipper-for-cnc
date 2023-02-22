@@ -71,9 +71,6 @@ position_endstop: 0.0
 position_min: 0.0
 position_max: 100.0
 homing_speed: 25.0
-second_homing_speed: 25.0
-homing_retract_speed: 25.0
-homing_retract_dist: 2.0
 homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
 endstop_pin: gpio15  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 
@@ -88,15 +85,14 @@ position_endstop: 0.0
 position_min: 0.0
 position_max: 100.0
 homing_speed: 25.0
-second_homing_speed: 25.0
-homing_retract_speed: 25.0
-homing_retract_dist: 2.0
 homing_positive_dir: False  # ADJUST TO MATCH YOUR SETUP
 endstop_pin: gpio18  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 
 [extruder_home extruder1]
 # No parameters needed.
 ```
+
+Note that the `[extruder]` must have an "endstop_pin" defined for it to be home-able. It is otherwise setup as a "regular" extruder, and a corresponding `[extruder_home extruder]` section will not work as exected. For instance, a `HOME_EXTRUDER EXTRUDER=extruder` command fail with this error: `'MCU_stepper' object has no attribute 'get_endstops'`
 
 ### Single-probe config
 
@@ -108,6 +104,8 @@ recovery_time: 0.4
 pin: gpio19
 z_offset: 0
 ```
+
+Note that `[probe_G38]` is incompatible with `[probe_G38_multi extruder]`.
 
 ### Multi-probing config
 
@@ -128,7 +126,7 @@ z_offset: 0
 
 # Use cases
 
-- General CNC usage.
+- More general CNC usage.
 - Syringe extruders.
 - Pipetting / liquid-handling robots.
 
