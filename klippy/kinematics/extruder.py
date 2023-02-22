@@ -14,23 +14,29 @@ class ExtruderStepper:
         self.config_pa = config.getfloat('pressure_advance', 0., minval=0.)
         self.config_smooth_time = config.getfloat(
                 'pressure_advance_smooth_time', 0.040, above=0., maxval=.200)
+        
         # Setup stepper
         # NOTE: In the manual_stepper class, the "rail" is defined
         #       either from PrinterRail or PrinterStepper. The first
         #       is used when an endstop pin was configured.
         if config.get('endstop_pin', None) is not None:
+            # NOTE: Setup home-able extruder steppers.
             self.can_home = True
-            self.rail = stepper.PrinterRail(config)
-            # NOTE: "self.steppers" is a list of PrinterStepper (MCU_stepper) objects.
-            self.steppers = self.rail.get_steppers()
+            self.rail = stepper.PrinterRail(config)     # PrinterRail
+            # NOTE: "rail.get_steppers" returns a list of PrinterStepper (MCU_stepper) objects.
+            self.steppers = self.rail.get_steppers()    # [MCU_stepper]
         else:
+            # NOTE: Setup "regular" unhome-able extruder steppers.
             self.can_home = False
-            self.rail = stepper.PrinterStepper(config)
-            self.steppers = [self.rail]
+            # NOTE: "PrinterStepper" returns an MCU_stepper object.
+            self.rail = stepper.PrinterStepper(config)  # MCU_stepper
+            self.steppers = [self.rail]                 # [MCU_stepper]
+        # NOTE: "steppers" from PrinterRail are interanlly defined from PrinterStepper,
+        #       and thus should be equivalent. An exception is the "get_steppers" 
+        #       method, which the MCU_stepper object returned "PrinterStepper" does
+        #       not have, but the PrinterRail does. This has been patched.
         self.stepper = self.steppers[0]
-        # NOTE: steppers from PrinterRail are interanlly defined from PrinterStepper,
-        #       and thus should be equivalent.
-        #self.stepper = stepper.PrinterStepper(config)
+        
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
                                        ffi_lib.free)

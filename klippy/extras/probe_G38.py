@@ -63,6 +63,9 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             extruder = extruder_obj[1]                      # PrinterExtruder
             extruder_stepper = extruder.extruder_stepper    # ExtruderStepper
             for stepper in extruder_stepper.rail.get_steppers():
+                # NOTE: this requires the PrinterRail or MCU_stepper objects 
+                #       to have the "get_steppers" method. The original MCU_stepper
+                #       object did not, but it has been patched at "stepper.py".
                 self.add_stepper(stepper)
 
 
