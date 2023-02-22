@@ -7,6 +7,7 @@
 import sys, os, gc, optparse, logging, time, collections, importlib
 import util, reactor, queuelogger, msgproto
 import gcode, configfile, pins, mcu, toolhead, webhooks
+import re
 
 message_ready = "Printer is ready"
 
@@ -109,6 +110,13 @@ class Printer:
                 for n in self.objects if n.startswith(prefix)]
         if module in self.objects:
             return [(module, self.objects[module])] + objs
+        return objs
+
+    def lookup_extruders(self):
+        # NOTE: inspired by "lookup_objects".
+        pattern = re.compile('extruder[0-9]*$')
+        objs = [(name, self.objects[name])
+                for name in self.objects if pattern.match(name)]
         return objs
     
     def load_object(self, config, section, default=configfile.sentinel):

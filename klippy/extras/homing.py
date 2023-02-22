@@ -146,7 +146,7 @@ class HomingMove:
         kin = self.toolhead.get_kinematics()
         
         # NOTE: this step calls the "get_steppers" method on the provided
-        #       kinematics, which returns a list of stepper objects.
+        #       kinematics, which returns a list of "MCU_stepper" objects.
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
         

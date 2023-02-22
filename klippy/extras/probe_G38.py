@@ -10,7 +10,6 @@
 import logging
 import pins
 from . import probe
-import re
 
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
@@ -58,7 +57,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
                 self.add_stepper(stepper)
         
         # NOTE: register steppers from all extruders.
-        extruder_objs = self.lookup_extruders()
+        extruder_objs = self.printer.lookup_extruders()
         for extruder_obj in extruder_objs:
             extruder_name = extruder_obj[0]
             extruder = extruder_obj[1]                      # PrinterExtruder
@@ -66,12 +65,6 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             for stepper in extruder_stepper.rail.get_steppers():
                 self.add_stepper(stepper)
 
-    def lookup_extruders(self):
-        # NOTE: inspired by "lookup_objects" at "klippy.py".
-        pattern = re.compile('extruder[0-9]*$')
-        objs = [(name, self.printer.objects[name])
-                for name in self.printer.objects if pattern.match(name)]
-        return objs
 
 class ProbeG38:
     """
