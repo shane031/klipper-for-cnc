@@ -569,6 +569,13 @@ class ToolHead:
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
+        
+        # NOTE: Also set the position of the extruder's "trapq".
+        self.set_position_e(newpos_e=newpos[3])
+
+        # NOTE: "set_position_e" was inserted above and not after 
+        #       updating "commanded_pos" under the suspicion that 
+        #       an unmodified "commanded_pos" might be important.
         self.commanded_pos[:] = newpos
         
         # NOTE: The "homing_axes" argument is a tuple similar to
@@ -578,6 +585,20 @@ class ToolHead:
         self.kin.set_position(newpos, homing_axes)
         
         self.printer.send_event("toolhead:set_position")
+
+    def set_position_e(self, newpos_e):
+        """Extruder version of set_position."""
+
+        # Get the "trapq" from the active extruder.
+        extruder = self.get_extruder()  # PrinterExtruder
+        extruder_trapq = extruder.get_trapq()  # extruder trapq (from ffi)
+
+        # Set its position
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trapq_set_position(extruder_trapq, 
+                                   self.print_time,
+                                   newpos_e, 0., 0.)
+        self.rail.set_position([newpos_e, 0., 0.])
     
     def move(self, newpos, speed):
         move = Move(toolhead=self, 
