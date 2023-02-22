@@ -18,16 +18,15 @@ class ExtruderStepper:
         # NOTE: In the manual_stepper class, the "rail" is defined
         #       either from PrinterRail or PrinterStepper. The first
         #       is used when an endstop pin was configured.
-        # TODO: Try copy over that logic from ManualStepper:
         if config.get('endstop_pin', None) is not None:
             self.can_home = True
-            self.rail = stepper.PrinterRail(config)   # NOTE: excluded some arguments.
-            self.steppers = self.rail.get_steppers()  # NOTE: list of stepper objects.
+            self.rail = stepper.PrinterRail(config)
+            # NOTE: "self.steppers" is a list of PrinterStepper (MCU_stepper) objects.
+            self.steppers = self.rail.get_steppers()
         else:
             self.can_home = False
             self.rail = stepper.PrinterStepper(config)
             self.steppers = [self.rail]
-        # TODO: define here the extruder stepper.
         self.stepper = self.steppers[0]
         # NOTE: steppers from PrinterRail are interanlly defined from PrinterStepper,
         #       and thus should be equivalent.

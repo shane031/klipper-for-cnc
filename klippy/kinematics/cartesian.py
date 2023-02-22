@@ -14,6 +14,8 @@ class CartKinematics:
         self.dual_carriage_rails = []
         # NOTE: a "PrinterRail" is setup by LookupMultiRail, per each 
         #       of the three axis, including their corresponding endstops.
+        # NOTE: The "self.rails" list contains "PrinterRail" objects, which
+        #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyz']
         for rail, axis in zip(self.rails, 'xyz'):
@@ -48,10 +50,15 @@ class CartKinematics:
                 'SET_DUAL_CARRIAGE', self.cmd_SET_DUAL_CARRIAGE,
                 desc=self.cmd_SET_DUAL_CARRIAGE_help)
     def get_steppers(self):
+        # NOTE: The "self.rails" list contains "PrinterRail" objects, which
+        #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         rails = self.rails
         if self.dual_carriage_axis is not None:
             dca = self.dual_carriage_axis
             rails = rails[:dca] + self.dual_carriage_rails + rails[dca+1:]
+        # NOTE: run "get_steppers" on each "PrinterRail" object from 
+        #       the "self.rails" list. That method returns the list of
+        #       all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
         return [s for rail in rails for s in rail.get_steppers()]
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]

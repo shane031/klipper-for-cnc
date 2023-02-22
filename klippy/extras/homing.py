@@ -151,7 +151,8 @@ class HomingMove:
         
         # NOTE: "Tracking of stepper positions during a homing/probing move"
         #       Build a "StepperPosition" class for each of the steppers
-        #       associated to each endstop.
+        #       associated to each endstop in the "self.endstops" list of tuples,
+        #       containing elements like: (MCU_endstop, "name").
         self.stepper_positions = [ StepperPosition(s, name)
                                    for es, name in self.endstops
                                    for s in es.get_steppers() ]

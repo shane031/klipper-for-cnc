@@ -10,6 +10,7 @@
 import logging
 import pins
 from . import probe
+import re
 
 
 class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
@@ -20,7 +21,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         # it does not require a name for it.
         super(ProbeEndstopWrapperG38, self).__init__(config)
 
-        # NOTE: not really needed, its done already by super()
+        # NOTE: not really needed, its done already by "super()".
         self.printer = config.get_printer()
 
         # NOTE: recovery stuff, see "probe_prepare" below. Not needed.
@@ -43,13 +44,31 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             toolhead = self.printer.lookup_object('toolhead')
             toolhead.dwell(self.recovery_time)
 
-    # NOTE: register XY steppers in the endstop too.
+    # NOTE: Register XY steppers in the endstop too.
+    #       The following includes Z steppers and 
+    #       extruder steppers.
     def _handle_mcu_identify(self):
-        logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZ axes)" + "\n\n")
+        logging.info(f"\n\n" + "ProbeEndstopWrapperG38._handle_mcu_identify activated (XYZE axes)" + "\n\n")
+
+        # NOTE: Register XYZ steppers.
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         for stepper in kin.get_steppers():
+            # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
             if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
                 self.add_stepper(stepper)
+        
+        # NOTE: register steppers from all extruders.
+        extruders = self.lookup_extruders()
+        for extruder in extruders:
+            for stepper in extruder.rail.get_steppers():
+                self.add_stepper(stepper)
+
+    def lookup_extruders(self):
+        # NOTE: inspired by "lookup_objects" at "klippy.py".
+        pattern = re.compile('extruder[0-9]*$')
+        objs = [(name, self.printer.objects[name])
+                for name in self.printer.objects if pattern.match(name)]
+        return objs
 
 class ProbeG38:
     """
