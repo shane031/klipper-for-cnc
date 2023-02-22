@@ -31,7 +31,7 @@ This fork implements:
     - Known incompatibilites: `[probe_G38_multi ...]`
 - General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
-    - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace `2` by `3-5` for the other probing modes).
+    - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
     - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Known incompatibilites: `[probe_G38]`
@@ -94,7 +94,7 @@ endstop_pin: gpio18  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 # No parameters needed.
 ```
 
-### Probing config
+### Single-probe config
 
 Config: [probe_G38.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38.cfg)
 
@@ -110,29 +110,14 @@ z_offset: 0
 Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38_multi.cfg)
 
 ```yaml
-# CNC shield v3.0 pin map:
-# https://gitlab.com/pipettin-bot/pipettin-grbl/-/blob/master/doc/electronica/arduino_cnc_shield/klipper_pin_map.svg
-
 [probe_G38_multi extruder]
-# Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
-# The name in the config section **must** match the name of an [extruder] section,
-# in order to find the probe object for the current extruder automatically.
-#
-# Settings borrowed from "[smart_effector]".
 recovery_time: 0.0
-# Settings from original "[probe]" section.
 pin: ^tools:PC5
 z_offset: 0
 
 
 [probe_G38_multi extruder1]
-# Activate the "probe_G38.py" extras module, providing generalized G38.2 probing.
-# The name in the config section **must** match the name of an [extruder] section,
-# in order to find the probe object for the current extruder automatically.
-#
-# Settings borrowed from "[smart_effector]".
 recovery_time: 0.0
-# Settings from original "[probe]" section.
 pin: ^tools:PB1
 z_offset: 0
 ```
