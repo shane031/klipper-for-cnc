@@ -323,8 +323,8 @@ class ProbeG38:
                 # NOTE: log the error as usual if it is was not a timeout error.
                 raise self.printer.command_error(reason)
         
-        self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
-                                % (epos[0], epos[1], epos[2]))
+        self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f e=%.3f"
+                                % (epos[0], epos[1], epos[2], epos[3]))
         
         # TODO: find out why it returns the fourth position.
         return epos[:3]
