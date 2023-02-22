@@ -74,6 +74,7 @@ class GCodeMove:
                      self.base_position, self.last_position,
                      self.homing_position, self.speed_factor,
                      self.extrude_factor, self.speed)
+    
     def _handle_activate_extruder(self):
         # NOTE: the "reset_last_position" method overwrites "last_position"
         #       with the position returned by "position_with_transform",
@@ -82,12 +83,20 @@ class GCodeMove:
         #       This seems reasonable because the fourth coordinate of "commanded_pos"
         #       would have just been set to the "last position" of the new extruder
         #       (by the cmd_ACTIVATE_EXTRUDER method in "extruder.py").
+        # TODO: find out if this can fail when the printer is "not ready".
         self.reset_last_position()
+        
         # TODO: why would the factor be set to 1 here?
         self.extrude_factor = 1.
+        
         # TODO: why would the base position be set to the last position of 
         #       the new extruder?
-        self.base_position[3] = self.last_position[3]
+        # NOTE: Commented the following line, which was effectively like
+        #       running "G92 E0". It was meant to "support main slicers",
+        #       but no checking was done. 
+        #       See discussion at: https://klipper.discourse.group/t/6558
+        # self.base_position[3] = self.last_position[3]
+    
     def _handle_home_rails_end(self, homing_state, rails):
         self.reset_last_position()
         for axis in homing_state.get_axes():
@@ -123,12 +132,14 @@ class GCodeMove:
             'position': self.Coord(*self.last_position),
             'gcode_position': self.Coord(*move_position),
         }
+    
     def reset_last_position(self):
         # NOTE: Handler for "toolhead:set_position" and other events,
         #       sent at least by "toolhead.set_position".
         #       Also called by "_handle_activate_extruder" and other methods.
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
+    
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         # Move
