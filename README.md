@@ -33,6 +33,7 @@ This fork implements:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
     - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
     - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
+    - The probes can be queried with `QUERY_ENDSTOPS` (instead of `QUERY_PROBE`).
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Known incompatibilites: `[probe_G38]`
 - The `SET_KINEMATIC_POSITION` command now works with extruder position as well.
@@ -123,6 +124,10 @@ recovery_time: 0.0
 pin: ^tools:PB1
 z_offset: 0
 ```
+
+For convenience, their status can show up next to the endstops in Mainsail:
+
+![query_probe_endstops.png](./docs/img/pipetting/query_probe_endstops.png)
 
 # Use cases
 
