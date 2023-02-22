@@ -122,6 +122,12 @@ pin: ^tools:PB1
 z_offset: 0
 ```
 
+# Use cases
+
+- General CNC usage.
+- Syringe extruders.
+- Pipetting / liquid-handling robots.
+
 # Installation
 
 The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://github.com/th33xitus/kiauh/blob/master/klipper_repos.txt.example
