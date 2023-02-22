@@ -124,6 +124,9 @@ class GCodeMove:
             'gcode_position': self.Coord(*move_position),
         }
     def reset_last_position(self):
+        # NOTE: Handler for "toolhead:set_position" and other events,
+        #       sent at least by "toolhead.set_position".
+        #       Also called by "_handle_activate_extruder" and other methods.
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
     # G-Code movement commands

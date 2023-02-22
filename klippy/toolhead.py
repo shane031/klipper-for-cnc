@@ -318,7 +318,7 @@ class ToolHead:
         # NOTE: This function updates "self.print_time" directly.
         #       It updates "self.print_time" until it is greater than
         #       the provided "next_print_time".
-        # NOTE: It also calls trapq_finalize_moves on the extruder and toolhead.
+        # NOTE: It also calls "trapq_finalize_moves" on the extruder and toolhead.
         # NOTE: a possible "use case" in the code is to:
         #           "Generate steps for moves"
 
@@ -347,7 +347,8 @@ class ToolHead:
             mcu_flush_time = max(fft, sg_flush_time - self.move_flush_time)
             for m in self.all_mcus:
                 # NOTE: The following may find and transmit any scheduled steps 
-                #       prior to the given 'mcu_flush_time' (see stepcompress.c).
+                #       prior to the given 'mcu_flush_time' (see stepcompress.c
+                #       and "flush_moves" in mcu.py).
                 m.flush_moves(mcu_flush_time)
             if self.print_time >= next_print_time:
                 break
@@ -462,7 +463,7 @@ class ToolHead:
         #       are "ready to be flushed", and removes them from the queue.
         self.move_queue.flush()
 
-        # NOTE: the state is set to "FLushed" which is still a
+        # NOTE: the state is set to "Flushed" which is still a
         #       "special" state (i.e. not the "" main state)
         self.special_queuing_state = "Flushed"
         self.need_check_stall = -1.
@@ -561,13 +562,19 @@ class ToolHead:
         return list(self.commanded_pos)
     
     def set_position(self, newpos, homing_axes=()):
+        
         self.flush_step_generation()
+        
+        # NOTE: Set the position of the toolhead's "trapq".
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         self.commanded_pos[:] = newpos
         
-        # NOTE: calls "rail.set_position"/"itersolve_set_position"
+        # NOTE: The "homing_axes" argument is a tuple similar to
+        #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py").
+        # NOTE: Calls "rail.set_position" on each stepper which in turn
+        #       calls "itersolve_set_position" from "itersolve.c".
         self.kin.set_position(newpos, homing_axes)
         
         self.printer.send_event("toolhead:set_position")

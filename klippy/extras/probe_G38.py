@@ -288,9 +288,9 @@ class ProbeG38:
             #       which additionally requires a toolhead object.
             #       It turns out that, if not provided, HomingMove
             #       will get the main toolhead by lookup and use it.
-            # NOTE: the method is passed "pos", which is "min_position"
-            #       parameter from the "z_stepper" section, and the
-            #       current XYE toolhead coordinates (see notes above). 
+            # NOTE: the method is passed "pos", which is the target
+            #       XYZE coordinates for the probing move (see notes 
+            #       above, and the "cmd_PROBE_G38_2" method). 
             # NOTE: I had to add a "check_triggered" argument to 
             #       "probing_move" for G38.3 to work properly.
             logging.info(f"\n\n" + "probe_g38 probing with axes: " + str(probe_axes) + "\n\n")

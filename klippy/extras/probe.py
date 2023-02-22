@@ -125,8 +125,11 @@ class PrinterProbe:
     def _probe(self, speed):
         toolhead = self.printer.lookup_object('toolhead')
         curtime = self.printer.get_reactor().monotonic()
+        
+        # TODO: consider removing this check.
         if 'z' not in toolhead.get_status(curtime)['homed_axes']:
             raise self.printer.command_error("Must home before probe")
+        
         phoming = self.printer.lookup_object('homing')
         pos = toolhead.get_position()
 
@@ -161,7 +164,7 @@ class PrinterProbe:
         
         self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
                                 % (epos[0], epos[1], epos[2]))
-        # TODO: find out why it uses the fourth position.
+        # TODO: find out why it returns the fourth position.
         return epos[:3]
     
     def _move(self, coord, speed):

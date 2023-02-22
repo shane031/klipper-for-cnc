@@ -137,6 +137,7 @@ class HomingMove:
         
         # Note start location
         self.toolhead.flush_step_generation()
+
         # NOTE: the "get_kinematics" method is defined in the ToolHead 
         #       class at "toolhead.py". It apparently returns the kinematics
         #       object, as loaded from a module in the "kinematics/" directory,
@@ -195,7 +196,7 @@ class HomingMove:
         
         # Wait for endstops to trigger
         trigger_times = {}
-        # NOTE: probably gets the time just after the alst move.
+        # NOTE: probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
         for mcu_endstop, name in self.endstops:
             # NOTE: calls the "home_wait" method from "MCU_endstop".
@@ -441,9 +442,14 @@ class PrinterHoming:
         mcu_probe
         pos
         speed
+        check_triggered
+        triggered: logic invert for the endstop trigger.
+        probe_axes: list of the axes moving in this probing move.
         """
+        
         endstops = [(mcu_probe, "probe")]
         hmove = HomingMove(self.printer, endstops)
+
         try:
             epos = hmove.homing_move(pos, speed, probe_pos=True, 
                                      # NOTE: Pass argument from "probing_move",
@@ -458,7 +464,7 @@ class PrinterHoming:
                     "Probing failed due to printer shutdown")
             raise
         
-        # NOTE: this is getting raised for the G38 moves.
+        # NOTE: this was getting raised for the G38 moves.
         #       "check_no_movement" looks at the stepper 
         #       start and trigger positions. If they are
         #       the same, then the error below is raised.
@@ -468,6 +474,7 @@ class PrinterHoming:
                 "Probe triggered prior to movement")
         
         return epos
+
     def cmd_G28(self, gcmd):
         # Move to origin
         axes = []

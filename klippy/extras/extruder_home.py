@@ -305,7 +305,9 @@ class ExtruderHoming:
         """
         # TODO: What should I do here?
         #       I think it is allright to use the toolheads method,
-        #       because the extruder stepper is part of the toolhead.
+        #       because the extruder stepper is part of the toolhead,
+        #       and "trapq_finalize_moves" is eventually called on it too
+        #       (see "_update_move_time" at "toolhead.py").
         #       Also, the alternative "sync_print_time" does not make
         #       much sense to me, because it was used to get the latest
         #       print time, to be used in other manual_stepper methods.
