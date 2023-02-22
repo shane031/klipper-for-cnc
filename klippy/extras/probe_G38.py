@@ -30,7 +30,7 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
         self.printer.register_event_handler('klippy:mcu_identify',
                                             self._handle_mcu_identify)
         
-    def register_query_endstop(self, name):
+    def register_query_endstop(self, name, config):
         # NOTE: grabbed from "stepper.py" to support querying the probes.
         # Load the "query_endstops" module.
         query_endstops = self.printer.load_object(config, 'query_endstops')
