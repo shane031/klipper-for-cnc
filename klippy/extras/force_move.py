@@ -131,6 +131,10 @@ class ForceMove:
         z = gcmd.get_float('Z', curpos[2])
         e = gcmd.get_float('E', curpos[3])
         logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
+        # NOTE: The "homing_axes" argument is used to
+        #       set axis limits by the (cartesian) kinematics.
+        #       Passing "3" for the extruder is not needed for now,
+        #       and would proably fail.
         toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
 
 def load_config(config):

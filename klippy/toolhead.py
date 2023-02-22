@@ -579,7 +579,8 @@ class ToolHead:
         self.commanded_pos[:] = newpos
         
         # NOTE: The "homing_axes" argument is a tuple similar to
-        #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py").
+        #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py"),
+        #       used to set axis limits by the (cartesian) kinematics.
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         self.kin.set_position(newpos, homing_axes)
