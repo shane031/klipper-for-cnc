@@ -124,20 +124,35 @@ class CartKinematicsABC(CartKinematics):
                 if self.limits[i][0] > self.limits[i][1]:
                     raise move.move_error("Must home axis first")
                 raise move.move_error()
+    
+    # TODO: Use the original toolhead's z-axis limit here.
+    # TODO: Think how to "sync" speeds with the original toolhead,
+    #       so far the ABC axis should just mirror the XY.
     def check_move(self, move):
+        """Checks a move for validity.
+        
+        Also limits the move's max speed to the limit of the Z axis if used.
+
+        Args:
+            move (tolhead.Move): Instance of the Move class.
+        """
         limits = self.limits
         xpos, ypos = move.end_pos[:2]
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
+        
+        # NOTE: check if the move involves the Z axis, to limit the speed.
         if not move.axes_d[2]:
             # Normal XY move - use defaults
             return
-        # Move with Z - update velocity and accel for slower Z axis
-        self._check_endstops(move)
-        z_ratio = move.move_d / abs(move.axes_d[2])
-        move.limit_speed(
-            self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+        else:
+            # Move with Z - update velocity and accel for slower Z axis
+            self._check_endstops(move)
+            z_ratio = move.move_d / abs(move.axes_d[2])
+            move.limit_speed(
+                self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+    
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip(self.axis_names, self.limits) if l <= h]
         return {
@@ -145,6 +160,7 @@ class CartKinematicsABC(CartKinematics):
             'axis_minimum': self.axes_min,
             'axis_maximum': self.axes_max,
         }
+    
     # Dual carriage support
     # def _activate_carriage(self, carriage):
     #     toolhead = self.printer.lookup_object('toolhead')
