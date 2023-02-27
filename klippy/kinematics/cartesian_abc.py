@@ -5,6 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging
 import stepper
+from kinematics import CartKinematics
 
 class CartKinematicsABC(CartKinematics):
     """Kinematics for the extra toolhead class.
