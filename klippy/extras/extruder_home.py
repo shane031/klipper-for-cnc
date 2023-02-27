@@ -237,8 +237,7 @@ class ExtruderHoming:
         if self.extruder_name != self.active_extruder_name:
             try:
                 # NOTE: Try activating the requested extruder
-                self.gcode.run_script_from_command("G4 P0")
-                self.gcode.run_script_from_command(self.activate_gcode + self.active_extruder_name)
+                self.gcode.run_script(self.activate_gcode + self.active_extruder_name)
             except:
                 raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
                                 f"Error reactivating {self.active_extruder_name}.")
