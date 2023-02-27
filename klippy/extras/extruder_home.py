@@ -91,7 +91,7 @@ class ExtruderHoming:
             self.main_object = True
             logging.info("\n\nExtruderHoming: HOME_EXTRUDER not yet configured, running HOME_EXTRUDER register_command.\n\n")
             
-            self.gcode.register_command("HOME_EXTRUDER",
+            self.gcode.register_command("HOME_ACTIVE_EXTRUDER",
                                         self.cmd_HOME_ACTIVE_EXTRUDER,
                                         when_not_ready=False,
                                         desc=self.cmd_HOME_ACTIVE_EXTRUDER_help)
