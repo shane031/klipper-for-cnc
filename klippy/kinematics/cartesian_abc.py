@@ -22,9 +22,11 @@ class CartKinematicsABC(CartKinematics):
         self.printer = config.get_printer()
         # Axis names
         self.axis_names = config.get('axis', 'abc')  # "abc"
+        
         # Setup axis rails
-        self.dual_carriage_axis = None
-        self.dual_carriage_rails = []
+        # self.dual_carriage_axis = None
+        # self.dual_carriage_rails = []
+        
         # NOTE: a "PrinterRail" is setup by LookupMultiRail, per each 
         #       of the three axis, including their corresponding endstops.
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
@@ -69,9 +71,11 @@ class CartKinematicsABC(CartKinematics):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         rails = self.rails
-        if self.dual_carriage_axis is not None:
-            dca = self.dual_carriage_axis
-            rails = rails[:dca] + self.dual_carriage_rails + rails[dca+1:]
+        
+        # if self.dual_carriage_axis is not None:
+        #     dca = self.dual_carriage_axis
+        #     rails = rails[:dca] + self.dual_carriage_rails + rails[dca+1:]
+        
         # NOTE: run "get_steppers" on each "PrinterRail" object from 
         #       the "self.rails" list. That method returns the list of
         #       all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
