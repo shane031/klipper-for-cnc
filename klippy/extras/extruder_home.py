@@ -53,10 +53,6 @@ class ExtruderHoming:
         self.gcmd = None
         self.th_orig_pos = None
         
-        # To check if a "overstep" correction has 
-        # already been computed after a drip_move.
-        self.corrected_e_pos = None
-        
         # Not really used by the current move method
         self.HOMING_DELAY = 0.001
         
@@ -230,10 +226,6 @@ class ExtruderHoming:
         # gcode_move = self.printer.lookup_object('gcode_move')
         # gcode_move.reset_last_position()
 
-        # NOTE: finally, reset "self.corrected_e_pos = None" for a 
-        #       future homing move.
-        self.corrected_e_pos = None
-
         # NOTE: flag homing end
         self.homing = False
     
@@ -299,8 +291,6 @@ class ExtruderHoming:
                             # NOTE: if True, an "error" is recorded when the move
                             #       completes without the endstop triggering.
                             check_triggered=True)
-
-        self.corrected_e_pos = None
 
         # NOTE: flag homing end
         self.homing = False
