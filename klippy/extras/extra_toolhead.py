@@ -40,6 +40,16 @@ DRIP_TIME = 0.100
 
 # Main code to track events (and their timing) on the printer toolhead
 class ExtraToolHead(ToolHead):
+    """Extra toolhead class.
+
+    Example config:
+    
+    [extra_toolhead abc]
+    kinematics: cartesian_abc
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    """
     def __init__(self, config):
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
