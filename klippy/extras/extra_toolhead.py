@@ -125,12 +125,12 @@ class ExtraToolHead(ToolHead):
             raise config.error(msg)
         
         # Register commands
-        gcode.register_command('G4', self.cmd_G4)
-        gcode.register_command('M400', self.cmd_M400)
-        gcode.register_command('SET_VELOCITY_LIMIT',
+        gcode.register_command('eth_G4', self.cmd_G4)
+        gcode.register_command('eth_M400', self.cmd_M400)
+        gcode.register_command('eth_SET_VELOCITY_LIMIT',
                                self.cmd_SET_VELOCITY_LIMIT,
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_command('M204', self.cmd_M204)
+        gcode.register_command('eth_M204', self.cmd_M204)
         
         # Load some default modules
         modules = ["gcode_move", "homing", "idle_timeout", "statistics",
