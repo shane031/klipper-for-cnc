@@ -113,6 +113,15 @@ class ExtruderHoming:
         # NOTE: Get the toolhead and its *current* extruder.
         self.toolhead = self.printer.lookup_object("toolhead")
         self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
+        self.active_extruder_name = self.extruder.get_name()
+        
+        # NOTE: check if the active extruder is the one t be homed.
+        if self.extruder_name != self.active_extruder_name:
+            raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
+                             "{self.active_extruder_name} is active " +
+                             " but homing {self.extruder_name} was requested.")
+        
+        # NOTE: Get the active extruder's trapq.
         self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)
         
         # NOTE: Get the steppers
