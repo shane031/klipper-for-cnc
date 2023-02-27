@@ -47,6 +47,8 @@ class ExtruderHoming:
     def __init__(self, config):
         self.printer = config.get_printer()
         self.extruder_name = config.get_name().split()[1]
+        
+        self.activate_gcode = "ACTIVATE_EXTRUDER EXTRUDER="
 
         self.toolhead = None
         self.extruder = None
@@ -128,9 +130,14 @@ class ExtruderHoming:
         
         # NOTE: check if the active extruder is the one t be homed.
         if self.extruder_name != self.active_extruder_name:
-            raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
-                             f"{self.active_extruder_name} is active " +
-                             f" but homing {self.extruder_name} was requested.")
+            try:
+                # NOTE: Try activating the requested extruder
+                self.gcode.run_script_from_command(self.activate_gcode + self.extruder_name)
+            except:
+                raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
+                                f"{self.active_extruder_name} is active " +
+                                f"but homing {self.extruder_name} was requested. " +
+                                f"Could not activate {self.active_extruder_name}.")
         
         # NOTE: Get the active extruder's trapq.
         self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)
@@ -225,6 +232,15 @@ class ExtruderHoming:
         #       Might interfere with extruder move?
         # gcode_move = self.printer.lookup_object('gcode_move')
         # gcode_move.reset_last_position()
+        
+        # NOTE: check if the active extruder is the one t be homed.
+        if self.extruder_name != self.active_extruder_name:
+            try:
+                # NOTE: Try activating the requested extruder
+                self.gcode.run_script_from_command(self.activate_gcode + self.active_extruder_name)
+            except:
+                raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
+                                f"Error reactivating {self.active_extruder_name}.")
 
         # NOTE: flag homing end
         self.homing = False
