@@ -22,9 +22,8 @@ This fork implements:
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
-    - Caveats: No "second home" is performed. It is untested on extruder steppers configured as `[extruder_stepper]` later synced to a particular `[extruder]`.
-    - Mux-command: `HOME_EXTRUDER EXTRUDER=extruder`.
-    - Caveats: `extruder` must be active (use [this](https://github.com/naikymen/klipper-homing-extruder/blob/pipetting/config/configs-pipetting-bot/config-pi-pico-mainsail/home_extruder.cfg#L21) macro for convenience).
+    - Mux-command: `HOME_EXTRUDER EXTRUDER=extruder` (will activate `extruder` and reactivate the previous extruder when done).
+    - Caveats: It is untested on extruder steppers configured as `[extruder_stepper]` later synced to a particular `[extruder]`. No "second home" is performed.
 - Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5` (single-probe version).
     - Module: [probe_G38.py](./klippy/extras/probe_G38.py)
     - Example command: `G38.2 X20 F10`

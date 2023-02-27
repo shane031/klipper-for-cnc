@@ -241,6 +241,8 @@ class ExtruderHoming:
         if self.extruder_name != self.active_extruder_name:
             try:
                 # NOTE: activate the requested extruder if necessary.
+                # WARN: using run_script_from_command/run_script instead 
+                #       would interrupt the homing move and block gcode.
                 self.active_extruder.cmd_ACTIVATE_EXTRUDER(gcmd=gcmd)
             except:
                 raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
