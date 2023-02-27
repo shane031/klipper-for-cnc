@@ -119,7 +119,7 @@ class ExtruderHoming:
     # NOTE: the "register_mux_command" above registered a "HOME_EXTRUDER"
     #       command, which will end up calling this method.
     #       The "help" string is usually defined along the method.
-    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop. The active extruder will be homed."
+    cmd_HOME_EXTRUDER_help = "Home an extruder using an endstop. Only the active extruder can be homed."
     def cmd_HOME_EXTRUDER(self, gcmd):
         
         # Get gcmd object, for later.
