@@ -81,6 +81,20 @@ class ExtruderHoming:
                                    self.extruder_name, self.cmd_HOME_EXTRUDER,
                                    desc=self.cmd_HOME_EXTRUDER_help)
         
+        # Register active extruder homing command.
+        # First check if this is the first instance of a multi-probe object.
+        if "HOME_EXTRUDER" in self.gcode.ready_gcode_handlers:
+            self.main_object = False
+            logging.info("\n\nExtruderHoming: HOME_EXTRUDER already configured, skipping HOME_EXTRUDER register_command.\n\n")
+        else:
+            self.main_object = True
+            logging.info("\n\nExtruderHoming: HOME_EXTRUDER not yet configured, running HOME_EXTRUDER register_command.\n\n")
+            
+            self.gcode.register_command("HOME_EXTRUDER",
+                                        self.cmd_HOME_ACTIVE_EXTRUDER,
+                                        when_not_ready=False,
+                                        desc=self.cmd_HOME_ACTIVE_EXTRUDER_help)
+        
         logging.info(f"\n\nExtruderHoming: init complete\n\n")
 
         # # NOTE: setup event handler to "finalize" the extruder trapq after
@@ -217,6 +231,77 @@ class ExtruderHoming:
 
         # NOTE: finally, reset "self.corrected_e_pos = None" for a 
         #       future homing move.
+        self.corrected_e_pos = None
+
+        # NOTE: flag homing end
+        self.homing = False
+    
+    cmd_HOME_ACTIVE_EXTRUDER_help = "Home an extruder using an endstop. The active extruder will be homed."
+    def cmd_HOME_ACTIVE_EXTRUDER(self, gcmd):
+        
+        # Get gcmd object, for later.
+        gcmd = gcmd
+        
+        # NOTE: Get the toolhead and its *current* extruder.
+        toolhead = self.printer.lookup_object("toolhead")
+        active_extruder = toolhead.get_extruder()            # PrinterExtruder
+        active_extruder_name = extruder.get_name()
+        
+        # NOTE: Get the active extruder's trapq.
+        extruder_trapq = extruder.get_trapq()         # extruder trapq (from ffi)
+        
+        # NOTE: Get the steppers
+        extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
+        rail = extruder_stepper.rail                  # PrinterRail
+        stepper = extruder_stepper.stepper            # PrinterRail or PrinterStepper
+        steppers = [stepper]                          # [PrinterRail or PrinterStepper]
+        # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"  
+        #       objects are _the same_ object.
+
+        # NOTE: get the endstops from the extruder's PrinterRail.
+        #       likely a list of tuples, each with an instance of 
+        #       MCU_endstop and a stepper name.
+        #       See PrinterRail at stepper.py.
+        endstops = rail.get_endstops()                 # [(mcu_endstop, name)]
+        
+        # NOTE: get a PrinterHoming class from extras
+        phoming = self.printer.lookup_object('homing')      # PrinterHoming
+
+        # NOTE: Get original toolhead position 
+        th_orig_pos = toolhead.get_position()
+        
+        # NOTE: get homing information, speed and move coordinate.
+        homing_info = rail.get_homing_info()
+        speed = homing_info.speed
+        # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
+        pos = th_orig_pos[:3] + [self.get_movepos(homing_info)]
+
+        # Get rail limits
+        position_min, position_max = rail.get_range()
+        
+        # NOTE: force extruder to a certain starting position.
+        #       Originally 0.0, now position_max, which requires an
+        #       endstop position of 0.0 to home in the right direction.
+        if homing_info.positive_dir:
+            e_startpos = position_min
+        else:
+            e_startpos = position_max
+        startpos = th_orig_pos[:3] + [e_startpos]
+        toolhead.set_position(startpos)
+
+        # NOTE: flag homing start
+        self.homing = True
+        
+        logging.info(f"\n\ncmd_HOME_EXTRUDER: pos={str(pos)}\n\n")
+        phoming.manual_home(toolhead=toolhead, endstops=endstops,
+                            pos=pos, speed=speed,
+                            # NOTE: argument passed to "mcu_endstop.home_start",
+                            #       and used directly in the low-level command.
+                            triggered=True, 
+                            # NOTE: if True, an "error" is recorded when the move
+                            #       completes without the endstop triggering.
+                            check_triggered=True)
+
         self.corrected_e_pos = None
 
         # NOTE: flag homing end
