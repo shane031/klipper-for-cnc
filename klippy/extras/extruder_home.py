@@ -86,10 +86,10 @@ class ExtruderHoming:
         # First check if this is the first instance of a multi-probe object.
         if "HOME_ACTIVE_EXTRUDER" in self.gcode.ready_gcode_handlers:
             self.main_object = False
-            logging.info("\n\nExtruderHoming: HOME_EXTRUDER already configured, skipping HOME_EXTRUDER register_command.\n\n")
+            logging.info("\n\nExtruderHoming: HOME_ACTIVE_EXTRUDER already configured, skipping HOME_ACTIVE_EXTRUDER register_command.\n\n")
         else:
             self.main_object = True
-            logging.info("\n\nExtruderHoming: HOME_EXTRUDER not yet configured, running HOME_EXTRUDER register_command.\n\n")
+            logging.info("\n\nExtruderHoming: HOME_ACTIVE_EXTRUDER not yet configured, running HOME_ACTIVE_EXTRUDER register_command.\n\n")
             
             self.gcode.register_command("HOME_ACTIVE_EXTRUDER",
                                         self.cmd_HOME_ACTIVE_EXTRUDER,
