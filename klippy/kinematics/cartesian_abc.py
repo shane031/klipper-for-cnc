@@ -64,6 +64,7 @@ class CartKinematicsABC(CartKinematics):
         #     self.printer.lookup_object('gcode').register_command(
         #         'SET_DUAL_CARRIAGE', self.cmd_SET_DUAL_CARRIAGE,
         #         desc=self.cmd_SET_DUAL_CARRIAGE_help)
+    
     def get_steppers(self):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
@@ -75,17 +76,21 @@ class CartKinematicsABC(CartKinematics):
         #       the "self.rails" list. That method returns the list of
         #       all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
         return [s for rail in rails for s in rail.get_steppers()]
+    
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
+    
     def set_position(self, newpos, homing_axes):
         for i, rail in enumerate(self.rails):
             # NOTE: calls "itersolve_set_position".
             rail.set_position(newpos)
             if i in homing_axes:
                 self.limits[i] = rail.get_range()
+    
     def note_z_not_homed(self):
         # Helper for Safe Z Home
         self.limits[2] = (1.0, -1.0)
+    
     def _home_axis(self, homing_state, axis, rail):
         # Determine movement
         position_min, position_max = rail.get_range()
@@ -99,6 +104,7 @@ class CartKinematicsABC(CartKinematics):
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
         # Perform homing
         homing_state.home_rails([rail], forcepos, homepos)
+    
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
@@ -113,8 +119,10 @@ class CartKinematicsABC(CartKinematics):
             # else:
             #     self._home_axis(homing_state, axis, self.rails[axis])
             self._home_axis(homing_state, axis, self.rails[axis])
+    
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
+    
     def _check_endstops(self, move):
         end_pos = move.end_pos
         for i in (0, 1, 2):
