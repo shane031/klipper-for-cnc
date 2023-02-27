@@ -272,7 +272,7 @@ class ExtruderHoming:
         homing_info = rail.get_homing_info()
         speed = homing_info.speed
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
-        pos = th_orig_pos[:3] + [self.get_movepos(homing_info)]
+        pos = th_orig_pos[:3] + [self.get_movepos(homing_info=homing_info, rail=rail)]
 
         # Get rail limits
         position_min, position_max = rail.get_range()
@@ -305,16 +305,20 @@ class ExtruderHoming:
         # NOTE: flag homing end
         self.homing = False
 
-    def get_movepos(self, homing_info):
+    def get_movepos(self, homing_info, rail=None):
         # NOTE: based on "_home_axis" from CartKinematics, it estimates
         #       the distance to move for homing, at least for a G28 command.
+        
+        # NOTE: setup the default rail.
+        if rail is None:
+            rail = self.rail
         
         # Determine movement, example config values:
         #   position_endstop: 0.0
         #   position_min: 0.0
         #   position_max: 30.0
         #   homing_positive_dir: False
-        position_min, position_max = self.rail.get_range()
+        position_min, position_max = rail.get_range()
         
         # NOTE: The following movepos is overriden below. Left here for reference.
         # NOTE: The logic in cartesian.py and stepper.py is slightly convoluted.
