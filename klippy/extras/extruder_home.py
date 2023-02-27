@@ -242,17 +242,17 @@ class ExtruderHoming:
         
         # NOTE: Get the toolhead and its *current* extruder.
         toolhead = self.printer.lookup_object("toolhead")
-        active_extruder = toolhead.get_extruder()            # PrinterExtruder
-        active_extruder_name = extruder.get_name()
+        active_extruder = toolhead.get_extruder()           # PrinterExtruder
+        active_extruder_name = active_extruder.get_name()
         
         # NOTE: Get the active extruder's trapq.
-        extruder_trapq = extruder.get_trapq()         # extruder trapq (from ffi)
+        extruder_trapq = active_extruder.get_trapq()        # extruder trapq (from ffi)
         
         # NOTE: Get the steppers
-        extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
-        rail = extruder_stepper.rail                  # PrinterRail
-        stepper = extruder_stepper.stepper            # PrinterRail or PrinterStepper
-        steppers = [stepper]                          # [PrinterRail or PrinterStepper]
+        extruder_stepper = active_extruder.extruder_stepper # ExtruderStepper
+        rail = extruder_stepper.rail                        # PrinterRail
+        stepper = extruder_stepper.stepper                  # PrinterRail or PrinterStepper
+        steppers = [stepper]                                # [PrinterRail or PrinterStepper]
         # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"  
         #       objects are _the same_ object.
 
@@ -260,7 +260,7 @@ class ExtruderHoming:
         #       likely a list of tuples, each with an instance of 
         #       MCU_endstop and a stepper name.
         #       See PrinterRail at stepper.py.
-        endstops = rail.get_endstops()                 # [(mcu_endstop, name)]
+        endstops = rail.get_endstops()                      # [(mcu_endstop, name)]
         
         # NOTE: get a PrinterHoming class from extras
         phoming = self.printer.lookup_object('homing')      # PrinterHoming
