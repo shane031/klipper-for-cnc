@@ -6,9 +6,22 @@
 import logging
 import stepper
 
-class CartKinematics:
+class CartKinematicsABC(CartKinematics):
+    """Kinematics for the extra toolhead class.
+
+    Example config:
+    
+    [extra_toolhead abc]
+    kinematics: cartesian_abc
+    axis: abc  # Could be "ab" as well?
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    """
     def __init__(self, toolhead, config):
         self.printer = config.get_printer()
+        # Axis names
+        self.axis_names = config.get('axis', 'abc')  # "abc"
         # Setup axis rails
         self.dual_carriage_axis = None
         self.dual_carriage_rails = []
@@ -17,8 +30,8 @@ class CartKinematics:
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
-                      for n in 'xyz']
-        for rail, axis in zip(self.rails, 'xyz'):
+                      for n in self.axis_names]
+        for rail, axis in zip(self.rails, self.axis_names):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
@@ -26,6 +39,8 @@ class CartKinematics:
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
         # Setup boundary checks
+        # NOTE: Returns max_velocity and max_accel from the toolhead's config.
+        #       Used below as default values.
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat('max_z_velocity', max_velocity,
                                               above=0., maxval=max_velocity)
@@ -149,4 +164,4 @@ class CartKinematics:
         self._activate_carriage(carriage)
 
 def load_kinematics(toolhead, config):
-    return CartKinematics(toolhead, config)
+    return CartKinematicsABC(toolhead, config)

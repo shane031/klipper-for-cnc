@@ -46,6 +46,7 @@ class ExtraToolHead(ToolHead):
     
     [extra_toolhead abc]
     kinematics: cartesian_abc
+    axis: abc
     max_velocity: 5000
     max_z_velocity: 250
     max_accel: 1000
