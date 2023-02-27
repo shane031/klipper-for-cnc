@@ -84,7 +84,7 @@ class ExtruderHoming:
         # Register active extruder homing command.
         self.gcode = self.printer.lookup_object('gcode')
         # First check if this is the first instance of a multi-probe object.
-        if "HOME_EXTRUDER" in self.gcode.ready_gcode_handlers:
+        if "HOME_ACTIVE_EXTRUDER" in self.gcode.ready_gcode_handlers:
             self.main_object = False
             logging.info("\n\nExtruderHoming: HOME_EXTRUDER already configured, skipping HOME_EXTRUDER register_command.\n\n")
         else:
