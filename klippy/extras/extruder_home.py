@@ -21,6 +21,7 @@
 import stepper, chelper, logging
 from toolhead import Move
 from collections import namedtuple
+from kinematics.extruder import PrinterExtruder
 
 class ExtruderHoming:
     """
@@ -47,8 +48,6 @@ class ExtruderHoming:
     def __init__(self, config):
         self.printer = config.get_printer()
         self.extruder_name = config.get_name().split()[1]
-        
-        self.activate_gcode = "ACTIVATE_EXTRUDER EXTRUDER="
 
         self.toolhead = None
         self.extruder = None
@@ -123,16 +122,21 @@ class ExtruderHoming:
         # Get gcmd object, for later.
         self.gcmd = gcmd
         
+        # NOTE: Borrowed from extruder.py
+        self.extruder = self.printer.lookup_object(self.extruder_name, None)  # PrinterExtruder
+        if self.extruder is None or not isinstance(self.extruder, PrinterExtruder):
+            raise self.printer.command_error(f"'{self.extruder_name}' is not a valid extruder.")
+        
         # NOTE: Get the toolhead and its *current* extruder.
         self.toolhead = self.printer.lookup_object("toolhead")
-        self.extruder = self.toolhead.get_extruder()            # PrinterExtruder
-        self.active_extruder_name = self.extruder.get_name()
+        self.active_extruder = self.toolhead.get_extruder()            # PrinterExtruder
+        self.active_extruder_name = self.active_extruder.get_name()
         
-        # NOTE: check if the active extruder is the one t be homed.
+        # NOTE: check if the active extruder is the one to be homed.
         if self.extruder_name != self.active_extruder_name:
             try:
-                # NOTE: Try activating the requested extruder
-                self.gcode.run_script_from_command(self.activate_gcode + self.extruder_name)
+                # NOTE: activate the requested extruder if necessary.
+                self.extruder.cmd_ACTIVATE_EXTRUDER(gcmd=gcmd)
             except:
                 raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
                                 f"{self.active_extruder_name} is active " +
@@ -233,14 +237,14 @@ class ExtruderHoming:
         # gcode_move = self.printer.lookup_object('gcode_move')
         # gcode_move.reset_last_position()
         
-        # NOTE: check if the active extruder is the one t be homed.
+        # NOTE: check if the active extruder is the one to be homed.
         if self.extruder_name != self.active_extruder_name:
             try:
-                # NOTE: Try activating the requested extruder
-                self.gcode.run_script(self.activate_gcode + self.active_extruder_name)
+                # NOTE: activate the requested extruder if necessary.
+                self.active_extruder.cmd_ACTIVATE_EXTRUDER(gcmd=gcmd)
             except:
                 raise gcmd.error("ExtruderHoming.cmd_HOME_EXTRUDER: " +
-                                f"Error reactivating {self.active_extruder_name}.")
+                                f"Error re-activating {self.active_extruder_name}.")
 
         # NOTE: flag homing end
         self.homing = False

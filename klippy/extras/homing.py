@@ -390,6 +390,13 @@ class Homing:
         self.toolhead.set_position(self._fill_coord(pos))
     
     def home_rails(self, rails, forcepos, movepos):
+        """_summary_
+
+        Args:
+            rails (list): A list of stepper "rail" objects.
+            forcepos (list): A list of 4 coordinates, used to force the start position.
+            movepos (list): A list of 4 coordinates, used to indicate the target (home) position.
+        """
         # NOTE: this method is used by the home method of the 
         #       cartesian kinematics, in response to a G28 command.
         # NOTE: The "forcepos" argument is passed 1.5 times the
@@ -528,7 +535,9 @@ class PrinterHoming:
         homing_state.set_axes(axes)
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         try:
-            # NOTE: In the cart kinematics, this uses "home_rails" above.
+            # NOTE: In the cart kinematics, "kin.home" iterates over each 
+            #       axis calling "Homing.home_rails", which then uses
+            #       "HomingMove.homing_move" directly.
             kin.home(homing_state)
         except self.printer.command_error:
             if self.printer.is_shutdown():
