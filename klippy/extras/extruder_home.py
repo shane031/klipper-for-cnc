@@ -82,6 +82,7 @@ class ExtruderHoming:
                                    desc=self.cmd_HOME_EXTRUDER_help)
         
         # Register active extruder homing command.
+        self.gcode = self.printer.lookup_object('gcode')
         # First check if this is the first instance of a multi-probe object.
         if "HOME_EXTRUDER" in self.gcode.ready_gcode_handlers:
             self.main_object = False
@@ -238,9 +239,6 @@ class ExtruderHoming:
     
     cmd_HOME_ACTIVE_EXTRUDER_help = "Home an extruder using an endstop. The active extruder will be homed."
     def cmd_HOME_ACTIVE_EXTRUDER(self, gcmd):
-        
-        # Get gcmd object, for later.
-        gcmd = gcmd
         
         # NOTE: Get the toolhead and its *current* extruder.
         toolhead = self.printer.lookup_object("toolhead")
