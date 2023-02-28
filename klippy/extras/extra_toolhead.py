@@ -38,6 +38,8 @@ SDS_CHECK_TIME = 0.001 # step+dir+step filter in stepcompress.c
 DRIP_SEGMENT_TIME = 0.050
 DRIP_TIME = 0.100
 
+# WARNING EXPERIMENTAL!
+
 # Main code to track events (and their timing) on the printer toolhead
 class ExtraToolHead(ToolHead):
     """Extra toolhead class.
@@ -52,6 +54,11 @@ class ExtraToolHead(ToolHead):
     max_accel: 1000
     """
     def __init__(self, config):
+        # NOTE: React to G1 move commands.
+        self.printer.register_event_handler("klippy:shutdown",
+                                            self._handle_shutdown)
+        
+        # NOTE: copied over from ToolHead.__init__():
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
@@ -62,10 +69,10 @@ class ExtraToolHead(ToolHead):
             self.can_pause = False
         self.move_queue = MoveQueue(self)
         self.commanded_pos = [0., 0., 0., 0.]
-        self.printer.register_event_handler("klippy:shutdown",
-                                            self._handle_shutdown)
+        self.printer.register_event_handler("gcode_move:parsing_move_command",
+                                            self.handle_G1)
         
-        # Prefix for event names (override the default).
+        # NOTE: Prefix for event names (override the default).
         self.event_prefix = "extra_toolhead:"
         
         # Velocity and acceleration control
@@ -134,6 +141,9 @@ class ExtraToolHead(ToolHead):
                                self.cmd_SET_VELOCITY_LIMIT,
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
         gcode.register_command('eth_M204', self.cmd_M204)
+        
+    def handle_G1(self, params):
+        pass
 
 
 def load_config_prefix(config):
