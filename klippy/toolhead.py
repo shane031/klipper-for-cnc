@@ -11,6 +11,19 @@ import time
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
 #   seconds), _r is ratio (scalar between 0.0 and 1.0)
 
+""" Notes on 'print_time': https://www.klipper3d.org/Code_Overview.html#time
+The print time is synchronized to the main micro-controller clock (the micro-controller defined in the "[mcu]" config section). 
+
+It is a floating point number stored as seconds and is relative to when the main mcu was last restarted. 
+
+It is possible to convert from a "print time" to the main micro-controller's hardware clock by multiplying the print time by 
+the mcu's statically configured frequency rate. 
+
+The high-level host code uses print times to calculate almost all physical actions (eg, head movement, heater changes, etc.). 
+
+Within the host code, print times are generally stored in variables named print_time or move_time.
+"""
+
 # Class to track each move request
 class Move:
     def __init__(self, toolhead, start_pos, end_pos, speed):
@@ -108,6 +121,17 @@ class Move:
             self.max_start_v2
             , prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
     def set_junction(self, start_v2, cruise_v2, end_v2):
+        """Move.set_junction() implements the "trapezoid generator" on a move.
+        
+        The "trapezoid generator" breaks every move into three parts: a constant acceleration phase, 
+        followed by a constant velocity phase, followed by a constant deceleration phase. 
+        Every move contains these three phases in this order, but some phases may be of zero duration.
+
+        Args:
+            start_v2 (_type_): _description_
+            cruise_v2 (_type_): _description_
+            end_v2 (_type_): _description_
+        """
         # Determine accel, cruise, and decel portions of the move distance
         half_inv_accel = .5 / self.accel
         accel_d = (cruise_v2 - start_v2) * half_inv_accel
@@ -142,6 +166,11 @@ class MoveQueue:
             return self.queue[-1]
         return None
     def flush(self, lazy=False):
+        """MoveQueue.flush() determines the start and end velocities of each move.
+
+        Args:
+            lazy (bool, optional): _description_. Defaults to False.
+        """
         # NOTE: called by "add_move" when: 
         #       "Enough moves have been queued to reach the target flush time."
         #       Also called by "flush_step_generation".
@@ -207,6 +236,11 @@ class MoveQueue:
         del queue[:flush_count]
 
     def add_move(self, move):
+        """MoveQueue.add_move() places the move object on the "look-ahead" queue.
+
+        Args:
+            move (_type_): _description_
+        """
         self.queue.append(move)
         if len(self.queue) == 1:
             return
@@ -396,6 +430,43 @@ class ToolHead:
             self.printer.send_event(self.event_prefix + "sync_print_time",  # "toolhead:sync_print_time"
                                     curtime, est_print_time, self.print_time)
     def _process_moves(self, moves):
+        """
+        When ToolHead._process_moves() is called, everything about the move is known - its start location, 
+        its end location, its acceleration, its start/cruising/end velocity, and distance traveled during 
+        acceleration/cruising/deceleration. 
+        All the information is stored in the Move() class and is in cartesian space in units of millimeters and seconds.
+        
+        Klipper uses an iterative solver to generate the step times for each stepper. For efficiency reasons,
+        the stepper pulse times are generated in C code. The moves are first placed on a "trapezoid motion queue": 
+            ToolHead._process_moves() -> trapq_append() (in klippy/chelper/trapq.c).
+            
+        Note that the extruder is handled in its own kinematic class:
+            ToolHead._process_moves() -> PrinterExtruder.move()
+        Since the Move() class specifies the exact movement time and since step pulses are sent to the micro-controller 
+        with specific timing, stepper movements produced by the extruder class will be in sync with head movement even
+        though the code is kept separate.
+        
+        The step times are then generated: 
+            ToolHead._process_moves() -> ToolHead._update_move_time() -> MCU_Stepper.generate_steps() -> 
+            itersolve_generate_steps() -> itersolve_gen_steps_range() (in klippy/chelper/itersolve.c). 
+        
+        The goal of the iterative solver is to find step times given a function that calculates a stepper 
+        position from a time. This is done by repeatedly "guessing" various times until the stepper position 
+        formula returns the desired position of the next step on the stepper. The feedback produced from each 
+        guess is used to improve future guesses so that the process rapidly converges to the desired time. 
+        
+        The kinematic stepper position formulas are located in the klippy/chelper/ directory (eg, kin_cart.c, 
+        kin_corexy.c, kin_delta.c, kin_extruder.c).
+        
+        After the iterative solver calculates the step times they are added to an array:
+            itersolve_gen_steps_range() -> stepcompress_append() (in klippy/chelper/stepcompress.c).
+        
+        The next major step is to compress the steps: 
+            stepcompress_flush() -> compress_bisect_add() (in klippy/chelper/stepcompress.c)
+
+        Args:
+            moves (_type_): _description_
+        """
         # NOTE: this ToolHead method is called during the execution of 
         #       the "flush" method in a "MoveQueue" class instance.
         #       The "moves" argument receives a "queue" of moves "ready to be flushed".
@@ -425,6 +496,7 @@ class ToolHead:
         next_move_time = self.print_time
         for move in moves:
             logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
+            # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
             if move.is_kinematic_move:
                 self.trapq_append(
                     self.trapq, next_move_time,
@@ -433,15 +505,18 @@ class ToolHead:
                     move.axes_r[0], move.axes_r[1], move.axes_r[2],
                     move.start_v, move.cruise_v, move.accel)
             if move.axes_d[3]:
-                # NOTE: the extruder stepper move is likely synced to the main
+                # NOTE: The extruder stepper move is likely synced to the main
                 #       XYZ movement here, by sharing the "next_move_time"
                 #       parameter in the call.
                 self.extruder.move(print_time=next_move_time, move=move)
+            
+            # NOTE: The time for the next move is calculated here.
             next_move_time = (next_move_time + move.accel_t
                               + move.cruise_t + move.decel_t)
+            
+            # NOTE: execute any "callbacks" registered 
+            #       to be run at the end of this move.
             for cb in move.timing_callbacks:
-                # NOTE: execute any "callbacks" registered to be
-                #       run at the end of this move.
                 cb(next_move_time)
         
         # Generate steps for moves
@@ -623,6 +698,12 @@ class ToolHead:
             rail.set_position([newpos_e, 0., 0.])
     
     def move(self, newpos, speed):
+        """ToolHead.move() creates a Move() object with the parameters of the move (in cartesian space and in units of seconds and millimeters).
+
+        Args:
+            newpos (_type_): _description_
+            speed (_type_): _description_
+        """
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
