@@ -31,6 +31,8 @@ class CartKinematicsABC(CartKinematics):
         self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
         self.axis_count = len(self.axis_names)
         
+        logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
+        
         # Setup axis rails
         # self.dual_carriage_axis = None
         # self.dual_carriage_rails = []
