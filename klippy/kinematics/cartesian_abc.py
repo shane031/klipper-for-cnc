@@ -52,7 +52,8 @@ class CartKinematicsABC(CartKinematics):
             # TODO: check if this "generator" should be appended to 
             #       the "self.step_generators" list in the toolhead,
             #       or to the list in the new TrapQ.
-            #       Using the toolhead for now. 
+            #       Using the toolhead for now.
+            #       This object is used by "toolhead._update_move_time".
             toolhead.register_step_generator(s.generate_steps)
         
         self.printer.register_event_handler("stepper_enable:motor_off",

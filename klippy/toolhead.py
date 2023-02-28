@@ -463,6 +463,8 @@ class ToolHead:
         # NOTE: It also calls "trapq_finalize_moves" on the extruder and toolhead.
         # NOTE: a possible "use case" in the code is to:
         #           "Generate steps for moves"
+        
+        logging.info(f"\n\nToolHead: _update_move_time triggered with next_print_time={next_print_time}\n\n")
 
         kin_flush_delay = self.kin_flush_delay
         fft = self.force_flush_time
