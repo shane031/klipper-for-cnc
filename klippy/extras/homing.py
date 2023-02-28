@@ -403,6 +403,7 @@ class Homing:
         #       difference between the endstop position and the
         #       opposing limit coordinate.
         # Notify of upcoming homing operation
+        logging.info(f"\n\nhoming.home_rails: homing begins.\n\n")
         self.printer.send_event("homing:home_rails_begin", self, rails)
         # Alter kinematics class to think printer is at forcepos
         homing_axes = [axis for axis in range(3) if forcepos[axis] is not None]
@@ -524,16 +525,19 @@ class PrinterHoming:
         return epos
 
     def cmd_G28(self, gcmd):
+        toolhead = self.printer.lookup_object('toolhead')
         # Move to origin
         axes = []
+        #for pos, axis in enumerate(toolhead.axis_names):
         for pos, axis in enumerate('XYZ'):
             if gcmd.get(axis, None) is not None:
                 axes.append(pos)
         if not axes:
+            # axes = list(range(toolhead.axis_count))
             axes = [0, 1, 2]
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
-        kin = self.printer.lookup_object('toolhead').get_kinematics()
+        kin = toolhead.get_kinematics()
         try:
             # NOTE: In the cart kinematics, "kin.home" iterates over each 
             #       axis calling "Homing.home_rails", which then uses

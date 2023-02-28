@@ -258,7 +258,7 @@ class MoveQueue:
             next_smoothed_v2 = smoothed_v2
         
         if update_flush_count or not flush_count:
-            logging.info(f"\n\nMoveQueue flush: early return due to: update_flush_count:{update_flush_count} or not flush_count:{flush_count}.\n\n")
+            logging.info(f"\n\nMoveQueue flush: early return due update_flush_count:{update_flush_count} or not flush_count:{flush_count}.\n\n")
             return
         
         # Generate step times for all moves ready to be flushed
