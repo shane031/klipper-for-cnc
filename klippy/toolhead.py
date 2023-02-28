@@ -304,10 +304,15 @@ class ToolHead:
     
     [printer]
     kinematics: cartesian
-    axis: XYZ  # XYZ / XYZABC
+    axis: XYZ  # Optional: XYZ or XYZABC
+    kinematics_abc: cartesian_abc # Optional
     max_velocity: 5000
     max_z_velocity: 250
     max_accel: 1000
+    
+    TODO:
+      - The "checks" still have the XYZ logic.
+      - Homing is not implemented for ABC.
     """
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
@@ -404,6 +409,7 @@ class ToolHead:
         # Create ABC kinematics class
         self.kin_abc = None
         if self.abc_trapq is not None:
+            # NOTE: get the "kinematics_abc" type from "[printer]".
             abc_kin_name = config.get('kinematics_abc', kin_name)
             try:
                 abc_mod = importlib.import_module('kinematics.' + abc_kin_name)
@@ -819,8 +825,8 @@ class ToolHead:
         if move.is_kinematic_move:
             self.kin.check_move(move)
             # TODO: implement move checks for ABC axes here too.
-            if self.abc_trapq is not None:
-                self.kin_abc.check_move(move)
+            # if self.abc_trapq is not None:
+            #     self.kin_abc.check_move(move)
         if move.axes_d[self.axis_count]:
             self.extruder.check_move(move)
         
@@ -1017,6 +1023,8 @@ class ToolHead:
         return self.kin
     def get_trapq(self):
         return self.trapq
+    def get_abc_trapq(self):
+        return self.abc_trapq.trapq
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
     def note_step_generation_scan_time(self, delay, old_delay=0.):

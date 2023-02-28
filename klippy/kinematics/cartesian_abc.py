@@ -8,21 +8,28 @@ import stepper
 from kinematics.cartesian import CartKinematics
 
 class CartKinematicsABC(CartKinematics):
-    """Kinematics for the extra toolhead class.
+    """Kinematics for the ABC axes in the main toolhead class.
 
     Example config:
     
-    [extra_toolhead abc]
-    kinematics: cartesian_abc
-    axis: abc  # Could be "ab" as well?
+    [printer]
+    kinematics: cartesian
+    axis: XYZ  # Optional: XYZ or XYZABC
+    kinematics_abc: cartesian_abc # Optional
     max_velocity: 5000
     max_z_velocity: 250
     max_accel: 1000
+    
+    TODO:
+      - The "checks" still have the XYZ logic.
+      - Homing is not implemented for ABC.
     """
     def __init__(self, toolhead, config):
         self.printer = config.get_printer()
+        
         # Axis names
-        self.axis_names = config.get('axis', 'abc')  # "abc"
+        self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
+        self.axis_count = len(self.axis_names)
         
         # Setup axis rails
         # self.dual_carriage_axis = None
@@ -33,12 +40,19 @@ class CartKinematicsABC(CartKinematics):
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
-                      for n in self.axis_names]
-        for rail, axis in zip(self.rails, self.axis_names):
+                      for n in self.axis_names.lower()]
+        
+        for rail, axis in zip(self.rails, self.axis_names.lower()):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
+        
         for s in self.get_steppers():
-            s.set_trapq(toolhead.get_trapq())
+            s.set_trapq(toolhead.get_abc_trapq())
+            # TODO: check if this "generator" should be appended to 
+            #       the "self.step_generators" list in the toolhead,
+            #       or to the list in the new TrapQ.
+            #       Using the toolhead for now. 
             toolhead.register_step_generator(s.generate_steps)
+        
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
         # Setup boundary checks
@@ -51,8 +65,12 @@ class CartKinematicsABC(CartKinematics):
                                            above=0., maxval=max_accel)
         self.limits = [(1.0, -1.0)] * 3
         ranges = [r.get_range() for r in self.rails]
+        
+        # TODO: check if this works with ABC axes, it will result in 
+        #       Coord(x=0.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)
         self.axes_min = toolhead.Coord(*[r[0] for r in ranges], e=0.)
         self.axes_max = toolhead.Coord(*[r[1] for r in ranges], e=0.)
+        
         # Check for dual carriage support
         # if config.has_section('dual_carriage'):
         #     dc_config = config.getsection('dual_carriage')
@@ -149,8 +167,11 @@ class CartKinematicsABC(CartKinematics):
         Args:
             move (tolhead.Move): Instance of the Move class.
         """
+        # TODO: replace or remove the "Z" logic here.
+        
         limits = self.limits
-        xpos, ypos = move.end_pos[:2]
+        # TODO: Avoid hardcoding of "move.end_pos[3:6]" to grab ABC coords. 
+        xpos, ypos = move.end_pos[3:6]
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
