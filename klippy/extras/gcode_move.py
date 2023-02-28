@@ -40,11 +40,16 @@ class GCodeMove:
         gcode.register_command('GET_POSITION', self.cmd_GET_POSITION, True,
                                desc=self.cmd_GET_POSITION_help)
         self.Coord = gcode.Coord
+        
+        # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_count = 3
+        self.axis_names = 'XYZ'
+        
         # G-Code coordinate manipulation
         self.absolute_coord = self.absolute_extrude = True
-        self.base_position = [0.0, 0.0, 0.0, 0.0]
-        self.last_position = [0.0, 0.0, 0.0, 0.0]
-        self.homing_position = [0.0, 0.0, 0.0, 0.0]
+        self.base_position = [0.0 for i in range(self.axis_count + 1)]
+        self.last_position = [0.0 for i in range(self.axis_count + 1)]
+        self.homing_position = [0.0 for i in range(self.axis_count + 1)]
         self.speed = 25.
         # TODO: This 1/60 by default, because "feedrates" 
         #       provided by the "F" GCODE are in "mm/min",
@@ -55,7 +60,7 @@ class GCodeMove:
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
-        self.position_with_transform = (lambda: [0., 0., 0., 0.])
+        self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
     def _handle_ready(self):
         self.is_printer_ready = True
         if self.move_transform is None:
@@ -145,7 +150,7 @@ class GCodeMove:
         # Move
         params = gcmd.get_command_parameters()
         try:
-            for pos, axis in enumerate('XYZ'):
+            for pos, axis in enumerate(self.axis_names):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
@@ -169,14 +174,16 @@ class GCodeMove:
                                      % (gcmd.get_commandline(),))
                 self.speed = gcode_speed * self.speed_factor
             
-            # NOTE: send event to handlers, like "extra_toolhead.py" 
-            self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
-            
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
+        
+        # NOTE: send event to handlers, like "extra_toolhead.py" 
+        self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
+        
         # NOTE: this is just a call to "toolhead.move".
         self.move_with_transform(self.last_position, self.speed)
+    
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
         # Set units to inches

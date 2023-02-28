@@ -41,20 +41,34 @@ class Move:
         #       from mm/min to mm/sec (e.g. F600 is 10 mm/sec).
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
+        
+        # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_count = 3
 
-        # NOTE: compute the 4 components of the displacement vector.
-        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in (0, 1, 2, 3)]
+        # NOTE: Compute the components of the displacement vector.
+        #       The last component is now the extruder.
+        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in range(self.axis_count + 1)]
         
-        # NOTE: compute the euclidean magnitude of the displacement vector.
-        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
+        # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
+        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
         
-        # TODO: this seems strange, some numerical instability handling, probably.
+        # TODO: If the move in XYZ is very small, then parse it as an extrude-only move.
         if move_d < .000000001:
             # Extrude only move
-            self.end_pos = (start_pos[0], start_pos[1], start_pos[2],
-                            end_pos[3])
-            axes_d[0] = axes_d[1] = axes_d[2] = 0.
-            self.move_d = move_d = abs(axes_d[3])
+            
+            # NOTE: the main axes wont move, thus end=stop.
+            self.end_pos = tuple([start_pos[i] for i in range(self.axis_count)])
+            # NOTE: the extruder will move.
+            self.end_pos = self.end_pos + (end_pos[self.axis_count],)
+            
+            # NOTE: set axis displacement to zero.
+            for i in range(self.axis_count):
+                axes_d[i] = 0.
+            
+            # NOTE: set move distance to the extruder's displacement.
+            self.move_d = move_d = abs(axes_d[self.axis_count])
+            
+            # NOTE: set more stuff (?)
             inv_move_d = 0.
             if move_d:
                 inv_move_d = 1. / move_d
@@ -64,11 +78,14 @@ class Move:
         else:
             inv_move_d = 1. / move_d
         
-        # NOTE: compute a ratio between each component of the displacement
+        # NOTE: Compute a ratio between each component of the displacement
         #       vector and the total magnitude.
         self.axes_r = [d * inv_move_d for d in axes_d]
         
+        # NOTE: Compute the mimimum time that the move will take (at speed == max speed).
+        #       The time will be greater if the axes must accelerate during the move.
         self.min_move_t = move_d / velocity
+        
         # Junction speeds are tracked in velocity squared.  The
         # delta_v2 is the maximum amount of this squared-velocity that
         # can change in this move.
@@ -77,6 +94,7 @@ class Move:
         self.delta_v2 = 2.0 * move_d * self.accel
         self.max_smoothed_v2 = 0.
         self.smooth_delta_v2 = 2.0 * move_d * toolhead.max_accel_to_decel
+    
     def limit_speed(self, speed, accel):
         speed2 = speed**2
         if speed2 < self.max_cruise_v2:
@@ -85,26 +103,30 @@ class Move:
         self.accel = min(self.accel, accel)
         self.delta_v2 = 2.0 * self.move_d * self.accel
         self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
+    
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
         m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
         return self.toolhead.printer.command_error(m)
+    
     def calc_junction(self, prev_move):
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
+        
         # Allow extruder to calculate its maximum junction
+        # NOTE: Uses the "instant_corner_v" config parameter.
         extruder_v2 = self.toolhead.extruder.calc_junction(prev_move, self)
+        
         # Find max velocity using "approximated centripetal velocity"
         axes_r = self.axes_r
         prev_axes_r = prev_move.axes_r
-        junction_cos_theta = -(axes_r[0] * prev_axes_r[0]
-                               + axes_r[1] * prev_axes_r[1]
-                               + axes_r[2] * prev_axes_r[2])
+        junction_cos_theta = -sum([ axes_r[0] * prev_axes_r[0] for i in range(self.axis_count) ])
         if junction_cos_theta > 0.999999:
             return
         junction_cos_theta = max(junction_cos_theta, -0.999999)
         sin_theta_d2 = math.sqrt(0.5*(1.0-junction_cos_theta))
         R_jd = sin_theta_d2 / (1. - sin_theta_d2)
+        
         # Approximated circle must contact moves no further away than mid-move
         tan_theta_d2 = sin_theta_d2 / math.sqrt(0.5*(1.0+junction_cos_theta))
         move_centripetal_v2 = .5 * self.move_d * tan_theta_d2 * self.accel
@@ -117,9 +139,9 @@ class Move:
             move_centripetal_v2, prev_move_centripetal_v2,
             extruder_v2, self.max_cruise_v2, prev_move.max_cruise_v2,
             prev_move.max_start_v2 + prev_move.delta_v2)
-        self.max_smoothed_v2 = min(
-            self.max_start_v2
-            , prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
+        self.max_smoothed_v2 = min(self.max_start_v2, 
+                                   prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
+    
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
         
