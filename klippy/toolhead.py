@@ -779,7 +779,7 @@ class ToolHead:
         # NOTE: Set the position of the ABC axis "trapq" too.
         if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos.\n\n")
-            ffi_main, ffi_lib = chelper.get_ffi()
+            # ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
                                        newpos[3], newpos[4], newpos[5])
         
