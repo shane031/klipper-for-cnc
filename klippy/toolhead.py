@@ -114,6 +114,8 @@ class Move:
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         
+        logging.info("\n\nMove calc_junction: function triggered.\n\n")
+        
         # Allow extruder to calculate its maximum junction
         # NOTE: Uses the "instant_corner_v" config parameter.
         extruder_v2 = self.toolhead.extruder.calc_junction(prev_move, self)
@@ -142,6 +144,8 @@ class Move:
             prev_move.max_start_v2 + prev_move.delta_v2)
         self.max_smoothed_v2 = min(self.max_start_v2, 
                                    prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
+        
+        logging.info("\n\nMove calc_junction: function end.\n\n")
     
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
@@ -155,6 +159,9 @@ class Move:
             cruise_v2 (_type_): _description_
             end_v2 (_type_): _description_
         """
+        
+        logging.info("\n\nMove set_junction: function triggered.\n\n")
+        
         # Determine accel, cruise, and decel portions of the move distance
         half_inv_accel = .5 / self.accel
         accel_d = (cruise_v2 - start_v2) * half_inv_accel
@@ -169,6 +176,8 @@ class Move:
         self.accel_t = accel_d / ((start_v + cruise_v) * 0.5)
         self.cruise_t = cruise_d / cruise_v
         self.decel_t = decel_d / ((end_v + cruise_v) * 0.5)
+        
+        logging.info("\n\nMove set_junction: function end.\n\n")
 
 LOOKAHEAD_FLUSH_TIME = 0.250
 
