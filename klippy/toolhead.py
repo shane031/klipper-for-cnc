@@ -380,7 +380,8 @@ class ToolHead:
         
         # NOTE: setup TRAPQ for the extra ABC axes here.
         self.abc_trapq = None
-        if len(self.axis_names) % 3 == 1:
+        if len(self.axis_names) // 3 == 2:
+            logging.info(f"\n\nToolHead: setting up ABC trapq.\n\n")
             self.abc_trapq = TrapQ()
         elif len(self.axis_names) > 6:
             msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
@@ -414,6 +415,7 @@ class ToolHead:
         if self.abc_trapq is not None:
             # NOTE: get the "kinematics_abc" type from "[printer]".
             try:
+                logging.info(f"\n\nToolHead: setting up ABC kinematics.\n\n")
                 abc_mod = importlib.import_module('kinematics.' + abc_kin_name)
                 self.kin_abc = abc_mod.load_kinematics(self, config)
             except config.error as e:
