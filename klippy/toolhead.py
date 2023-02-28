@@ -44,6 +44,7 @@ class Move:
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_count = 3
+        self.axis_names = 'XYZ'
 
         # NOTE: Compute the components of the displacement vector.
         #       The last component is now the extruder.
@@ -289,6 +290,10 @@ class DripModeEndSignal(Exception):
 # Main code to track events (and their timing) on the printer toolhead
 class ToolHead:
     def __init__(self, config):
+        # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_count = 3
+        self.axis_names = 'XYZ'
+        
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
@@ -298,9 +303,10 @@ class ToolHead:
         if self.mcu.is_fileoutput():
             self.can_pause = False
         self.move_queue = MoveQueue(self)
-        self.commanded_pos = [0., 0., 0., 0.]
+        self.commanded_pos = [0.0 for i in range(self.axis_count + 1)]
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
+        
         # Prefix for event names
         self.event_prefix = "toolhead:"
         
@@ -345,11 +351,20 @@ class ToolHead:
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.step_generators = []
         
-        # Create kinematics class
+        # TODO: setup TRAPQ for the extra ABC axes here.
+        # ffi_main, ffi_lib = chelper.get_ffi()
+        # self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
+        # self.trapq_append = ffi_lib.trapq_append
+        # self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        # self.step_generators = []
+        
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
+        
+        # Create kinematics class
+        # NOTE: setup a dummy extruder at first, replaced later if configured.
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
-        # NOTE: get "kinematics" name from "[printer]".
+        # NOTE: get the "kinematics" type from "[printer]".
         kin_name = config.get('kinematics')
         try:
             mod = importlib.import_module('kinematics.' + kin_name)
@@ -406,6 +421,9 @@ class ToolHead:
             #           "Expire any moves older than `free_time` from
             #           the trapezoid velocity queue" (see trapq.c).
             self.trapq_finalize_moves(self.trapq, free_time)
+            
+            # TODO: setup "self.trapq_finalize_moves" on the ABC trapq as well.
+            # self.trapq_finalize_moves(self.trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
@@ -518,6 +536,7 @@ class ToolHead:
         next_move_time = self.print_time
         for move in moves:
             logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
+            
             # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
             if move.is_kinematic_move:
                 self.trapq_append(
@@ -526,7 +545,18 @@ class ToolHead:
                     move.start_pos[0], move.start_pos[1], move.start_pos[2],
                     move.axes_r[0], move.axes_r[1], move.axes_r[2],
                     move.start_v, move.cruise_v, move.accel)
-            if move.axes_d[3]:
+            
+            # TODO: setup trapq append for the ABC axes here too.
+            # if self.axis_count == 6:
+            #     self.trapq_append(
+            #         self.trapq, next_move_time,
+            #         move.accel_t, move.cruise_t, move.decel_t,
+            #         move.start_pos[3], move.start_pos[4], move.start_pos[5],
+            #         move.axes_r[3], move.axes_r[4], move.axes_r[5],
+            #         move.start_v, move.cruise_v, move.accel)
+            
+            # NOTE: The same is done for the extruder's trapq.
+            if move.axes_d[self.axis_count]:
                 # NOTE: The extruder stepper move is likely synced to the main
                 #       XYZ movement here, by sharing the "next_move_time"
                 #       parameter in the call.
@@ -683,6 +713,10 @@ class ToolHead:
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         
+        # TODO: Set the position of the ABC axis "trapq" too.
+        # ffi_lib.trapq_set_position(self.trapq, self.print_time,
+        #                            newpos[0], newpos[1], newpos[2])
+        
         # NOTE: Also set the position of the extruder's "trapq".
         self.set_position_e(newpos_e=newpos[3])
 
@@ -744,7 +778,10 @@ class ToolHead:
             return
         if move.is_kinematic_move:
             self.kin.check_move(move)
-        if move.axes_d[3]:
+        # TODO: implement move checks for ABC axes here too.
+        # if move.is_abc_kinematic_move:
+        #     self.kin_abc.check_move(move)
+        if move.axes_d[self.axis_count]:
             self.extruder.check_move(move)
         
         # NOTE: update "commanded_pos" with the "end_pos"
@@ -772,7 +809,7 @@ class ToolHead:
         # NOTE: send move.
         self.move(curpos, speed)
         
-        # NOTE: this event is handled by "reset_last_position"
+        # NOTE: This event is handled by "reset_last_position"
         #       (at gcode_move.py) which updates "self.last_position"
         #       in the GCodeMove class.
         self.printer.send_event(self.event_prefix + "manual_move")  # "toolhead:manual_move"
@@ -795,9 +832,11 @@ class ToolHead:
             if not self.can_pause:
                 break
             eventtime = self.reactor.pause(eventtime + 0.100)
+    
     def set_extruder(self, extruder, extrude_pos):
         self.extruder = extruder
-        self.commanded_pos[3] = extrude_pos
+        self.commanded_pos[self.axis_count] = extrude_pos
+    
     def get_extruder(self):
         return self.extruder
     
@@ -864,14 +903,19 @@ class ToolHead:
             self.move_queue.flush()
         except DripModeEndSignal as e:
             logging.info("\n\ndrip_move: resetting move queue / DripModeEndSignal caught.\n\n")
+            
             # NOTE: deletes al moves in the queue
             self.move_queue.reset()
+            
             # NOTE: This calls a function in "trapq.c", described as:
             #       - Expire any moves older than `print_time` from the trapezoid velocity queue
             #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
             #       I am guessing here that "older" means "with a smaller timestamp",
             #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            
+            # TODO: call trapq_finalize_moves on the ABC exes too.
+            # self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
