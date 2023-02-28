@@ -767,24 +767,24 @@ class ToolHead:
         return list(self.commanded_pos)
     
     def set_position(self, newpos, homing_axes=()):
-        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos}.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")
         self.flush_step_generation()
         
         # NOTE: Set the position of the toolhead's "trapq".
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ trapq pos.\n\n")
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         
         # NOTE: Set the position of the ABC axis "trapq" too.
         if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC.\n\n")
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos.\n\n")
             ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
                                        newpos[3], newpos[4], newpos[5])
         
         # NOTE: Also set the position of the extruder's "trapq".
-        logging.info("\n\n" + f"toolhead.set_position: setting E.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count])
 
         # NOTE: "set_position_e" was inserted above and not after 
