@@ -253,6 +253,7 @@ class MoveQueue:
         
         # Generate step times for all moves ready to be flushed
         # NOTE: The clock time when this move will be sent are not yet known.
+        logging.info("\n\nMoveQueue flush: calling _process_moves.\n\n")
         self.toolhead._process_moves(moves=queue[:flush_count])
 
         # Remove processed moves from the queue
