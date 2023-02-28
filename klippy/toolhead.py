@@ -765,20 +765,24 @@ class ToolHead:
         return list(self.commanded_pos)
     
     def set_position(self, newpos, homing_axes=()):
-        
+        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos}.\n\n")
         self.flush_step_generation()
         
         # NOTE: Set the position of the toolhead's "trapq".
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ.\n\n")
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         
         # NOTE: Set the position of the ABC axis "trapq" too.
         if self.abc_trapq is not None:
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC.\n\n")
+            ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
                                        newpos[3], newpos[4], newpos[5])
         
         # NOTE: Also set the position of the extruder's "trapq".
+        logging.info("\n\n" + f"toolhead.set_position: setting E.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count])
 
         # NOTE: "set_position_e" was inserted above and not after 
@@ -792,15 +796,19 @@ class ToolHead:
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position.\n\n")
         self.kin.set_position(newpos, homing_axes[:3])
         
         if self.abc_trapq is not None:
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position.\n\n")
             self.kin_abc.set_position(newpos, homing_axes[3:6])
         
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
     def set_position_e(self, newpos_e):
         """Extruder version of set_position."""
+        logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
+        
         # Get the active extruder
         extruder = self.get_extruder()  # PrinterExtruder
         
