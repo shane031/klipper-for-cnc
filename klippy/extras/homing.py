@@ -525,6 +525,8 @@ class PrinterHoming:
         return epos
 
     def cmd_G28(self, gcmd):
+        logging.info(f"\n\nPrinterHoming.cmd_G28: homing axis.\n\n")
+        
         toolhead = self.printer.lookup_object('toolhead')
         # Move to origin
         axes = []
