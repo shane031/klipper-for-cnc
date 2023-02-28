@@ -765,7 +765,7 @@ class ToolHead:
         # NOTE: Set the position of the ABC axis "trapq" too.
         if self.abc_trapq is not None:
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
-                                       newpos[3], newpos[4], newpos[4])
+                                       newpos[3], newpos[4], newpos[5])
         
         # NOTE: Also set the position of the extruder's "trapq".
         self.set_position_e(newpos_e=newpos[self.axis_count])
@@ -780,7 +780,11 @@ class ToolHead:
         #       used to set axis limits by the (cartesian) kinematics.
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
-        self.kin.set_position(newpos, homing_axes)
+        # NOTE: Passing only the first three elements (XYZ) to this set_position.
+        self.kin.set_position(newpos, homing_axes[:3])
+        
+        if self.abc_trapq is not None:
+            self.kin_abc.set_position(newpos, homing_axes[3:6])
         
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
