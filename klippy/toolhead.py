@@ -43,8 +43,8 @@ class Move:
         self.is_kinematic_move = True
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_count = 3
-        self.axis_names = 'XYZ'
+        self.axis_names = toolhead.axis_names
+        self.axis_count = len(self.axis_names)
 
         # NOTE: Compute the components of the displacement vector.
         #       The last component is now the extruder.
@@ -53,7 +53,7 @@ class Move:
         # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
         
-        # TODO: If the move in XYZ is very small, then parse it as an extrude-only move.
+        # NOTE: If the move in XYZ is very small, then parse it as an extrude-only move.
         if move_d < .000000001:
             # Extrude only move
             
@@ -287,12 +287,32 @@ DRIP_TIME = 0.100
 class DripModeEndSignal(Exception):
     pass
 
+# New trapq class.
+class TrapQ:
+    def __init__(self):
+        ffi_main, ffi_lib = chelper.get_ffi()
+        self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
+        self.trapq_append = ffi_lib.trapq_append
+        self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        self.step_generators = []
+
 # Main code to track events (and their timing) on the printer toolhead
 class ToolHead:
+    """Main toolhead class.
+
+    Example config:
+    
+    [printer]
+    kinematics: cartesian
+    axis: XYZ  # XYZ / XYZABC
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    """
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_count = 3
-        self.axis_names = 'XYZ'
+        self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_count = len(self.axis_names)
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
@@ -351,13 +371,16 @@ class ToolHead:
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.step_generators = []
         
-        # TODO: setup TRAPQ for the extra ABC axes here.
-        # ffi_main, ffi_lib = chelper.get_ffi()
-        # self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
-        # self.trapq_append = ffi_lib.trapq_append
-        # self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
-        # self.step_generators = []
+        # NOTE: setup TRAPQ for the extra ABC axes here.
+        self.abc_trapq = None
+        if len(self.axis_names) % 3 == 1:
+            self.abc_trapq = TrapQ()
+        elif len(self.axis_names) > 6:
+            msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
+            logging.exception(msg)
+            raise config.error(msg)
         
+        # NOTE: load the gcode objects (?)
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
         
@@ -377,6 +400,22 @@ class ToolHead:
             msg = "Error loading kinematics '%s'" % (kin_name,)
             logging.exception(msg)
             raise config.error(msg)
+        
+        # Create ABC kinematics class
+        self.kin_abc = None
+        if self.abc_trapq is not None:
+            abc_kin_name = config.get('kinematics_abc', kin_name)
+            try:
+                abc_mod = importlib.import_module('kinematics.' + abc_kin_name)
+                self.kin_abc = abc_mod.load_kinematics(self, config)
+            except config.error as e:
+                raise
+            except self.printer.lookup_object('pins').error as e:
+                raise
+            except:
+                msg = "Error loading ABC kinematics '%s'" % (abc_kin_name,)
+                logging.exception(msg)
+                raise config.error(msg)
         
         # Register commands
         gcode.register_command('G4', self.cmd_G4)
@@ -422,8 +461,8 @@ class ToolHead:
             #           the trapezoid velocity queue" (see trapq.c).
             self.trapq_finalize_moves(self.trapq, free_time)
             
-            # TODO: setup "self.trapq_finalize_moves" on the ABC trapq as well.
-            # self.trapq_finalize_moves(self.trapq, free_time)
+            # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
+            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
@@ -546,14 +585,14 @@ class ToolHead:
                     move.axes_r[0], move.axes_r[1], move.axes_r[2],
                     move.start_v, move.cruise_v, move.accel)
             
-            # TODO: setup trapq append for the ABC axes here too.
-            # if self.axis_count == 6:
-            #     self.trapq_append(
-            #         self.trapq, next_move_time,
-            #         move.accel_t, move.cruise_t, move.decel_t,
-            #         move.start_pos[3], move.start_pos[4], move.start_pos[5],
-            #         move.axes_r[3], move.axes_r[4], move.axes_r[5],
-            #         move.start_v, move.cruise_v, move.accel)
+            # NOTE: setup trapq append for the ABC axes here too.
+            if self.abc_trapq is not None:
+                self.abc_trapq.trapq_append(
+                    self.abc_trapq.trapq, next_move_time,
+                    move.accel_t, move.cruise_t, move.decel_t,
+                    move.start_pos[3], move.start_pos[4], move.start_pos[5],
+                    move.axes_r[3], move.axes_r[4], move.axes_r[5],
+                    move.start_v, move.cruise_v, move.accel)
             
             # NOTE: The same is done for the extruder's trapq.
             if move.axes_d[self.axis_count]:
@@ -713,12 +752,13 @@ class ToolHead:
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         
-        # TODO: Set the position of the ABC axis "trapq" too.
-        # ffi_lib.trapq_set_position(self.trapq, self.print_time,
-        #                            newpos[0], newpos[1], newpos[2])
+        # NOTE: Set the position of the ABC axis "trapq" too.
+        if self.abc_trapq is not None:
+            ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
+                                       newpos[3], newpos[4], newpos[4])
         
         # NOTE: Also set the position of the extruder's "trapq".
-        self.set_position_e(newpos_e=newpos[3])
+        self.set_position_e(newpos_e=newpos[self.axis_count])
 
         # NOTE: "set_position_e" was inserted above and not after 
         #       updating "commanded_pos" under the suspicion that 
@@ -778,9 +818,9 @@ class ToolHead:
             return
         if move.is_kinematic_move:
             self.kin.check_move(move)
-        # TODO: implement move checks for ABC axes here too.
-        # if move.is_abc_kinematic_move:
-        #     self.kin_abc.check_move(move)
+            # TODO: implement move checks for ABC axes here too.
+            if self.abc_trapq is not None:
+                self.kin_abc.check_move(move)
         if move.axes_d[self.axis_count]:
             self.extruder.check_move(move)
         
@@ -914,8 +954,8 @@ class ToolHead:
             #       otherwise it does not make sense.
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
             
-            # TODO: call trapq_finalize_moves on the ABC exes too.
-            # self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            # NOTE: call trapq_finalize_moves on the ABC exes too.
+            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 

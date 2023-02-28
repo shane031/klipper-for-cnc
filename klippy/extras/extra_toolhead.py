@@ -23,8 +23,8 @@ class ExtraToolHead():
                                             self.handle_G1)
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_count = 3
-        self.axis_names = 'ABC'
+        self.axis_names = config.get('axis', 'ABC')  # 'ABC'
+        self.axis_count = len(self.axis_names)
         
         # Setup iterative solver
         ffi_main, ffi_lib = chelper.get_ffi()
