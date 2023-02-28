@@ -229,7 +229,7 @@ class MoveQueue:
             return
         
         # Generate step times for all moves ready to be flushed
-        # NOTE: So far, the clock time when this move will be sent are not known.
+        # NOTE: The clock time when this move will be sent are not yet known.
         self.toolhead._process_moves(moves=queue[:flush_count])
 
         # Remove processed moves from the queue
@@ -536,10 +536,10 @@ class ToolHead:
         #       Here, it is passed to "_update_move_time" (which updates
         #       "self.print_time" and calls "trapq_finalize_moves") and
         #       to overwrite "self.last_kin_move_time".
-        logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={str(next_move_time)}\n\n")
+        logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={next_move_time}\n\n")
         self._update_move_time(next_move_time)
-        logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={str(next_move_time)}\n\n")
         self.last_kin_move_time = max(self.last_kin_move_time, next_move_time)
+        logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={self.last_kin_move_time}\n\n")
         
     def flush_step_generation(self):
         # Transition from "Flushed"/"Priming"/main state to "Flushed" state
@@ -566,8 +566,10 @@ class ToolHead:
         self.move_queue.set_flush_time(self.buffer_time_high)
 
         self.idle_flush_print_time = 0.
+        
         # Determine actual last "itersolve" flush time
         lastf = self.print_time - self.kin_flush_delay
+        
         # Calculate flush time that includes kinematic scan windows
         flush_time = max(lastf, self.last_kin_move_time + self.kin_flush_delay)
         if flush_time > self.print_time:
@@ -575,10 +577,12 @@ class ToolHead:
             # NOTE: the following updates "self.print_time" and
             #       calls "trapq_finalize_moves".
             self._update_move_time(flush_time)
+        
         # Flush kinematic scan windows and step buffers
         self.force_flush_time = max(self.force_flush_time, flush_time)
         self._update_move_time(next_print_time=max(self.print_time,
                                                    self.force_flush_time))
+    
     def _flush_lookahead(self):
         if self.special_queuing_state:
             return self.flush_step_generation()
@@ -734,11 +738,18 @@ class ToolHead:
     def manual_move(self, coord, speed):
         # NOTE: the "manual_move" command interprets "None" values
         #       as the latest (commanded) coordinates.
+        
+        # NOTE: get the current (last) position.
         curpos = list(self.commanded_pos)
+        
+        # NOTE: overwrite with the move's target postion.
         for i in range(len(coord)):
             if coord[i] is not None:
                 curpos[i] = coord[i]
+                
+        # NOTE: send move.
         self.move(curpos, speed)
+        
         # NOTE: this event is handled by "reset_last_position"
         #       (at gcode_move.py) which updates "self.last_position"
         #       in the GCodeMove class.
