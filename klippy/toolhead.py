@@ -408,9 +408,9 @@ class ToolHead:
         
         # Create ABC kinematics class
         self.kin_abc = None
+        abc_kin_name = config.get('kinematics_abc', kin_name)
         if self.abc_trapq is not None:
             # NOTE: get the "kinematics_abc" type from "[printer]".
-            abc_kin_name = config.get('kinematics_abc', kin_name)
             try:
                 abc_mod = importlib.import_module('kinematics.' + abc_kin_name)
                 self.kin_abc = abc_mod.load_kinematics(self, config)
