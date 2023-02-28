@@ -319,6 +319,8 @@ class ToolHead:
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
+        logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
+        
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
