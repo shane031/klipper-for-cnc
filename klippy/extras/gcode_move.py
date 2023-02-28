@@ -170,7 +170,7 @@ class GCodeMove:
                 self.speed = gcode_speed * self.speed_factor
             
             # NOTE: send event to handlers, like "extra_toolhead.py" 
-            self.printer.send_event("gcode_move:parsing_move_command", params)
+            self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
             
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"

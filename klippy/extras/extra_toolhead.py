@@ -55,8 +55,8 @@ class ExtraToolHead(ToolHead):
     """
     def __init__(self, config):
         # NOTE: React to G1 move commands.
-        self.printer.register_event_handler("klippy:shutdown",
-                                            self._handle_shutdown)
+        self.printer.register_event_handler("gcode_move:parsing_move_command",
+                                            self.handle_G1)
         
         # NOTE: copied over from ToolHead.__init__():
         self.printer = config.get_printer()
@@ -69,8 +69,8 @@ class ExtraToolHead(ToolHead):
             self.can_pause = False
         self.move_queue = MoveQueue(self)
         self.commanded_pos = [0., 0., 0., 0.]
-        self.printer.register_event_handler("gcode_move:parsing_move_command",
-                                            self.handle_G1)
+        self.printer.register_event_handler("klippy:shutdown",
+                                            self._handle_shutdown)
         
         # NOTE: Prefix for event names (override the default).
         self.event_prefix = "extra_toolhead:"
@@ -142,7 +142,7 @@ class ExtraToolHead(ToolHead):
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
         gcode.register_command('eth_M204', self.cmd_M204)
         
-    def handle_G1(self, params):
+    def handle_G1(self, gcmd, params):
         pass
 
 
