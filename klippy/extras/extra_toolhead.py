@@ -65,6 +65,9 @@ class ExtraToolHead(ToolHead):
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         
+        # Prefix for event names (override the default).
+        self.event_prefix = "extra_toolhead:"
+        
         # Velocity and acceleration control
         self.max_velocity = config.getfloat('max_velocity', above=0.)
         self.max_accel = config.getfloat('max_accel', above=0.)
