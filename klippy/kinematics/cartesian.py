@@ -87,6 +87,7 @@ class CartKinematics:
         logging.info(f"\n\ncartesian._home_axis: homing axis {axis}.\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
     def home(self, homing_state):
+        logging.info(f"\n\ncartesian.home: homing axis {homing_state.changed_axes}.\n\n")
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
             if axis == self.dual_carriage_axis:
