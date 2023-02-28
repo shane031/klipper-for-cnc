@@ -366,6 +366,10 @@ class ToolHead:
         # NOTE: called during "special" queuing states, 
         #       by "get_last_move_time" or "_process_moves".
         # NOTE: This function updates "self.print_time" directly.
+        # NOTE: Also sends a "toolhead:sync_print_time" event, handled by
+        #       "handle_sync_print_time" at "idle_timeout.py". It calls
+        #       "reactor.update_timer" and sends an "idle_timeout:printing" 
+        #       event (which is only handled by tmc2660.py).
 
         # NOTE: get the current (host) system time.
         curtime = self.reactor.monotonic()
@@ -408,10 +412,7 @@ class ToolHead:
             
             # NOTE Update "self.print_time".
             self._calc_print_time()
-            # NOTE: Also sends a "toolhead:sync_print_time" event, handled by
-            #       "handle_sync_print_time" at "idle_timeout.py". It calls
-            #       "reactor.update_timer" and sends an "idle_timeout:printing" 
-            #       event (which is only handled by tmc2660.py).
+            # NOTE: Also sends a "toolhead:sync_print_time" event.
             logging.info(f"\n\nToolHead _process_moves: self.print_time={str(self.print_time)}\n\n")
         
         # Queue moves into trapezoid motion queue (trapq)
