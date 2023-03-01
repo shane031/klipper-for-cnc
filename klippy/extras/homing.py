@@ -473,16 +473,23 @@ class Homing:
         
         # Perform second home
         if hi.retract_dist:
-            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}.\n\n")
             # Retract
+            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}.\n\n")
+            # startpos=[0.0, 0.0, 0.0, 468.0, 0.0, 0.0, 0.0] 
+            # homepos=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
+            
             axes_d = [hp - sp for hp, sp in zip(homepos, startpos)]
-            move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
+            
+            # TODO: consider using all coordinates, not just XYZ(ABC).
+            move_d = math.sqrt(sum([d*d for d in axes_d[:axis_count]]))
+            
             retract_r = min(1., hi.retract_dist / move_d)
             retractpos = [hp - ad * retract_r
                           for hp, ad in zip(homepos, axes_d)]
             self.toolhead.move(retractpos, hi.retract_speed)
+            
             # Home again
             startpos = [rp - ad * retract_r
                         for rp, ad in zip(retractpos, axes_d)]
