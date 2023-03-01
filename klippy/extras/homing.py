@@ -557,6 +557,15 @@ class PrinterHoming:
         return [xyz_ids[i] for i in axes]
         
     def home_axes(self, kin, homing_axes):
+        """Home the requested axis on the specified kinematics.
+
+        Args:
+            kin (kinematics): Kinematics class for the axes.
+            homing_axes (list): List of axis, coherced internally to [0,1,2].
+
+        Raises:
+            self.printer.command_error: _description_
+        """
         # NOTE: Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
         axes = self.axes_to_xyz(homing_axes)
         
