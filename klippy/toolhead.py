@@ -275,6 +275,7 @@ class MoveQueue:
         Args:
             move (_type_): _description_
         """
+        logging.info(f"\n\nMoveQueue.add_move: adding move.\n\n")
         self.queue.append(move)
         if len(self.queue) == 1:
             return
@@ -839,6 +840,7 @@ class ToolHead:
             newpos (_type_): _description_
             speed (_type_): _description_
         """
+        logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}.\n\n")
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
