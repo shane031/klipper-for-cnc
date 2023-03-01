@@ -448,7 +448,7 @@ class Homing:
         #       opposing limit coordinate.
         
         # Notify of upcoming homing operation
-        logging.info(f"\n\nhoming.home_rails: homing begins.\n\n")
+        logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}.\n\n")
         self.printer.send_event("homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
@@ -473,6 +473,7 @@ class Homing:
         
         # Perform second home
         if hi.retract_dist:
+            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}.\n\n")
             # Retract
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
