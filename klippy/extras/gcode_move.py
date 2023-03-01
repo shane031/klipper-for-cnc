@@ -22,7 +22,7 @@ class GCodeMove:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
-    def __init__(self, config):
+    def __init__(self, config, **kwargs):
         
         # main_config = config.getsection("printer")
         # self.axis_names = main_config.get('axis', 'XYZ')
@@ -30,7 +30,8 @@ class GCodeMove:
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
         # TODO: find a way to get the axis value from the config, this does not work.
-        self.axis_names = config.get('axis', 'XYZABC')  # "XYZ" / "XYZABC"
+        
+        self.axis_names = kwargs.get("axis", "XYZ")  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}.\n\n")
@@ -383,5 +384,5 @@ class GCodeMove:
                           % (mcu_pos, stepper_pos, kin_pos, toolhead_pos,
                              gcode_pos, base_pos, homing_pos))
 
-def load_config(config):
-    return GCodeMove(config)
+def load_config(config, **kwargs):
+    return GCodeMove(config, **kwargs)
