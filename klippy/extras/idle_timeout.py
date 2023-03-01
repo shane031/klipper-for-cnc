@@ -112,5 +112,5 @@ class IdleTimeout:
             checktime = self.reactor.monotonic() + timeout
             self.reactor.update_timer(self.timeout_timer, checktime)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return IdleTimeout(config)

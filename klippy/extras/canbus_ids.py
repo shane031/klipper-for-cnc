@@ -22,5 +22,5 @@ class PrinterCANBus:
                                             % (canbus_uuid,))
         return self.ids[canbus_uuid]
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterCANBus(config)

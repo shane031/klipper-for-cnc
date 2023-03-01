@@ -51,5 +51,5 @@ class HostResponder:
         else:
             gcmd.respond_raw("%s %s" % (prefix, msg))
 
-def load_config(config, **kwargs):
+def load_config(config):
     return HostResponder(config)

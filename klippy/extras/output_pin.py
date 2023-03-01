@@ -99,5 +99,5 @@ class PrinterOutputPin:
                       self.last_value, self.last_cycle_time, True)
         return systime + self.resend_interval
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return PrinterOutputPin(config)

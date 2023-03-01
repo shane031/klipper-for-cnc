@@ -50,5 +50,5 @@ class DelayedGcode:
                 waketime = self.reactor.monotonic() + self.duration
             self.reactor.update_timer(self.timer_handler, waketime)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return DelayedGcode(config)

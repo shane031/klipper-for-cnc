@@ -348,7 +348,7 @@ Sensors = {
     "MAX31865": MAX31865,
 }
 
-def load_config(config, **kwargs):
+def load_config(config):
     # Register sensors
     pheaters = config.get_printer().load_object(config, "heaters")
     for name, klass in Sensors.items():

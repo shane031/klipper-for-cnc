@@ -11,5 +11,5 @@ class PrinterDupPinOverride:
         for pin_desc in config.getlist('pins'):
             ppins.allow_multi_use_pin(pin_desc)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterDupPinOverride(config)

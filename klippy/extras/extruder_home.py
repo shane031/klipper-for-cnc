@@ -795,5 +795,5 @@ class ExtruderHoming:
     #     logging.info(f"\n\ncalc_position return pos={str(pos)}\n\n")
     #     return pos
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return ExtruderHoming(config)

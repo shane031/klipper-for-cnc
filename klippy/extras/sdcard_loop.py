@@ -69,5 +69,5 @@ class SDCardLoop:
         self.loop_stack = []
         return True
 
-def load_config(config, **kwargs):
+def load_config(config):
     return SDCardLoop(config)

@@ -116,5 +116,5 @@ class PrintStats:
                      'current_layer': self.info_current_layer}
         }
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrintStats(config)

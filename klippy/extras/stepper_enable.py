@@ -133,5 +133,5 @@ class PrinterStepperEnable:
     def get_steppers(self):
         return list(self.enable_lines.keys())
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterStepperEnable(config)

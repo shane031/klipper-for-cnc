@@ -224,8 +224,8 @@ class EndstopPhases:
                if pc.phase_history is not None }
         return { 'last_home': lh }
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return EndstopPhase(config)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return EndstopPhases(config)

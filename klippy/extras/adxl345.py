@@ -438,8 +438,8 @@ class ADXL345:
         cconn = self.api_dump.add_internal_client()
         return AccelQueryHelper(self.printer, cconn)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ADXL345(config)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return ADXL345(config)

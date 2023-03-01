@@ -185,5 +185,5 @@ class ZThermalAdjuster:
 
     cmd_SET_Z_THERMAL_ADJUST_help = 'Set/query Z Thermal Adjust parameters.'
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ZThermalAdjuster(config)

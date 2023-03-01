@@ -21,5 +21,5 @@ class dac084S085:
         b2 = (value << 4) & 0xf0
         self.spi.spi_send([b1, b2])
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return dac084S085(config)

@@ -164,6 +164,6 @@ class PrinterTemperatureMCU:
         params = self.debug_read_cmd.send([2, addr])
         return params['val']
 
-def load_config(config, **kwargs):
+def load_config(config):
     pheaters = config.get_printer().load_object(config, "heaters")
     pheaters.add_sensor_factory("temperature_mcu", PrinterTemperatureMCU)

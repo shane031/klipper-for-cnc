@@ -302,5 +302,5 @@ class PrinterButtons:
                 callback(eventtime)
         self.register_buttons([pin], helper)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterButtons(config)

@@ -89,5 +89,5 @@ class HeaterCheck:
         self.printer.invoke_shutdown(msg + HINT_THERMAL)
         return self.printer.get_reactor().NEVER
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return HeaterCheck(config)

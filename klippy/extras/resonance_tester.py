@@ -358,5 +358,5 @@ class ResonanceTester:
                                                all_shapers)
         return output
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ResonanceTester(config)

@@ -114,5 +114,5 @@ class SwitchSensor:
     def _button_handler(self, eventtime, state):
         self.runout_helper.note_filament_present(state)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return SwitchSensor(config)

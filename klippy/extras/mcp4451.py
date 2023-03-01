@@ -26,5 +26,5 @@ class mcp4451:
     def set_register(self, reg, value):
         self.i2c.i2c_write([(reg << 4) | ((value >> 8) & 0x03), value])
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return mcp4451(config)

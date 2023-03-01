@@ -70,5 +70,5 @@ class PCA9632:
     def get_status(self, eventtime):
         return self.led_helper.get_status(eventtime)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return PCA9632(config)

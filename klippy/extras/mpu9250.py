@@ -271,8 +271,8 @@ class MPU9250:
         cconn = self.api_dump.add_internal_client()
         return adxl345.AccelQueryHelper(self.printer, cconn)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return MPU9250(config)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return MPU9250(config)

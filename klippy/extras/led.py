@@ -225,8 +225,8 @@ class PrinterPWMLED:
     def get_status(self, eventtime=None):
         return self.led_helper.get_status(eventtime)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterLED(config)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return PrinterPWMLED(config)

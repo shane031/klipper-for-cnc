@@ -367,5 +367,5 @@ class PrinterHeaters:
             gcmd.respond_raw(self._get_temp(eventtime))
             eventtime = reactor.pause(eventtime + 1.)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterHeaters(config)

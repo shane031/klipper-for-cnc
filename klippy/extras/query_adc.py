@@ -31,5 +31,5 @@ class QueryADC:
             msg += "\n resistance %.3f (with %.0f pullup)" % (r, pullup)
         gcmd.respond_info(msg)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return QueryADC(config)

@@ -47,5 +47,5 @@ class GCodeButton:
             return {'state': "PRESSED"}
         return {'state': "RELEASED"}
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return GCodeButton(config)

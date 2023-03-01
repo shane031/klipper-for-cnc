@@ -158,5 +158,5 @@ class PrinterSkew:
                     % (name))
 
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterSkew(config)

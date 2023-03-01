@@ -41,5 +41,5 @@ class QueryEndstops:
                         for name, t in self.last_state])
         gcmd.respond_raw(msg)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return QueryEndstops(config)

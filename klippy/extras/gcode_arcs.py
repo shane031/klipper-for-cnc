@@ -177,5 +177,5 @@ class ArcSupport:
         coords.append(targetPos)
         return coords
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ArcSupport(config)

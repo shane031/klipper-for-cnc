@@ -67,5 +67,5 @@ class ControllerFan:
             self.fan.set_speed(print_time + PIN_MIN_TIME, speed)
         return eventtime + 1.
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return ControllerFan(config)

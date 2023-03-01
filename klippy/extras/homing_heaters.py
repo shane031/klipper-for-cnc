@@ -60,5 +60,5 @@ class HomingHeaters:
             heater = self.pheaters.lookup_heater(heater_name)
             heater.set_temp(self.target_save[heater_name])
 
-def load_config(config, **kwargs):
+def load_config(config):
     return HomingHeaters(config)

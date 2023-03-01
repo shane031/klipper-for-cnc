@@ -28,5 +28,5 @@ class PrinterExtruderStepper:
     def get_status(self, eventtime):
         return self.extruder_stepper.get_status(eventtime)
 
-def load_config_prefix(config, **kwargs):
+def load_config_prefix(config):
     return PrinterExtruderStepper(config)

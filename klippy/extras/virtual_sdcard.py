@@ -295,5 +295,5 @@ class VirtualSD:
             self.print_stats.note_complete()
         return self.reactor.NEVER
 
-def load_config(config, **kwargs):
+def load_config(config):
     return VirtualSD(config)

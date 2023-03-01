@@ -258,5 +258,5 @@ class ManualProbeHelper:
             kin_pos = self.get_kinematics_pos()
         self.finalize_callback(kin_pos)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ManualProbe(config)

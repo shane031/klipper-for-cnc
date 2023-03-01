@@ -24,5 +24,5 @@ class PrinterHeaterBed:
         # Set Bed Temperature and Wait
         self.cmd_M140(gcmd, wait=True)
 
-def load_config(config, **kwargs):
+def load_config(config):
     return PrinterHeaterBed(config)

@@ -114,5 +114,5 @@ class BedScrews:
         self.unregister_commands()
         self.reset()
 
-def load_config(config, **kwargs):
+def load_config(config):
     return BedScrews(config)

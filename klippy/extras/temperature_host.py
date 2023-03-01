@@ -74,7 +74,7 @@ class Temperature_HOST:
         }
 
 
-def load_config(config, **kwargs):
+def load_config(config):
     # Register sensor
     pheaters = config.get_printer().load_object(config, "heaters")
     pheaters.add_sensor_factory("temperature_host", Temperature_HOST)

@@ -124,5 +124,5 @@ class ScrewsTiltAdjust:
                 "bed level exceeds configured limits ({}mm)! " \
                 "Adjust screws and restart print.".format(self.max_diff))
 
-def load_config(config, **kwargs):
+def load_config(config):
     return ScrewsTiltAdjust(config)

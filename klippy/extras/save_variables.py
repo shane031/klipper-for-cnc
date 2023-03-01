@@ -60,5 +60,5 @@ class SaveVariables:
     def get_status(self, eventtime):
         return {'variables': self.allVariables}
 
-def load_config(config, **kwargs):
+def load_config(config):
     return SaveVariables(config)
