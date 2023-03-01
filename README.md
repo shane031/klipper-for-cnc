@@ -1,8 +1,12 @@
 Trying to add ABC axes on this fork, by duplicating the trapq object.
 
-So far it does nothing on `G0 A10 B10 C10` commands.
-
 Perhaps it would be better to use multiple extruder axes instead. Those seem to use independent "trapq"s, but it is also a long shot.
+
+It seems to work :)
+
+Important TODO:
+
+- Fix `self.axis_names = config.get('axis', 'XYZABC')` in gcode_move.py. It does not loadfrom config properly.
 
 ----
 
