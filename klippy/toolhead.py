@@ -776,11 +776,16 @@ class ToolHead:
         
         Has no effect on XYZ IDs
         """
+        logging.info(f"\n\ntoolhead.axes_to_xyz: input={axes}\n\n")
+        
         xyz_ids = [0, 1, 2, 0, 1, 2]
+        
         if isinstance(axes, list):
-            return [xyz_ids[i] for i in axes]
+            result = [xyz_ids[i] for i in axes]
         else:
-            return xyz_ids[axes]
+            result = xyz_ids[axes]
+        
+        return result
     
     def set_position(self, newpos, homing_axes=()):
         logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")

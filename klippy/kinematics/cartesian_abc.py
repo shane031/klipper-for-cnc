@@ -139,20 +139,10 @@ class CartKinematicsABC(CartKinematics):
     
     def home(self, homing_state):
         # Each axis is homed independently and in order
+        toolhead = self.printer.lookup_object('toolhead')
         for axis in homing_state.get_axes():
             # NOTE: support for dual carriage removed.
-            self._home_axis(homing_state, axis, self.rails[self.axes_to_xyz(axis)])
-        
-    def axes_to_xyz(self, axes):
-        """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
-        
-        Has no effect on XYZ IDs
-        """
-        xyz_ids = [0, 1, 2, 0, 1, 2]
-        if isinstance(axes, list):
-            return [xyz_ids[i] for i in axes]
-        else:
-            return xyz_ids[axes]
+            self._home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
     
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
