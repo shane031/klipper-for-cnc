@@ -548,7 +548,7 @@ class PrinterHoming:
             kin_abc = toolhead.get_kinematics_abc()
             self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [3,4,5]])
         
-    def axes_to_xyz(axes):
+    def axes_to_xyz(self, axes):
         """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
         
         Has no effect on XYZ IDs
