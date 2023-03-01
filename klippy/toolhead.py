@@ -781,12 +781,12 @@ class ToolHead:
         xyz_ids = [0, 1, 2, 0, 1, 2]
         
         try:
-            if isinstance(axes, list):
+            if isinstance(axes, list) or isinstance(axes, tuple):
                 result = [xyz_ids[i] for i in axes]
             else:
                 result = xyz_ids[axes]
         except:
-            raise Exception(f"\n\ntoolhead.axes_to_xyz: input={axes}\n\n")
+            raise Exception(f"\n\ntoolhead.axes_to_xyz: error with input={axes}\n\n")
         
         return result
     
