@@ -28,8 +28,7 @@ class CartKinematicsABC(CartKinematics):
         self.printer = config.get_printer()
         
         # Axis names
-        # self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
-        self.axis_names = "XYZ"
+        self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
         self.axis_count = len(self.axis_names)
         
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
@@ -45,7 +44,9 @@ class CartKinematicsABC(CartKinematics):
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in self.axis_names.lower()]
         
-        for rail, axis in zip(self.rails, self.axis_names.lower()):
+        # NOTE: this must be "xyz" and not "abc", see "cartesian_stepper_alloc" in C code.
+        # for rail, axis in zip(self.rails, self.axis_names.lower()):
+        for rail, axis in zip(self.rails, "xyz"):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         
         for s in self.get_steppers():
