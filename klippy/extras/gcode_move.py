@@ -23,9 +23,14 @@ class GCodeMove:
       - Homing is not implemented for ABC.
     """
     def __init__(self, config):
+        
+        main_config = config.getsection("printer")
+        self.axis_names = main_config.get('axis', 'XYZ')
+        
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
-        self.axis_names = config.get('axis2', 'XYZ')  # "XYZ" / "XYZABC"
+        # TODO: find a way to get the axis value from the config, this does not work.
+        self.axis_names = config.get('axis', 'XYZABC')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}.\n\n")
