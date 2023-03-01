@@ -5,12 +5,12 @@ Perhaps it would be better to use multiple extruder axes instead. Those seem to 
 What works:
 
 - Movement seems to work :)
-- Homing now works!
+- Homing now works.
+- Probing with G38 works.
 
-Important TODO:
+Important TODOs:
 
-- The G38 stuff is not yet aware of the 6-axis stuff, and the changes to homing.py. For example:
-    - Update "self.stepper_positions" in homing.py
+- Run tests! Only basic functionality has been covered.
 
 ----
 
