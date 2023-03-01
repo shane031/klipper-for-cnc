@@ -2,7 +2,10 @@ Trying to add ABC axes on this fork, by duplicating the trapq object.
 
 Perhaps it would be better to use multiple extruder axes instead. Those seem to use independent "trapq"s, but it is also a long shot.
 
-It seems to work :)
+What works:
+
+- Movement seems to work :)
+- Homing now works!
 
 Important TODO:
 
