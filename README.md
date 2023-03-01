@@ -6,7 +6,8 @@ It seems to work :)
 
 Important TODO:
 
-- Fix `self.axis_names = config.get('axis', 'XYZABC')` in gcode_move.py. It does not loadfrom config properly.
+- The G38 stuff is not yet aware of the 6-axis stuff, and the changes to homing.py. For example:
+    - Update "self.stepper_positions" in homing.py
 
 ----
 

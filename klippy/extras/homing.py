@@ -97,9 +97,10 @@ class HomingMove:
         # NOTE: log input for reference
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
 
+        # NOTE: Update XYZ steppers position
         kin = self.toolhead.get_kinematics()
         for stepper in kin.get_steppers():
-            sname = stepper.get_name()
+            sname = stepper.get_name()  # NOTE: Example: "stepper_x".
             # NOTE: update the stepper positions by converting the "offset" steps
             #       to "mm" units and adding them to the original "halting" position.
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
@@ -111,10 +112,11 @@ class HomingMove:
                 sname = stepper.get_name()
                 kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
         
-        # NOTE: this call to get_position is only used to acquire the extruder
+        # NOTE: This call to get_position is only used to acquire the extruder
         #       position, and append it to XYZ components below.
         #       Example:
         #           thpos=[0.0, 0.0, 0.0, 0.0]
+        # NOTE: No longer used.
         thpos = self.toolhead.get_position()
 
         # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
@@ -165,15 +167,17 @@ class HomingMove:
         # NOTE: Repeat the above for the extruders, adding them to the "kin_spos" dict.
         #       This is important later on, when calling "calc_toolhead_pos".
         extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
+        # NOTE: Dummy extruders wont enter the for loop below (as extruder_steppers=[]).
         for extruder_stepper in extruder_steppers:
             # Get PrinterStepper (MCU_stepper) objects.
             for s in extruder_stepper.rail.get_steppers():
                 kin_spos.update({s.get_name(): s.get_commanded_position()})
         
-        # NOTE: "Tracking of stepper positions during a homing/probing move"
+        # NOTE: "Tracking of stepper positions during a homing/probing move".
         #       Build a "StepperPosition" class for each of the steppers
         #       associated to each endstop in the "self.endstops" list of tuples,
         #       containing elements like: (MCU_endstop, "name").
+        # TODO: update G38 to work with ABC axis.
         self.stepper_positions = [ StepperPosition(s, name)
                                    for es, name in self.endstops
                                    for s in es.get_steppers() ]
@@ -248,6 +252,7 @@ class HomingMove:
         #       This chunk was added in commit:
         #       https://github.com/Klipper3d/klipper/commit/3814a13251aeca044f6dbbccda706263040e1bec
         if probe_pos:
+            # TODO: update G38 to work with ABC axis.
             halt_steps = {sp.stepper_name: sp.halt_pos - sp.start_pos
                           for sp in self.stepper_positions}
             trig_steps = {sp.stepper_name: sp.trig_pos - sp.start_pos

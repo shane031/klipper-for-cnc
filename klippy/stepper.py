@@ -270,7 +270,7 @@ class MCU_stepper:
 # Helper code to build a stepper object from a config section
 def PrinterStepper(config, units_in_radians=False):
     printer = config.get_printer()
-    name = config.get_name()
+    name = config.get_name()  # NOTE: Example: "stepper_x".
     # Stepper definition
     ppins = printer.lookup_object('pins')
     step_pin = config.get('step_pin')
@@ -358,13 +358,18 @@ class PrinterRail:
         #       the stepper to this class.
         self.add_extra_stepper(config)
         
-        # NOTE: this grabs the first "MCU_stepper" item in the list.
+        # NOTE: this grabs the first "MCU_stepper" item in the list,
+        #       which was added by the call to "add_extra_stepper" above.
         mcu_stepper = self.steppers[0]
+        
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class. It thus keeps only the first
         #       one. I imagine something like this:
         #       Keep "stepper_x" from ["stepper_x", "stepper_x1"]
+        #       The "mcu_stepper.get_name" function will return
+        #       "stepper_x" unless "short=True", in which case it
+        #       will return just "x".
         self.get_name = mcu_stepper.get_name
         # TODO: I don't know what these do yet.
         self.get_commanded_position = mcu_stepper.get_commanded_position

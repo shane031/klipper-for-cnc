@@ -340,6 +340,11 @@ class PrinterExtruder:
         if self.extruder_stepper is None:
             return 0.
         return self.extruder_stepper.find_past_position(print_time)
+    
+    def calc_position(self, stepper_positions):
+        # NOTE: borrowed from the cartesian kinematics for "homing.py".
+        return [stepper_positions[rail.get_name()] for rail in self.rails]
+    
     def cmd_M104(self, gcmd, wait=False):
         # Set Extruder Temperature
         temp = gcmd.get_float('S', 0.)
