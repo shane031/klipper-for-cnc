@@ -124,7 +124,7 @@ class CartKinematicsABC(CartKinematics):
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None, None, None, None]
+        homepos = [None for i in range(self.axis_count + 1)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:
@@ -137,17 +137,16 @@ class CartKinematicsABC(CartKinematics):
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
-            # if axis == self.dual_carriage_axis:
-            #     dc1, dc2 = self.dual_carriage_rails
-            #     altc = self.rails[axis] == dc2
-            #     self._activate_carriage(0)
-            #     self._home_axis(homing_state, axis, dc1)
-            #     self._activate_carriage(1)
-            #     self._home_axis(homing_state, axis, dc2)
-            #     self._activate_carriage(altc)
-            # else:
-            #     self._home_axis(homing_state, axis, self.rails[axis])
-            self._home_axis(homing_state, axis, self.rails[axis])
+            # NOTE: support for dual carriage removed.
+            self._home_axis(homing_state, axis, self.rails[self.axes_to_xyz(axis)])
+        
+    def axes_to_xyz(self, axes):
+        """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
+        
+        Has no effect on XYZ IDs
+        """
+        xyz_ids = [0, 1, 2, 0, 1, 2]
+        return [xyz_ids[i] for i in axes]
     
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3

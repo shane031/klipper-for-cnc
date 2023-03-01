@@ -567,7 +567,8 @@ class PrinterHoming:
             self.printer.command_error: _description_
         """
         # NOTE: Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
-        axes = self.axes_to_xyz(homing_axes)
+        #       Not useful, adapting "home_rails" would have been complicated.
+        # axes = self.axes_to_xyz(homing_axes)
         
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
