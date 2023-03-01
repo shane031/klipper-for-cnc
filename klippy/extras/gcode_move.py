@@ -6,11 +6,27 @@
 import logging
 
 class GCodeMove:
+    """Main GCodeMove class.
+
+    Example config:
+    
+    [printer]
+    kinematics: cartesian
+    axis: XYZ  # Optional: XYZ or XYZABC
+    kinematics_abc: cartesian_abc # Optional
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    
+    TODO:
+      - The "checks" still have the XYZ logic.
+      - Homing is not implemented for ABC.
+    """
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
-        self.axis_count = 3
-        self.axis_names = 'XYZ'
+        self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_count = len(self.axis_names)
         
         self.printer = printer = config.get_printer()
         printer.register_event_handler("klippy:ready", self._handle_ready)
