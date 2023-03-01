@@ -25,7 +25,7 @@ class GCodeMove:
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
-        self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_names = config.get('axis2', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}.\n\n")
