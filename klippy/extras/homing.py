@@ -76,8 +76,8 @@ class HomingMove:
     def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, -110]
         startpos = self.toolhead.get_position()                 # startpos = [0.0, 0.0, 0.0, 0.0]
         axes_d = [mp - sp for mp, sp in zip(movepos, startpos)]
-        move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))      # 150.0
-        move_t = move_d / speed                                 # 150.0 / 25.0 = 6.0
+        move_d = math.sqrt(sum([d*d for d in axes_d[:self.toolhead.axis_count]]))   # 150.0
+        move_t = move_d / speed                                                     # 150.0 / 25.0 = 6.0
         max_steps = max([(abs(s.calc_position_from_coord(startpos)
                               - s.calc_position_from_coord(movepos))
                           / s.get_step_dist())
@@ -104,6 +104,13 @@ class HomingMove:
             # NOTE: update the stepper positions by converting the "offset" steps
             #       to "mm" units and adding them to the original "halting" position.
             kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
+            
+        # NOTE: Update ABC steppers position too.
+        kin_abc = self.toolhead.get_kinematics_abc()
+        if kin_abc is not None:
+            for stepper in kin_abc.get_steppers():
+                sname = stepper.get_name()  # NOTE: Example: "stepper_a".
+                kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
 
         # NOTE: Repeat the above for the extruders.
         extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
@@ -129,12 +136,23 @@ class HomingMove:
         # NOTE: Examples (CartKinematics):
         #       -   calc_position input stepper_positions={'extruder': -1.420625}
         #       -   calc_position return pos=[-1.420625, 0.0, 0.0]
-        result = list(kin.calc_position(stepper_positions=kin_spos))[:3] + thpos[3:]
-
-        # NOTE: now ditch "thpos" (toolhead.get_position()), replacing 
-        #       it by the equivalent for the active extruder.
+        result_xyz = list(kin.calc_position(stepper_positions=kin_spos))[:3]  # + thpos[3:]
+        
+        # NOTE: Run "calc_position" for the ABC axes too.
+        result_abc = []
+        kin_abc = self.toolhead.get_kinematics_abc()
+        if kin_abc is not None:
+            result_abc = list(kin_abc.calc_position(stepper_positions=kin_spos))[:3]
+        
+        # NOTE: Ditch "thpos[3:]" (from "toolhead.get_position()" above),
+        #       replacing it by the equivalent for the active extruder.
         extruder = self.printer.lookup_object('toolhead').get_extruder()
-        result[3] = kin_spos[extruder.name]
+        # result[3] = kin_spos[extruder.name]
+        # TODO: check if "calc_position" should be run in the extruder kinematics too.
+        result_e = kin_spos[extruder.name]
+        
+        # NOTE: Join results
+        result = result_xyz + result_abc + [result_e]
         
         # NOTE: log output for reference
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
@@ -158,11 +176,20 @@ class HomingMove:
         #       object, as loaded from a module in the "kinematics/" directory,
         #       during the class's __init__.
         kin = self.toolhead.get_kinematics()
+        # NOTE: Get the ABC kinematics too ("None" if missing).
+        kin_abc = self.toolhead.get_kinematics_abc()
         
         # NOTE: this step calls the "get_steppers" method on the provided
-        #       kinematics, which returns a list of "MCU_stepper" objects.
+        #       kinematics, which returns a dict of "MCU_stepper" objects,
+        #       with names as "stepper_x", "stepper_y", etc.
         kin_spos = {s.get_name(): s.get_commanded_position()
                     for s in kin.get_steppers()}
+        
+        # NOTE: Add the ABC steppers position too.
+        if kin_abc is not None:
+            kin_spos_abc = {s.get_name(): s.get_commanded_position()
+                            for s in kin_abc.get_steppers()}
+            kin_spos.update(kin_spos_abc)
 
         # NOTE: Repeat the above for the extruders, adding them to the "kin_spos" dict.
         #       This is important later on, when calling "calc_toolhead_pos".
@@ -280,11 +307,17 @@ class HomingMove:
                 #           set_position: input:  [0.0, 0.0, 0.0, -110.0] homing_axes=()
                 #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
                 
-                # NOTE: uses "ffi_lib.itersolve_get_commanded_pos",
+                # NOTE: Uses "ffi_lib.itersolve_get_commanded_pos",
                 #       probably reads the position previously set by
                 #       "stepper.set_position" / "itersolve_set_position".
                 halt_kin_spos = {s.get_name(): s.get_commanded_position()
                                  for s in kin.get_steppers()}
+                
+                # NOTE: Update ABC steppers position too.
+                kin_abc = self.toolhead.get_kinematics_abc()
+                if kin_abc is not None:
+                    halt_kin_spos.update({s.get_name(): s.get_commanded_position()
+                                          for s in kin_abc.get_steppers()})
 
                 # NOTE: Repeat the above for the extruder steppers (defined above).
                 for extruder_stepper in extruder_steppers:
@@ -413,7 +446,12 @@ class Homing:
         self.printer.send_event("homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
-        homing_axes = [axis for axis in range(3) if forcepos[axis] is not None]
+        axis_count = self.toolhead.axis_count
+        # NOTE: Get the axis IDs of each non-null axis in forcepos.
+        homing_axes = [axis for axis in range(axis_count) if forcepos[axis] is not None]
+        # NOTE: fill each "None" position values with the 
+        #       current position (from toolhead.get_position)
+        #       of the corresponding axis.
         startpos = self._fill_coord(forcepos)
         homepos = self._fill_coord(movepos)
         # NOTE: esto usa "trapq_set_position" sobre el trapq del XYZ.
