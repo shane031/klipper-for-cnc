@@ -810,6 +810,7 @@ class ToolHead:
                                        newpos[3], newpos[4], newpos[5])
         
         # NOTE: Also set the position of the extruder's "trapq".
+        #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count])
 
@@ -825,13 +826,13 @@ class ToolHead:
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with homing_axes[:3]={homing_axes[:3]}\n\n")
-        self.kin.set_position(newpos, homing_axes[:3])
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos={newpos} and homing_axes[:3]={homing_axes[:3]}\n\n")
+        self.kin.set_position(newpos[:3], homing_axes[:3])
         
         # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
-            self.kin_abc.set_position(newpos, self.axes_to_xyz(homing_axes[3:6]))
+            self.kin_abc.set_position(newpos[3:6], self.axes_to_xyz(homing_axes[3:6]))
         
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
