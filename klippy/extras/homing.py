@@ -530,16 +530,38 @@ class PrinterHoming:
         toolhead = self.printer.lookup_object('toolhead')
         # Move to origin
         axes = []
-        #for pos, axis in enumerate(toolhead.axis_names):
-        for pos, axis in enumerate('XYZ'):
+        for pos, axis in enumerate(toolhead.axis_names):
+        # for pos, axis in enumerate('XYZ'):
             if gcmd.get(axis, None) is not None:
                 axes.append(pos)
         if not axes:
-            # axes = list(range(toolhead.axis_count))
-            axes = [0, 1, 2]
+            axes = list(range(toolhead.axis_count))
+            # axes = [0, 1, 2]
+        
+        # NOTE: XYZ homing.
+        if any(i in [0,1,2] for i in axes):
+            kin = toolhead.get_kinematics()
+            self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [0,1,2]])
+        
+        # NOTE: ABC homing.
+        if any(i in [3,4,5] for i in axes) and toolhead.kin_abc is not None:
+            kin_abc = toolhead.get_kinematics_abc()
+            self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [3,4,5]])
+        
+    def axes_to_xyz(axes):
+        """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
+        
+        Has no effect on XYZ IDs
+        """
+        xyz_ids = [0, 1, 2, 0, 1, 2]
+        return [xyz_ids[i] for i in axes]
+        
+    def home_axes(self, kin, homing_axes):
+        # NOTE: Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
+        axes = self.axes_to_xyz(homing_axes)
+        
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
-        kin = toolhead.get_kinematics()
         try:
             # NOTE: In the cart kinematics, "kin.home" iterates over each 
             #       axis calling "Homing.home_rails", which then uses

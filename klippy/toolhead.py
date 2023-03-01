@@ -1057,6 +1057,9 @@ class ToolHead:
         self.move_queue.reset()
     def get_kinematics(self):
         return self.kin
+    def get_kinematics_abc(self):
+        # NOTE: equivalent to "get_kinematics" for ABC kinematics. 
+        return self.kin_abc
     def get_trapq(self):
         return self.trapq
     def get_abc_trapq(self):
