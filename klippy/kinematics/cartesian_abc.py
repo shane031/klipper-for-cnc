@@ -109,7 +109,9 @@ class CartKinematicsABC(CartKinematics):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     
     def set_position(self, newpos, homing_axes):
-        logging.info("\n\n" + f"cartesian_abc.set_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}.\n\n")
+        logging.info("\n\n" +
+                     f"cartesian_abc.set_position: setting kinematic position of {len(self.rails)} rails " +
+                     f"with newpos={newpos} and homing_axes={homing_axes}.\n\n")
         for i, rail in enumerate(self.rails):
             # NOTE: calls "itersolve_set_position".
             rail.set_position(newpos)

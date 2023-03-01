@@ -402,9 +402,11 @@ class Homing:
         # NOTE: The "forcepos" argument is passed 1.5 times the
         #       difference between the endstop position and the
         #       opposing limit coordinate.
+        
         # Notify of upcoming homing operation
         logging.info(f"\n\nhoming.home_rails: homing begins.\n\n")
         self.printer.send_event("homing:home_rails_begin", self, rails)
+        
         # Alter kinematics class to think printer is at forcepos
         homing_axes = [axis for axis in range(3) if forcepos[axis] is not None]
         startpos = self._fill_coord(forcepos)
@@ -413,11 +415,13 @@ class Homing:
         # NOTE: homing_axes se usa finalmente en "CartKinematics.set_position",
         #       para asignarle limites a los "rails" que se homearon. Nada más.
         self.toolhead.set_position(startpos, homing_axes=homing_axes)
+        
         # Perform first home
         endstops = [es for rail in rails for es in rail.get_endstops()]
         hi = rails[0].get_homing_info()
         hmove = HomingMove(self.printer, endstops)
         hmove.homing_move(homepos, hi.speed)
+        
         # Perform second home
         if hi.retract_dist:
             # Retract
@@ -439,6 +443,7 @@ class Homing:
                 raise self.printer.command_error(
                     "Endstop %s still triggered after retract"
                     % (hmove.check_no_movement(),))
+        
         # Signal home operation complete
         self.toolhead.flush_step_generation()
         self.trigger_mcu_pos = {sp.stepper_name: sp.trig_pos
@@ -561,6 +566,7 @@ class PrinterHoming:
         # NOTE: Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
         #       Not useful, adapting "home_rails" would have been complicated.
         # axes = self.axes_to_xyz(homing_axes)
+        axes = homing_axes
         
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
