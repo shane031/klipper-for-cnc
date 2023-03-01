@@ -149,7 +149,10 @@ class CartKinematicsABC(CartKinematics):
         Has no effect on XYZ IDs
         """
         xyz_ids = [0, 1, 2, 0, 1, 2]
-        return [xyz_ids[i] for i in axes]
+        if isinstance(ini_list1, list):
+            return [xyz_ids[i] for i in axes]
+        else:
+            return xyz_ids[axes]
     
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
