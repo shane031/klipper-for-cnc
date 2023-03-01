@@ -24,8 +24,8 @@ class GCodeMove:
     """
     def __init__(self, config):
         
-        main_config = config.getsection("printer")
-        self.axis_names = main_config.get('axis', 'XYZ')
+        # main_config = config.getsection("printer")
+        # self.axis_names = main_config.get('axis', 'XYZ')
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
