@@ -1,3 +1,11 @@
+Trying to add ABC axes on this fork, by duplicating the trapq object.
+
+So far it does nothing on G0 A commands, and crashes with "11/SEGV" on homing the X axis.
+
+Perhaps it would be better to use multiple extruder axes instead. Those seem to use independent "trapq"s, but it is also a long shot.
+
+----
+
 Welcome to my fork of the Klipper project, with awesome home-able extruders and CNC-style probing!
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
