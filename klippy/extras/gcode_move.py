@@ -183,6 +183,7 @@ class GCodeMove:
             for pos, axis in enumerate(self.axis_names):
                 if axis in params:
                     v = float(params[axis])
+                    logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
                     if not self.absolute_coord:
                         # value relative to position of last move
                         self.last_position[pos] += v
@@ -192,6 +193,7 @@ class GCodeMove:
             # NOTE: extruder move coordinates.
             if 'E' in params:
                 v = float(params['E']) * self.extrude_factor
+                logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
                     self.last_position[self.axis_count] += v
