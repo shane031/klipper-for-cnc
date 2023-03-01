@@ -152,7 +152,7 @@ class HomingMove:
         if extruder.name is not None:
             result_e = [kin_spos[extruder.name]]
         else:
-            result_e = [thpos[3:]]
+            result_e = [thpos[self.toolhead.axis_count]]
         
         # NOTE: Join results. This list is used to define "haltpos",
         #       which is then passed to "toolhead.set_position".
