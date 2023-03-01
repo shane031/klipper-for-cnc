@@ -46,5 +46,5 @@ class DisplayStatus:
     def cmd_SET_DISPLAY_TEXT(self, gcmd):
         self.message = gcmd.get("MSG", None)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return DisplayStatus(config)

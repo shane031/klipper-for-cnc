@@ -298,5 +298,5 @@ class ExcludeObject:
         object_list = " ".join(self.excluded_objects)
         gcmd.respond_info('Excluded objects: {}'.format(object_list))
 
-def load_config(config):
+def load_config(config, **kwargs):
     return ExcludeObject(config)

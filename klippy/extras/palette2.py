@@ -650,5 +650,5 @@ class Palette2:
         return status
 
 
-def load_config(config):
+def load_config(config, **kwargs):
     return Palette2(config)

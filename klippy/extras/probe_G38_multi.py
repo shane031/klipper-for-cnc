@@ -432,5 +432,5 @@ class PrinterProbeMux(probe.PrinterProbe):
                                         self.cmd_Z_OFFSET_APPLY_PROBE,
                                         desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return ProbeG38multi(config)

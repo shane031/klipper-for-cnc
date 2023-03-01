@@ -108,5 +108,5 @@ class PrinterNeoPixel:
     def get_status(self, eventtime=None):
         return self.led_helper.get_status(eventtime)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return PrinterNeoPixel(config)

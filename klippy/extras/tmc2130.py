@@ -307,5 +307,5 @@ class TMC2130:
         set_config_field(config, "pwm_autoscale", True)
         set_config_field(config, "sgt", 0)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return TMC2130(config)

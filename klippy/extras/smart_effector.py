@@ -162,7 +162,7 @@ class SmartEffectorEndstopWrapper:
         self._send_command(buf)
         gcmd.respond_info('SmartEffector sensitivity was reset')
 
-def load_config(config):
+def load_config(config, **kwargs):
     smart_effector = SmartEffectorEndstopWrapper(config)
     config.get_printer().add_object('probe',
                                     probe.PrinterProbe(config, smart_effector))

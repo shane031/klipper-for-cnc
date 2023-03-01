@@ -19,5 +19,5 @@ class mcp4728:
         self.i2c.i2c_write([0x40 | (dac << 1),
                             ((value >> 8) & 0x0f) | 0x80, value & 0xff])
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return mcp4728(config)

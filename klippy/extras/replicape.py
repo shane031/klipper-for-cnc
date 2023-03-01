@@ -273,5 +273,5 @@ class Replicape:
             return servo_pwm(self, pin_params)
         raise pins.error("Unknown replicape pin %s" % (pin,))
 
-def load_config(config):
+def load_config(config, **kwargs):
     return Replicape(config)

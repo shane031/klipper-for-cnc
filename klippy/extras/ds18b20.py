@@ -74,7 +74,7 @@ class DS18B20:
             'temperature': round(self.temp, 2),
         }
 
-def load_config(config):
+def load_config(config, **kwargs):
     # Register sensor
     pheaters = config.get_printer().load_object(config, "heaters")
     pheaters.add_sensor_factory("DS18B20", DS18B20)

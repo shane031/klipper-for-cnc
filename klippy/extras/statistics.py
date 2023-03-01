@@ -69,6 +69,6 @@ class PrinterStats:
                          ' '.join([s[1] for s in stats]))
         return eventtime + 1.
 
-def load_config(config):
+def load_config(config, **kwargs):
     config.get_printer().add_object('system_stats', PrinterSysStats(config))
     return PrinterStats(config)

@@ -75,5 +75,5 @@ class PrinterADCScaled:
     def vssa_callback(self, read_time, read_value):
         self.last_vssa = self.calc_smooth(read_time, read_value, self.last_vssa)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return PrinterADCScaled(config)

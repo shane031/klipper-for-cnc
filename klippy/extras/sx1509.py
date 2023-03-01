@@ -197,5 +197,5 @@ class SX1509_pwm(object):
                                   else int(255 * value) & 0xFF)
         self._sx1509.send_register(self._i_on_reg, print_time)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return SX1509(config)

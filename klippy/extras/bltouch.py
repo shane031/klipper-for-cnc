@@ -270,7 +270,7 @@ class BLTouchEndstopWrapper:
         self.store_output_mode(cmd)
         self.sync_print_time()
 
-def load_config(config):
+def load_config(config, **kwargs):
     blt = BLTouchEndstopWrapper(config)
     config.get_printer().add_object('probe', probe.PrinterProbe(config, blt))
     return blt

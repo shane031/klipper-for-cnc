@@ -96,5 +96,5 @@ class PauseResume:
             gcmd.respond_info("action:cancel")
         self.cmd_CLEAR_PAUSE(gcmd)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PauseResume(config)

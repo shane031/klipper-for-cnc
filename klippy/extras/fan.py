@@ -117,5 +117,5 @@ class PrinterFan:
         # Turn fan off
         self.fan.set_speed_from_command(0.)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterFan(config)

@@ -574,5 +574,5 @@ class Angle:
     def start_internal_client(self):
         return self.api_dump.add_internal_client()
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return Angle(config)

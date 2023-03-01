@@ -95,5 +95,5 @@ class BedTiltCalibrate:
             "session. The SAVE_CONFIG command will update the printer\n"
             "config file and restart the printer." % (msg,))
 
-def load_config(config):
+def load_config(config, **kwargs):
     return BedTilt(config)

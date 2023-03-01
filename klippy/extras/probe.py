@@ -506,5 +506,5 @@ class ProbePointsHelper:
         self.results.append(kin_pos)
         self._manual_probe_start()
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterProbe(config, ProbeEndstopWrapper(config))

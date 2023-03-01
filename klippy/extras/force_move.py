@@ -147,5 +147,5 @@ class ForceMove:
             #       and would proably fail.
             toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
 
-def load_config(config):
+def load_config(config, **kwargs):
     return ForceMove(config)

@@ -552,5 +552,5 @@ class PrinterHoming:
             self.printer.lookup_object('stepper_enable').motor_off()
             raise
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterHoming(config)

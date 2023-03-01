@@ -270,5 +270,5 @@ class TMC2660:
         set_config_field(config, "diss2g", 0)
         set_config_field(config, "ts2g", 3)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return TMC2660(config)

@@ -267,5 +267,5 @@ class PrinterLCD:
             raise gcmd.error("Unknown display_data group '%s'" % (group,))
         self.show_data_group = new_dg
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterLCD(config)

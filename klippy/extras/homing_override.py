@@ -61,5 +61,5 @@ class HomingOverride:
         finally:
             self.in_script = False
 
-def load_config(config):
+def load_config(config, **kwargs):
     return HomingOverride(config)

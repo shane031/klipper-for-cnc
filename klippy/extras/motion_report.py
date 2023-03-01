@@ -329,5 +329,5 @@ class PrinterMotionReport:
         self.last_status['live_extruder_velocity'] = evelocity
         return self.last_status
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterMotionReport(config)

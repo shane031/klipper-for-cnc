@@ -73,5 +73,5 @@ class EncoderSensor:
             # Filament is always assumed to be present on an encoder event
             self.runout_helper.note_filament_present(True)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return EncoderSensor(config)

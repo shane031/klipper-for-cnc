@@ -101,7 +101,7 @@ class CustomThermistor:
     def create(self, config):
         return PrinterThermistor(config, self.params)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     thermistor = CustomThermistor(config)
     pheaters = config.get_printer().load_object(config, "heaters")
     pheaters.add_sensor_factory(thermistor.name, thermistor.create)

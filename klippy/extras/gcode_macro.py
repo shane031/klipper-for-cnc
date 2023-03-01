@@ -103,7 +103,7 @@ class PrinterGCodeMacro:
             'action_call_remote_method': self._action_call_remote_method,
         }
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterGCodeMacro(config)
 
 
@@ -187,5 +187,5 @@ class GCodeMacro:
         finally:
             self.in_script = False
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return GCodeMacro(config)

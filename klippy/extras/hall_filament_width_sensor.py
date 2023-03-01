@@ -220,5 +220,5 @@ class HallFilamentWidthSensor:
         self.is_log = False
         gcmd.respond_info("Filament width logging Turned Off")
 
-def load_config(config):
+def load_config(config, **kwargs):
     return HallFilamentWidthSensor(config)

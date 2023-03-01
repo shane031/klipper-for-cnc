@@ -283,5 +283,5 @@ class DeltaCalibrate:
                 raise gcmd.error("Unknown calibrate action")
             self.do_extended_calibration()
 
-def load_config(config):
+def load_config(config, **kwargs):
     return DeltaCalibrate(config)

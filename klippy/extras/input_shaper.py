@@ -159,5 +159,5 @@ class InputShaper:
         for shaper in self.shapers:
             shaper.report(gcmd)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return InputShaper(config)

@@ -340,5 +340,5 @@ class ProbeG38:
         return epos[:3]
 
 
-def load_config(config):
+def load_config(config, **kwargs):
     return ProbeG38(config)

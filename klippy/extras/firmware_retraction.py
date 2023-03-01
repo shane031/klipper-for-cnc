@@ -70,5 +70,5 @@ class FirmwareRetraction:
                 % (self.unretract_length, self.unretract_speed*60))
             self.is_retracted = False
 
-def load_config(config):
+def load_config(config, **kwargs):
     return FirmwareRetraction(config)

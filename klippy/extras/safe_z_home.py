@@ -87,5 +87,5 @@ class SafeZHoming:
             if self.move_to_previous:
                 toolhead.manual_move(prevpos[:2], self.speed)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return SafeZHoming(config)

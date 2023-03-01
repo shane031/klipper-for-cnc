@@ -66,5 +66,5 @@ class PrinterServo:
             angle = gcmd.get_float('ANGLE')
             self._set_pwm(print_time, self._get_pwm_from_angle(angle))
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return PrinterServo(config)

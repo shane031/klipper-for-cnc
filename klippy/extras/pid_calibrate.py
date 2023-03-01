@@ -140,5 +140,5 @@ class ControlAutoTune:
         f.write('\n'.join(pwm + out))
         f.close()
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PIDCalibrate(config)

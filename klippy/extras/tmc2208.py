@@ -219,5 +219,5 @@ class TMC2208:
             reg_name = "IOIN@TMC220x" if drv_type else "IOIN@TMC222x"
         return reg_name, val
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return TMC2208(config)

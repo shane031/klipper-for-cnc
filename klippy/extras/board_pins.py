@@ -20,8 +20,8 @@ class PrinterBoardAliases:
                     for pin_resolver in pin_resolvers:
                         pin_resolver.alias_pin(name, value)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return PrinterBoardAliases(config)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return PrinterBoardAliases(config)

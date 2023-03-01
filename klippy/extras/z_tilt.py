@@ -175,5 +175,5 @@ class ZTilt:
     def get_status(self, eventtime):
             return self.z_status.get_status(eventtime)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return ZTilt(config)

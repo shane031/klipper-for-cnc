@@ -148,5 +148,5 @@ class FilamentWidthSensor:
             self.gcode.run_script_from_command("M221 S100")
         gcmd.respond_info(response)
 
-def load_config(config):
+def load_config(config, **kwargs):
     return FilamentWidthSensor(config)

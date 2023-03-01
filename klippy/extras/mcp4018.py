@@ -93,5 +93,5 @@ class mcp4018:
             self.set_dac(wiper)
             gcmd.respond_info("New value for DIGIPOT = %s, wiper = %.2f"
                                % (self.name, wiper))
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return mcp4018(config)

@@ -38,5 +38,5 @@ class PrinterSensorGeneric:
             'measured_max_temp': round(self.measured_max, 2)
         }
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return PrinterSensorGeneric(config)

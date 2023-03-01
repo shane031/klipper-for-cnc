@@ -102,5 +102,5 @@ class TuningTower:
     def is_active(self):
         return self.normal_transform is not None
 
-def load_config(config):
+def load_config(config, **kwargs):
     return TuningTower(config)

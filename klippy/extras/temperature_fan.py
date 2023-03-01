@@ -181,5 +181,5 @@ class ControlPID:
         if co == bounded_co:
             self.prev_temp_integ = temp_integ
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return TemperatureFan(config)

@@ -18,5 +18,5 @@ class ad5206:
     def set_register(self, reg, value):
         self.spi.spi_send([reg, value])
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return ad5206(config)

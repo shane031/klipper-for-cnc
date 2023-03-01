@@ -280,7 +280,7 @@ DefaultResistanceSensors = [
     ("PT1000", calc_pt100(1000.))
 ]
 
-def load_config(config):
+def load_config(config, **kwargs):
     # Register default sensors
     pheaters = config.get_printer().load_object(config, "heaters")
     for sensor_type, params in DefaultVoltageSensors:
@@ -293,7 +293,7 @@ def load_config(config):
                                         LinearResistance(config, params)))
         pheaters.add_sensor_factory(sensor_type, func)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     if config.get("resistance1", None) is None:
         custom_sensor = CustomLinearVoltage(config)
     else:

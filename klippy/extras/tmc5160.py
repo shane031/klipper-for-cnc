@@ -358,5 +358,5 @@ class TMC5160:
         #   TPOWERDOWN
         set_config_field(config, "tpowerdown", 10)
 
-def load_config_prefix(config):
+def load_config_prefix(config, **kwargs):
     return TMC5160(config)

@@ -1240,5 +1240,5 @@ class ProfileManager:
         gcmd.respond_info("Invalid syntax '%s'" % (gcmd.get_commandline(),))
 
 
-def load_config(config):
+def load_config(config, **kwargs):
     return BedMesh(config)
