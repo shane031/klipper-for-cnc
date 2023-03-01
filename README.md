@@ -1,6 +1,6 @@
 Trying to add ABC axes on this fork, by duplicating the trapq object.
 
-So far it does nothing on G0 A commands, and crashes with "11/SEGV" on homing the X axis.
+So far it does nothing on `G0 A10 B10 C10` commands.
 
 Perhaps it would be better to use multiple extruder axes instead. Those seem to use independent "trapq"s, but it is also a long shot.
 
