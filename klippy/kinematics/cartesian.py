@@ -8,6 +8,11 @@ import stepper
 
 class CartKinematics:
     def __init__(self, toolhead, config):
+        
+        # Axis names
+        self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
+        self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        
         self.printer = config.get_printer()
         # Setup axis rails
         self.dual_carriage_axis = None
@@ -75,7 +80,7 @@ class CartKinematics:
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None, None, None, None]
+        homepos = [None for i in range(self.axis_count + 1)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:
