@@ -123,7 +123,6 @@ class HomingMove:
         #       position, and append it to XYZ components below.
         #       Example:
         #           thpos=[0.0, 0.0, 0.0, 0.0]
-        # NOTE: No longer used.
         thpos = self.toolhead.get_position()
 
         # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
@@ -149,10 +148,17 @@ class HomingMove:
         extruder = self.printer.lookup_object('toolhead').get_extruder()
         # result[3] = kin_spos[extruder.name]
         # TODO: check if "calc_position" should be run in the extruder kinematics too.
-        result_e = kin_spos[extruder.name]
+        result_e = []
+        if extruder.name is not None:
+            result_e = [kin_spos[extruder.name]]
+        else:
+            result_e = [thpos[3:]]
         
-        # NOTE: Join results
-        result = result_xyz + result_abc + [result_e]
+        # NOTE: Join results. This list is used to define "haltpos",
+        #       which is then passed to "toolhead.set_position".
+        #       It must therefore have enough elements (4 for XYZE,
+        #       or 7 for XYZABCE).
+        result = result_xyz + result_abc + result_e
         
         # NOTE: log output for reference
         logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")

@@ -386,7 +386,7 @@ class PrinterExtruder:
 # NOTE: this dummy extruder class is used to initialize 
 #       ToolHead classes at ToolHead.py.
 class DummyExtruder:
-    name = ""
+    name = None
     def __init__(self, printer):
         self.printer = printer
     def update_move_time(self, flush_time):
