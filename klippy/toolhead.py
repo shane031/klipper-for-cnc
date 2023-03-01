@@ -771,6 +771,14 @@ class ToolHead:
     def get_position(self):
         return list(self.commanded_pos)
     
+    def axes_to_xyz(self, axes):
+        """Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
+        
+        Has no effect on XYZ IDs
+        """
+        xyz_ids = [0, 1, 2, 0, 1, 2]
+        return [xyz_ids[i] for i in axes]
+    
     def set_position(self, newpos, homing_axes=()):
         logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")
         self.flush_step_generation()
@@ -797,18 +805,20 @@ class ToolHead:
         #       an unmodified "commanded_pos" might be important.
         self.commanded_pos[:] = newpos
         
+        # NOTE: Set the position of the XYZ kinematics.
         # NOTE: The "homing_axes" argument is a tuple similar to
         #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py"),
         #       used to set axis limits by the (cartesian) kinematics.
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with homing_axes[:3]={homing_axes[:3]}\n\n")
         self.kin.set_position(newpos, homing_axes[:3])
         
+        # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position.\n\n")
-            self.kin_abc.set_position(newpos, homing_axes[3:6])
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
+            self.kin_abc.set_position(newpos, self.axes_to_xyz(homing_axes[3:6]))
         
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
