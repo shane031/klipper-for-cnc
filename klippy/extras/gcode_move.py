@@ -174,8 +174,10 @@ class GCodeMove:
     
     # G-Code movement commands
     def cmd_G1(self, gcmd):
+        
         # Move
         params = gcmd.get_command_parameters()
+        logging.info(f"\n\nGCodeMove: G1 starting setup with params={params}.\n\n")
         try:
             # NOTE: XYZ(ABC) move coordinates.
             for pos, axis in enumerate(self.axis_names):
