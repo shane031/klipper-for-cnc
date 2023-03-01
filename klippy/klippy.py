@@ -133,7 +133,7 @@ class Printer:
             extruder_steppers.append(extruder_stepper)
         return extruder_steppers
     
-    def load_object(self, config, section, default=configfile.sentinel, **kwargs):
+    def load_object(self, config, section, default=configfile.sentinel):
         # NOTE: I believe that this function "loads" all python
         #       files in the "extras/" directory, as objects in
         #       this class.
@@ -185,12 +185,8 @@ class Printer:
         # NOTE: Now the object returned by the modules init function
         #       is saved to the "local" objects dict.
         #       It is saved with a "section" name which i dont understand yet.
-        # NOTE: Add "**kwargs" to pass arbitrary arguments from the loading environment,
-        #       this was done to circunvent the issue of not being able to load a 
-        #       config option twice from different times/places in the code.
-        self.objects[section] = init_func(config.getsection(section), **kwargs)
+        self.objects[section] = init_func(config.getsection(section))
         return self.objects[section]
-    
     def _read_config(self):
         self.objects['configfile'] = pconfig = configfile.PrinterConfig(self)
         config = pconfig.read_main_config()

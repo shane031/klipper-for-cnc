@@ -452,11 +452,10 @@ class ToolHead:
         gcode.register_command('M204', self.cmd_M204)
         
         # Load some default modules
-        kwargs = {"axis": self.axis_names}
         modules = ["gcode_move", "homing", "idle_timeout", "statistics",
                    "manual_probe", "tuning_tower"]
         for module_name in modules:
-            self.printer.load_object(config, module_name, **kwargs)
+            self.printer.load_object(config, module_name)
     
     # Print time tracking
     def _update_move_time(self, next_print_time):
