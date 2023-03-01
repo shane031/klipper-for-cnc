@@ -27,6 +27,8 @@ Within the host code, print times are generally stored in variables named print_
 # Class to track each move request
 class Move:
     def __init__(self, toolhead, start_pos, end_pos, speed):
+        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}.\n\n")
+        
         self.toolhead = toolhead
         self.start_pos = tuple(start_pos)
         self.end_pos = tuple(end_pos)
@@ -52,6 +54,8 @@ class Move:
         
         # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
+        
+        logging.info(f"\n\nMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
         
         # NOTE: If the move in XYZ is very small, then parse it as an extrude-only move.
         if move_d < .000000001:
@@ -852,6 +856,7 @@ class ToolHead:
 
         # NOTE: move checks.
         if not move.move_d:
+            logging.info(f"\n\ntoolhead.move: early return, nothing to move. move.move_d={move.move_d}\n\n")
             return
         if move.is_kinematic_move:
             self.kin.check_move(move)
