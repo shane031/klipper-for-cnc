@@ -594,7 +594,7 @@ class PrinterHoming:
         # NOTE: ABC homing.
         if any(i in [3,4,5] for i in axes) and toolhead.kin_abc is not None:
             kin_abc = toolhead.get_kinematics_abc()
-            self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [3,4,5]])
+            self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in [3,4,5]])
         
     def home_axes(self, kin, homing_axes):
         """Home the requested axis on the specified kinematics.
