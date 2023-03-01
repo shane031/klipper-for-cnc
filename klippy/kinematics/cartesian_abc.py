@@ -134,6 +134,7 @@ class CartKinematicsABC(CartKinematics):
         else:
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
         # Perform homing
+        logging.info(f"\n\ncartesian_abc._home_axis: homing  axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
     
     def home(self, homing_state):
