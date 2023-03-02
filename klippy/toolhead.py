@@ -45,10 +45,8 @@ class Move:
         self.is_kinematic_move = True
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_names = toolhead.axis_names   # XYZABC
-        self.axis_count = len(self.axis_names)  # 6
-        self.xyz_axis_count = toolhead.xyz_axis_count # 3
-        self.z_axis_id = toolhead.z_axis_id           # 2
+        self.axis_names = toolhead.axis_names
+        self.axis_count = len(self.axis_names)
 
         # NOTE: Compute the components of the displacement vector.
         #       The last component is now the extruder.
@@ -113,9 +111,8 @@ class Move:
     
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
-        # NOTE: rewrite for variable number of non-extruder axes.
+        m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
         # TODO: check if the extruder axis is always passed to "self.end_pos" ("ep" below).
-        m = msg + ": " + " ".join( ["%.3f" % i for i in tuple(ep[:-1])] + ["[%.3f]" % tuple(ep[-1:])] )
         return self.toolhead.printer.command_error(m)
     
     def calc_junction(self, prev_move):
@@ -336,12 +333,8 @@ class ToolHead:
     """
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
-        self.axis_names = config.get('axis', 'XYZ') # "XYZ" or "XYZABC"
-        self.axis_count = len(self.axis_names)      # 3     or 6
-        # TODO: replace hardcoding.
-        self.xyz_axis_count = 3
-        self.z_axis_id = 2
-        self.max_axis_count = 6
+        self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
+        self.axis_count = len(self.axis_names)
         
         logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
         
@@ -404,12 +397,11 @@ class ToolHead:
         
         # NOTE: setup TRAPQ for the extra ABC axes here.
         self.abc_trapq = None
-        if len(self.axis_names) > self.xyz_axis_count:
+        if len(self.axis_names) // 3 == 2:
             logging.info(f"\n\nToolHead: setting up ABC trapq.\n\n")
             self.abc_trapq = TrapQ()
-        # NOTE: check for 6 axis or less.
-        if len(self.axis_names) > self.max_axis_count:
-            msg = "Error loading toolhead with more than 7 axis: '%s'" % (self.axis_names,)
+        elif len(self.axis_names) > 6:
+            msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
             logging.exception(msg)
             raise config.error(msg)
         
@@ -545,7 +537,6 @@ class ToolHead:
             self.print_time = min_print_time
             self.printer.send_event(self.event_prefix + "sync_print_time",  # "toolhead:sync_print_time"
                                     curtime, est_print_time, self.print_time)
-    
     def _process_moves(self, moves):
         """
         When ToolHead._process_moves() is called, everything about the move is known - its start location, 
@@ -836,14 +827,13 @@ class ToolHead:
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos={newpos} and homing_axes[:self.xyz_axis_count]={homing_axes[:self.xyz_axis_count]}\n\n")
-        self.kin.set_position(newpos[:self.xyz_axis_count], homing_axes[:self.xyz_axis_count])
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos={newpos} and homing_axes[:3]={homing_axes[:3]}\n\n")
+        self.kin.set_position(newpos[:3], homing_axes[:3])
         
         # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[self.xyz_axis_count:self.axis_count]={homing_axes[self.xyz_axis_count:self.axis_count]}\n\n")
-            self.kin_abc.set_position(newpos[self.xyz_axis_count:self.axis_count], 
-                                      self.axes_to_xyz(homing_axes[self.xyz_axis_count:self.axis_count]))
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
+            self.kin_abc.set_position(newpos[3:6], self.axes_to_xyz(homing_axes[3:6]))
         
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
@@ -1098,7 +1088,6 @@ class ToolHead:
     def get_trapq(self):
         return self.trapq
     def get_abc_trapq(self):
-        # NOTE: equivalent to "get_trapq" for ABC kinematics. 
         return self.abc_trapq.trapq
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
