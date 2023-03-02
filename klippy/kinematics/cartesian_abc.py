@@ -27,9 +27,15 @@ class CartKinematicsABC(CartKinematics):
     def __init__(self, toolhead, config):
         self.printer = config.get_printer()
         
-        # Axis names
-        self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
-        self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        # XYZ axis info.
+        self.xyz_axis_count = toolhead.xyz_axis_count   # 3
+        self.z_axis_id = toolhead.z_axis_id             # 2
+        self.axis_count = toolhead.axis_count           # Length of full axis specification (not just ABC).
+        
+        # ABC axis names and count
+        self.axis_names = toolhead.axis_names[self.xyz_axis_count:]   # Will get "ABC" from "XYZABC"
+        self.abc_axis_count = len(self.axis_names)  # Amount of axis from ABC to setup.
+        
         
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
         
@@ -41,12 +47,14 @@ class CartKinematicsABC(CartKinematics):
         #       of the three axis, including their corresponding endstops.
         # NOTE: The "self.rails" list contains "PrinterRail" objects, which
         #       can have one or more stepper (PrinterStepper/MCU_stepper) objects.
+        # NOTE: setup only the required amount of stepers.
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in self.axis_names.lower()]
         
-        # NOTE: this must be "xyz" and not "abc", see "cartesian_stepper_alloc" in C code.
-        # for rail, axis in zip(self.rails, self.axis_names.lower()):
-        for rail, axis in zip(self.rails, "xyz"):
+        # NOTE: This must be "xyz" and not "abc", see "cartesian_stepper_alloc" in C code.
+        # for rail, axis in zip(self.rails, self.axis_names.lower()).
+        # NOTE: call "setup_itersolve" only the required amount of axis.
+        for rail, axis in zip(self.rails, "xyz"[:self.abc_axis_count]):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         
         for s in self.get_steppers():
@@ -68,7 +76,7 @@ class CartKinematicsABC(CartKinematics):
                                               above=0., maxval=max_velocity)
         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
                                            above=0., maxval=max_accel)
-        self.limits = [(1.0, -1.0)] * 3
+        self.limits = [(1.0, -1.0)] * self.abc_axis_count
         ranges = [r.get_range() for r in self.rails]
         
         # TODO: check if this works with ABC axes, it will result in 
@@ -120,7 +128,8 @@ class CartKinematicsABC(CartKinematics):
     
     def note_z_not_homed(self):
         # Helper for Safe Z Home
-        self.limits[2] = (1.0, -1.0)
+        # TODO: this will be problematic. The limits are in ABC terms, not XYZ terms.
+        self.limits[self.z_axis_id] = (1.0, -1.0)
     
     def _home_axis(self, homing_state, axis, rail):
         # Determine movement
@@ -145,11 +154,11 @@ class CartKinematicsABC(CartKinematics):
             self._home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
     
     def _motor_off(self, print_time):
-        self.limits = [(1.0, -1.0)] * 3
+        self.limits = [(1.0, -1.0)] * self.abc_axis_count
     
     def _check_endstops(self, move):
         end_pos = move.end_pos
-        for i in (0, 1, 2):
+        for i in range(self.abc_axis_count):
             if (move.axes_d[i]
                 and (end_pos[i] < self.limits[i][0]
                      or end_pos[i] > self.limits[i][1])):
@@ -168,23 +177,23 @@ class CartKinematicsABC(CartKinematics):
         Args:
             move (tolhead.Move): Instance of the Move class.
         """
-        # TODO: replace or remove the "Z" logic here.
         
         limits = self.limits
-        # TODO: Avoid hardcoding of "move.end_pos[3:6]" to grab ABC coords. 
-        xpos, ypos = move.end_pos[3:6]
+        # NOTE: Avoid hardcoding of "move.end_pos[3:6]" to grab ABC coords only.
+        xpos, ypos = move.end_pos[self.xyz_axis_count:(self.xyz_axis_count+self.abc_axis_count)]
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
         
-        # NOTE: check if the move involves the Z axis, to limit the speed.
-        if not move.axes_d[2]:
+        # TODO: Replace or remove the "Z" logic here. Note that it applies to the Z axis (of XYZ, not ABC).
+        # NOTE: Check if the move involves the Z axis, to limit the speed.
+        if not move.axes_d[self.z_axis_id]:
             # Normal XY move - use defaults
             return
         else:
             # Move with Z - update velocity and accel for slower Z axis
             self._check_endstops(move)
-            z_ratio = move.move_d / abs(move.axes_d[2])
+            z_ratio = move.move_d / abs(move.axes_d[self.z_axis_id])
             move.limit_speed(
                 self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
     
