@@ -833,7 +833,7 @@ class ToolHead:
         # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
-            self.kin_abc.set_position(newpos[3:6], self.axes_to_xyz(homing_axes[3:6]))
+            self.kin_abc.set_position(newpos[3:6], tuple(self.axes_to_xyz(homing_axes[3:6])))
         
         # NOTE: this event is mainly recived by gcode_move.reset_last_position,
         #       which updates its "self.last_position" with (presumably) the
