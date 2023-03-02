@@ -586,7 +586,7 @@ class PrinterHoming:
         return epos
 
     def cmd_G28(self, gcmd):
-        logging.info(f"\n\nPrinterHoming.cmd_G28: homing axis.\n\n")
+        logging.info(f"\n\nPrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}\n\n")
         
         toolhead = self.printer.lookup_object('toolhead')
         # Move to origin
@@ -598,6 +598,8 @@ class PrinterHoming:
         if not axes:
             axes = list(range(toolhead.axis_count))
             # axes = [0, 1, 2]
+        
+        logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
         
         # NOTE: XYZ homing.
         if any(i in [0,1,2] for i in axes):
