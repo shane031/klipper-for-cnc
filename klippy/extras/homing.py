@@ -623,6 +623,7 @@ class PrinterHoming:
         #       Not useful, adapting "home_rails" would have been complicated.
         # axes = self.axes_to_xyz(homing_axes)
         axes = homing_axes
+        logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes}\n\n")
         
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
