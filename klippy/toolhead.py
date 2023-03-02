@@ -798,14 +798,14 @@ class ToolHead:
         self.flush_step_generation()
         
         # NOTE: Set the position of the toolhead's "trapq".
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ trapq pos.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ trapq pos to newpos={newpos[:3]}.\n\n")
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                    newpos[0], newpos[1], newpos[2])
         
         # NOTE: Set the position of the ABC axis "trapq" too.
         if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos.\n\n")
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos to newpos={newpos[3:6]}\n\n")
             # ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
                                        newpos[3], newpos[4], newpos[5])
