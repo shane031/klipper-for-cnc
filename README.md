@@ -1,7 +1,5 @@
 Trying to add ABC axes on this fork, by duplicating the trapq object.
 
-Perhaps it would be better to use multiple extruder axes instead. Those seem to use independent "trapq"s, but it is also a long shot.
-
 What works:
 
 - Movement seems to work :)
@@ -13,6 +11,8 @@ Important TODOs:
 - Run tests! Only basic functionality has been covered.
 - Limit checks for ABC axes not implemented.
 - "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
+
+Perhaps it would have been better/simpler to use multiple extruder axes instead.
 
 ----
 
