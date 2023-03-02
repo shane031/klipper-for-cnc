@@ -173,8 +173,12 @@ class GCodeMove:
         # NOTE: Handler for "toolhead:set_position" and other events,
         #       sent at least by "toolhead.set_position".
         #       Also called by "_handle_activate_extruder" and other methods.
+        logging.info("\n\n" + f"gcode_move.reset_last_position: triggered.\n\n")
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
+            logging.info("\n\n" + f"gcode_move.reset_last_position: set self.last_position={self.last_position}\n\n")
+        else:
+            logging.info("\n\n" + f"gcode_move.reset_last_position: printer not ready self.last_position={self.last_position} not updated.\n\n")
     
     # G-Code movement commands
     def cmd_G1(self, gcmd):

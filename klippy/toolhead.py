@@ -835,6 +835,9 @@ class ToolHead:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
             self.kin_abc.set_position(newpos[3:6], self.axes_to_xyz(homing_axes[3:6]))
         
+        # NOTE: this event is mainly recived by gcode_move.reset_last_position,
+        #       which updates its "self.last_position" with (presumably) the
+        #       "self.commanded_pos" above.
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
 
     def set_position_e(self, newpos_e):
@@ -858,8 +861,8 @@ class ToolHead:
             # Set its position
             ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(extruder_trapq, 
-                                    self.print_time,
-                                    newpos_e, 0., 0.)
+                                       self.print_time,
+                                       newpos_e, 0., 0.)
             rail.set_position([newpos_e, 0., 0.])
     
     def move(self, newpos, speed):
