@@ -6,6 +6,10 @@ What works:
 - Homing now works.
 - Probing with G38 works.
 
+Bugs:
+
+- `SET_KINEMATIC_POSITION` will sometimes cause `MCU 'tools' shutdown: Rescheduled timer in the past`  error on subsequent G1 commands.
+
 Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
