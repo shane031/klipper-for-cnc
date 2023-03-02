@@ -114,7 +114,7 @@ class Move:
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
         # NOTE: rewrite for variable number of non-extruder axes.
-        # TODO: check if the extruder axis is always passed.
+        # TODO: check if the extruder axis is always passed to "self.end_pos" ("ep" below).
         m = msg + ": " + " ".join( ["%.3f" % i for i in tuple(ep[:-1])] + ["[%.3f]" % tuple(ep[-1:])] )
         return self.toolhead.printer.command_error(m)
     
