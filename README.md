@@ -11,6 +11,8 @@ What works:
 Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
+- Limit checks for ABC axes not implemented.
+- "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
 
 ----
 
@@ -31,10 +33,21 @@ To begin using Klipper start by [installing](https://www.klipper3d.org/Installat
 Klipper is Free Software. See the [license](COPYING) or read the [documentation](https://www.klipper3d.org/Overview.html). We depend on
 the generous support from our [sponsors](https://www.klipper3d.org/Sponsors.html).
 
-# Fork notes
+# Fork notes: 7-axis
+
+Config examples at the next section.
 
 This fork implements:
 
+- CNC on XYZABCE axes.
+    - Module: core modifications to toolhead, homing, and cartesian kinematics. New "abc" cartesian kinematics: [cartesian_abc.py](./klippy/kinematics/cartesian_abc.py)
+    - Commands:
+        - Move: `G1 X10 Y10 Z10 A10 B10 C10 E10` (same as a regular G1 command).
+        - Home: `G28 A` (same as regular `G28`).
+        - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
+        - And so on ...
+    - Caveats: needs testing on longer GCODE programs. Limit checks not implemented.
+    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`.
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
@@ -45,7 +58,7 @@ This fork implements:
     - Example command: `G38.2 X20 F10`
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
-    - Known incompatibilites: `[probe_G38_multi ...]`
+    - Module incompatibilites: `[probe_G38_multi ...]`
 - General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
     - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
@@ -73,6 +86,41 @@ Cheers!
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
 
 These are meant as reference configs; you _must_ adjust them to match your setup first.
+
+### Extra ABC axes config
+
+See examples here: [labo-robot-pinmap](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap)
+
+Configure extra ABC kinematics: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer.cfg)
+
+```yaml
+[printer]
+# Regular pritner configuration.
+kinematics: cartesian
+# Units: mm/s and mm/s^2:
+max_velocity: 5000    # F120000
+max_z_velocity: 250   # F30000
+max_accel: 1000
+# Add ABC kinematics to the toolhead:
+kinematics_abc: cartesian_abc
+axis: XYZABC
+```
+
+Configure the additional ABC steppers: [printer_steppers_abc.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer_steppers_abc.cfg)
+
+```yaml
+[stepper_a]
+# Regular stepper configuration.
+# ...
+
+[stepper_b]
+# Regular stepper configuration.
+# ...
+
+[stepper_c]
+# Regular stepper configuration.
+# ...
+```
 
 ### Extruder homing config
 
@@ -127,6 +175,8 @@ Note that `[probe_G38]` is incompatible with `[probe_G38_multi extruder]`.
 
 ### Multi-probing config
 
+Note that this module also implements the regular `G38.n` commands, using the probe section associated to the active extruder's name. 
+
 Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38_multi.cfg)
 
 ```yaml
@@ -136,7 +186,7 @@ pin: ^tools:PC5
 z_offset: 0
 
 
-[probe_G38_multi extruder1]
+[probe_G38_multi my_probe]
 recovery_time: 0.0
 pin: ^tools:PB1
 z_offset: 0
