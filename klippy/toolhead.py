@@ -859,15 +859,14 @@ class ToolHead:
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
         homing_axes_xyz = [axis for axis in homing_axes if axis in [0, 1, 2]]
         logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos[:3]={newpos[:3]} and homing_axes_xyz={homing_axes_xyz}\n\n")
-        self.kin.set_position(newpos[:3], homing_axes=tuple(homing_axes_xyz))
+        self.set_kinematics_position(kin=self.kin, newpos=newpos[:3], homing_axes=tuple(homing_axes_xyz))
         
         # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
             homing_axes_abc = [axis for axis in homing_axes if axis in [3, 4, 5]]
             homing_axes_abc = self.axes_to_xyz(homing_axes_abc)  # NOTE: returns [] if axes []
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with newpos[:3]={newpos[3:6]} and homing_axes_abc={homing_axes_abc} (converted)\n\n")
-            self.kin_abc.set_position(newpos[3:6], homing_axes=tuple(homing_axes_abc))
-            self.set_kinematics_position(newpos[3:6], homing_axes=tuple(homing_axes_abc))
+            self.set_kinematics_position(kin=self.kin_abc, newpos=newpos[3:6], homing_axes=tuple(homing_axes_abc))
             
         # NOTE: "set_position_e" was inserted above and not after 
         #       updating "commanded_pos" under the suspicion that 
