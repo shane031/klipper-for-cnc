@@ -832,8 +832,8 @@ class ToolHead:
         
         return result
     
-    def get_elements(self, positions, axis):
-        return [ops[i] for i in axis]
+    def get_elements(self, toolhead_pos, axes):
+        return [toolhead_pos[axis] for axis in axes]
     
     def set_position(self, newpos, homing_axes=()):
         logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")
