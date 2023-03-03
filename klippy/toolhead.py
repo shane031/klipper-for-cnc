@@ -447,7 +447,7 @@ class ToolHead:
                                             config_name='kinematics',
                                             trapq=self.trapq)
             # Save the kinematics to the dict
-            self.kinematics["XYZ"] = self.kin_abc
+            self.kinematics["XYZ"] = self.kin
         else:
             self.trapq = None
             self.kin = None
