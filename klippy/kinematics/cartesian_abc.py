@@ -28,7 +28,8 @@ class CartKinematicsABC(CartKinematics):
         self.printer = config.get_printer()
         
         # Axis names
-        self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
+        self.axis = [3, 4, 5]
+        self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "ABC" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
         

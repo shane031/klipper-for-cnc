@@ -10,7 +10,8 @@ class CartKinematics:
     def __init__(self, toolhead, config, trapq=None):
         
         # Axis names
-        self.axis_names = toolhead.axis_names[:3]  # Will get "ABC" from "XYZABC"
+        self.axis = [0, 1, 2]
+        self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "XYZ" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
         
         # Get the trapq
