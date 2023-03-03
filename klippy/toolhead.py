@@ -446,6 +446,8 @@ class ToolHead:
             self.kin = self.load_kinematics(config=config, 
                                             config_name='kinematics',
                                             trapq=self.trapq)
+            # Specify which of the toolhead position elements correspon to the axis
+            self.kin.axis = [0, 1, 2]
             # Save the kinematics to the dict
             self.kinematics["XYZ"] = self.kin
         else:
@@ -460,6 +462,8 @@ class ToolHead:
             self.kin_abc = self.load_kinematics(config=config, 
                                                 config_name='kinematics_abc',
                                                 trapq=self.abc_trapq)
+            # Specify which of the toolhead position elements correspon to the axis
+            self.kin.axis = [3 ,4 ,5]
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
@@ -828,45 +832,32 @@ class ToolHead:
         
         return result
     
+    def get_elements(positions, axis):
+        return [ops[i] for i in axis]
+    
     def set_position(self, newpos, homing_axes=()):
         logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")
         self.flush_step_generation()
-        
-        # NOTE: Set the position of the toolhead's "trapq".
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ trapq pos to newpos={newpos[:3]}.\n\n")
-        ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.trapq_set_position(self.trapq, self.print_time,
-                                   newpos[0], newpos[1], newpos[2])
-        
-        # NOTE: Set the position of the ABC axis "trapq" too.
-        if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos to newpos={newpos[3:6]}\n\n")
-            # ffi_main, ffi_lib = chelper.get_ffi()
-            ffi_lib.trapq_set_position(self.abc_trapq, self.print_time,
-                                       newpos[3], newpos[4], newpos[5])
+            
+        # NOTE: Set the position of the axes "trapq".
+        for axes in ["XYZ", "ABC"]:
+            kin = self.kinematics[axes]
+            new_kin_pos = self.get_elements(newpos, kin.axis)
+            logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq pos to newpos={new_kin_pos}\n\n")
+            self.set_kin_trap_position(kin.trapq, new_kin_pos)
         
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count])
         
-        # NOTE: Set the position of the XYZ kinematics.
-        # NOTE: The "homing_axes" argument is a tuple similar to
-        #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py"),
-        #       used to set axis limits by the (cartesian) kinematics.
-        # NOTE: Calls "rail.set_position" on each stepper which in turn
-        #       calls "itersolve_set_position" from "itersolve.c".
-        # NOTE: Passing only the first three elements (XYZ) to this set_position.
-        homing_axes_xyz = [axis for axis in homing_axes if axis in [0, 1, 2]]
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos[:3]={newpos[:3]} and homing_axes_xyz={homing_axes_xyz}\n\n")
-        self.set_kinematics_position(kin=self.kin, newpos=newpos[:3], homing_axes=tuple(homing_axes_xyz))
-        
-        # NOTE: Also set the position of the ABC kinematics.
-        if self.abc_trapq is not None:
-            homing_axes_abc = [axis for axis in homing_axes if axis in [3, 4, 5]]
-            homing_axes_abc = self.axes_to_xyz(homing_axes_abc)  # NOTE: returns [] if axes []
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with newpos[:3]={newpos[3:6]} and homing_axes_abc={homing_axes_abc} (converted)\n\n")
-            self.set_kinematics_position(kin=self.kin_abc, newpos=newpos[3:6], homing_axes=tuple(homing_axes_abc))
+        # NOTE: Set the position of the axes "kinematics".
+        for axes in ["XYZ", "ABC"]:
+            kin = self.kinematics[axes]
+            new_kin_pos = self.get_elements(newpos, kin.axis)
+            homing_axes = [axis for axis in homing_axes if axis in kin.axis]
+            logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position with newpos={new_kin_pos} and homing_axes={homing_axes}\n\n")
+            self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(homing_axes))
             
         # NOTE: "set_position_e" was inserted above and not after 
         #       updating "commanded_pos" under the suspicion that 
@@ -878,8 +869,7 @@ class ToolHead:
         #       "self.commanded_pos" above.
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
         
-        
-    def set_trap_position(self, trapq, newpos):
+    def set_kin_trap_position(self, trapq, newpos):
         """Abstraction of set_position for different sets of kinematics.
 
         Args:
@@ -887,14 +877,14 @@ class ToolHead:
             newpos (list): 3-element list with the new positions for the trapq.
         """
         
-        # NOTE: Set the position of the toolhead's "trapq".
-        logging.info("\n\n" + f"toolhead.set_trap_position: setting trapq pos to newpos={newpos}.\n\n")
-        ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.trapq_set_position(self.trapq, self.print_time,
-                                   newpos[0], newpos[1], newpos[2])
-        
-        logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
-        self.kin.set_position(newpos, homing_axes=tuple(homing_axes))
+        if trapq is not None:
+            # NOTE: Set the position of the toolhead's "trapq".
+            logging.info("\n\n" + f"toolhead.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
+            ffi_main, ffi_lib = chelper.get_ffi()
+            ffi_lib.trapq_set_position(self.trapq, self.print_time,
+                                    newpos[0], newpos[1], newpos[2])
+        else:
+            logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     
     def set_kinematics_position(self, kin, newpos, homing_axes):
         """Abstraction of set_position for different sets of kinematics.
@@ -904,10 +894,17 @@ class ToolHead:
             newpos (list): 3-element list with the new positions for the kinematics.
             homing_axes (tuple): 3-element tuple indicating the axes that should have their limits re-applied.
         """
-        
-        logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
-        kin.set_position(newpos, homing_axes=tuple(homing_axes_xyz))
-
+        # NOTE: The "homing_axes" argument is a tuple similar to
+        #       "(0,1,2)" (see SET_KINEMATIC_POSITION at "force_move.py"),
+        #       used to set axis limits by the (cartesian) kinematics.
+        # NOTE: Calls "rail.set_position" on each stepper which in turn
+        #       calls "itersolve_set_position" from "itersolve.c".
+        # NOTE: Passing only the first three elements (XYZ) to this set_position.
+        if kin is not None:
+            logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
+            kin.set_position(newpos, homing_axes=tuple(homing_axes))
+        else:
+            logging.info("\n\n" + f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
 
     def set_position_e(self, newpos_e):
         """Extruder version of set_position."""
