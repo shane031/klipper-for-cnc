@@ -803,7 +803,7 @@ class ToolHead:
                                    newpos[0], newpos[1], newpos[2])
         
         # NOTE: Set the position of the ABC axis "trapq" too.
-        if (self.abc_trapq is not None) and (len(homing_axes) == 6):
+        if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos to newpos={newpos[3:6]}\n\n")
             # ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
@@ -830,7 +830,7 @@ class ToolHead:
         self.kin.set_position(newpos[:3], homing_axes[:3])
         
         # NOTE: Also set the position of the ABC kinematics.
-        if (self.abc_trapq is not None) and (len(homing_axes) == 6):
+        if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
             self.kin_abc.set_position(newpos[3:6], tuple(self.axes_to_xyz(homing_axes[3:6])))
         
