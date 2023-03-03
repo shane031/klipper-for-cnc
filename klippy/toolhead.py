@@ -826,13 +826,16 @@ class ToolHead:
         # NOTE: Calls "rail.set_position" on each stepper which in turn
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
-        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos={newpos} and homing_axes[:3]={homing_axes[:3]}\n\n")
-        self.kin.set_position(newpos[:3], homing_axes[:3])
+        homing_axes_xyz = [axis for axis in homing_axes if axis in [0, 1, 2]]
+        logging.info("\n\n" + f"toolhead.set_position: setting XYZ kinematic position with newpos={newpos} and homing_axes_xyz={homing_axes_xyz}\n\n")
+        self.kin.set_position(newpos[:3], homing_axes=tuple(homing_axes_xyz))
         
         # NOTE: Also set the position of the ABC kinematics.
         if self.abc_trapq is not None:
-            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes[3:6]={homing_axes[3:6]}\n\n")
-            self.kin_abc.set_position(newpos[3:6], tuple(self.axes_to_xyz(homing_axes[3:6])))
+            homing_axes_abc = [axis for axis in homing_axes if axis in [3, 4, 5]]
+            homing_axes_abc = self.axes_to_xyz(homing_axes_abc)  # NOTE: returns [] if axes []
+            logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with homing_axes_abc={homing_axes_abc} (converted)\n\n")
+            self.kin_abc.set_position(newpos[3:6], homing_axes=tuple(homing_axes_abc))
         
         # NOTE: this event is mainly recived by gcode_move.reset_last_position,
         #       which updates its "self.last_position" with (presumably) the
