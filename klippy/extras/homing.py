@@ -221,15 +221,18 @@ class HomingMove:
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
                                                 movepos=movepos,  # [0.0, 0.0, 0.0, -110.0]
                                                 speed=speed)
-            # NOTE: "wait" is a "reactor.completion" object, returned by
-            #       the "home_start" method of "MCU_endstop" (at mcu.py)
+            # NOTE: "wait" is a "ReactorCompletion" object (from "reactor.py"),
+            #       setup by the "home_start" method of "MCU_endstop" (at mcu.py)
             wait = mcu_endstop.home_start(print_time=print_time, 
                                           sample_time=ENDSTOP_SAMPLE_TIME,
                                           sample_count=ENDSTOP_SAMPLE_COUNT, 
                                           rest_time=rest_time,
                                           triggered=triggered)
             endstop_triggers.append(wait)
-        all_endstop_trigger = multi_complete(self.printer, endstop_triggers)
+        # NOTE: the "endstop_triggers" list contains "reactor.completion" objects.
+        #       Those are created by returned by the "home_start" method 
+        #       of "MCU_endstop" (at mcu.py).
+        all_endstop_trigger = multi_complete(printer=self.printer, completions=endstop_triggers)
 
         # NOTE: This dwell used to be needed by low-power RPi2. Otherwise
         #       calculations would take too long, and by the time they were sent,
@@ -602,13 +605,13 @@ class PrinterHoming:
         logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
         
         # NOTE: XYZ homing.
+        kin = toolhead.get_kinematics()
         if any(i in [0,1,2] for i in axes):
-            kin = toolhead.get_kinematics()
             self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [0,1,2]])
         
         # NOTE: ABC homing.
-        if any(i in [3,4,5] for i in axes) and toolhead.kin_abc is not None:
-            kin_abc = toolhead.get_kinematics_abc()
+        kin_abc = toolhead.get_kinematics_abc()
+        if any(i in [3,4,5] for i in axes) and kin_abc is not None:
             self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in [3,4,5]])
         
     def home_axes(self, kin, homing_axes):

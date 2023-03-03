@@ -8,7 +8,9 @@ What works:
 
 Bugs:
 
-- `SET_KINEMATIC_POSITION` will sometimes cause `MCU 'tools' shutdown: Rescheduled timer in the past`  error on subsequent G1 commands.
+- `SET_KINEMATIC_POSITION` will _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Must track down the cause.
+- `G28` will also fail with a similar error on AB homing, also hard to reproduce.
+- See: https://github.com/naikymen/klipper-homing-extruder/issues/6
 
 Important TODOs:
 

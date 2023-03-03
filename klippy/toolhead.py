@@ -643,8 +643,7 @@ class ToolHead:
         if self.special_queuing_state:
             # NOTE: this block is executed when "special_queuing_state" is not None.
             # NOTE: loging "next_move_time" for tracing.
-            logging.info("\n\nToolHead _process_moves: " +
-                         "calling _update_drip_move_time with " +
+            logging.info("\n\nToolHead _process_moves: calling _update_drip_move_time with " +
                          f"next_move_time={str(next_move_time)}\n\n")
             # NOTE: this function loops "while self.print_time < next_print_time".
             #       It "pauses before sending more steps" using "drip_completion.wait",
@@ -956,8 +955,11 @@ class ToolHead:
         #       (i.e. when its value is not "" or None).
         flush_delay = DRIP_TIME + self.move_flush_time + self.kin_flush_delay
         while self.print_time < next_print_time:
-            # NOTE: "drip_completion.test" is likely a method from "ReactorCompletion",
+            # NOTE: "drip_completion.test" is a method from "ReactorCompletion",
             #       but is beyond my understanding and deathwishes for spelunking.
+            # NOTE: The "drip_completion" object was created by the "multi_complete"
+            #       function at "homing.py", from a list of "wait" objects (returned
+            #       by the "MCU_endstop.home_start" method, called during homing).
             # TODO: ask what it is for!
             if self.drip_completion.test():
                 # NOTE: this "exception" does nothing, it "passes",
@@ -981,8 +983,6 @@ class ToolHead:
             #       before "self.print_time >= next_print_time" by "MOVE_BATCH_TIME".
     
     def drip_move(self, newpos, speed, drip_completion):
-        # NOTE: "drip_completion=all_endstop_trigger" is 
-        #       probably made from "reactor.completion" objects.
         self.dwell(self.kin_flush_delay)
         # Transition from "Flushed"/"Priming"/main state to "Drip" state
         self.move_queue.flush()
@@ -991,6 +991,10 @@ class ToolHead:
         self.reactor.update_timer(self.flush_timer, self.reactor.NEVER)
         self.move_queue.set_flush_time(self.buffer_time_high)
         self.idle_flush_print_time = 0.
+        # NOTE: The "drip_completion=all_endstop_trigger" object is 
+        #       probably made from "reactor.completion" objects.
+        # NOTE: the "drip_completion.test" method will be used during
+        #       the call to "_update_drip_move_time" during a homing move.
         self.drip_completion = drip_completion
         
         # Submit move
