@@ -527,7 +527,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, free_time)
             
             # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
-            self.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
+            self.trapq_finalize_moves(self.abc_trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
@@ -653,7 +653,7 @@ class ToolHead:
             # NOTE: setup trapq append for the ABC axes here too.
             if self.abc_trapq is not None:
                 self.abc_trapq.trapq_append(
-                    self.abc_trapq.trapq, next_move_time,
+                    self.abc_trapq, next_move_time,
                     move.accel_t, move.cruise_t, move.decel_t,
                     move.start_pos[3], move.start_pos[4], move.start_pos[5],
                     move.axes_r[3], move.axes_r[4], move.axes_r[5],
@@ -842,7 +842,7 @@ class ToolHead:
         if self.abc_trapq is not None:
             logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos to newpos={newpos[3:6]}\n\n")
             # ffi_main, ffi_lib = chelper.get_ffi()
-            ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
+            ffi_lib.trapq_set_position(self.abc_trapq, self.print_time,
                                        newpos[3], newpos[4], newpos[5])
         
         # NOTE: Also set the position of the extruder's "trapq".
@@ -1100,7 +1100,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
             
             # NOTE: call trapq_finalize_moves on the ABC exes too.
-            self.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
+            self.trapq_finalize_moves(self.abc_trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
@@ -1166,7 +1166,7 @@ class ToolHead:
     def get_trapq(self):
         return self.trapq
     def get_abc_trapq(self):
-        return self.abc_trapq.trapq
+        return self.abc_trapq
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
     def note_step_generation_scan_time(self, delay, old_delay=0.):
