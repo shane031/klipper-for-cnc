@@ -131,28 +131,28 @@ class ForceMove:
         z = gcmd.get_float('Z', curpos[2])
         e = gcmd.get_float('E', curpos[toolhead.axis_count])
         
-        logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
-        # NOTE: The "homing_axes" argument is used to
-        #       set axis limits by the (cartesian) kinematics.
-        #       Passing "3" for the extruder is not needed for now,
-        #       and would proably fail.
-        toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
+        # logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
+        # # NOTE: The "homing_axes" argument is used to
+        # #       set axis limits by the (cartesian) kinematics.
+        # #       Passing "3" for the extruder is not needed for now,
+        # #       and would proably fail.
+        # toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
         
-        # # TODO: Improve. This is a very crude/hardcoded implementation.
-        # if toolhead.axis_count >= 6:
-        #     if toolhead.axis_names[3:6] == "ABC":
-        #         a = gcmd.get_float('A', curpos[3])
-        #         b = gcmd.get_float('B', curpos[4])
-        #         c = gcmd.get_float('C', curpos[5])
-        #         logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", x, y, z, a, b, c, e)
-        #         toolhead.set_position([x, y, z, a, b, c, e], homing_axes=(0, 1, 2, 3, 4, 5))
-        # elif toolhead.axis_names == "XYZ":
-        #     logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
-        #     # NOTE: The "homing_axes" argument is used to
-        #     #       set axis limits by the (cartesian) kinematics.
-        #     #       Passing "3" for the extruder is not needed for now,
-        #     #       and would proably fail.
-        #     toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
+        # TODO: Improve. This is a very crude/hardcoded implementation.
+        if toolhead.axis_count >= 6:
+            if toolhead.axis_names[3:6] == "ABC":
+                a = gcmd.get_float('A', curpos[3])
+                b = gcmd.get_float('B', curpos[4])
+                c = gcmd.get_float('C', curpos[5])
+                logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", x, y, z, a, b, c, e)
+                toolhead.set_position([x, y, z, a, b, c, e], homing_axes=(0, 1, 2, 3, 4, 5))
+        elif toolhead.axis_names == "XYZ":
+            logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
+            # NOTE: The "homing_axes" argument is used to
+            #       set axis limits by the (cartesian) kinematics.
+            #       Passing "3" for the extruder is not needed for now,
+            #       and would proably fail.
+            toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
 
 def load_config(config):
     return ForceMove(config)
