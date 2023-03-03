@@ -131,7 +131,7 @@ class MCU_stepper:
             self._stepper_kinematics, coord[0], coord[1], coord[2])
     
     def set_position(self, coord):
-        logging.info("\n\n" + f"MCU_stepper.set_position: setting coord={coord}.\n\n")
+        logging.info("\n\n" + f"MCU_stepper.set_position: setting coord={coord} on stepper={self._name}\n\n")
         # NOTE: reads current position from "get_commanded_position()",
         #       adds the "_mcu_position_offset" and converts to position
         #       dividing by "_step_dist".
@@ -337,7 +337,7 @@ class PrinterRail:
         # Primary stepper and endstop
         self.stepper_units_in_radians = units_in_radians
         
-        # NOTE: List of 
+        # NOTE: List of MCU_stepper objects (setup by PrinterStepper).
         self.steppers = []
         
         # NOTE: list of tuples with elements: (mcu_endstop, name)
@@ -546,6 +546,7 @@ class PrinterRail:
             stepper.set_trapq(trapq)
     def set_position(self, coord):
         for stepper in self.steppers:
+            # NOTE: calls "MCU_stepper.set_position".
             stepper.set_position(coord)
 
 # Wrapper for dual stepper motor support

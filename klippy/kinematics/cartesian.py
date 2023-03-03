@@ -69,7 +69,11 @@ class CartKinematics:
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
         for i, rail in enumerate(self.rails):
-            # NOTE: calls "itersolve_set_position".
+            # NOTE: eventually calls "itersolve_set_position".
+            # NOTE: calls PrinterRail.set_position, which calls set_position
+            #       on each of the MCU_stepper objects in each PrinterRail.
+            # NOTE: This means that 4 calls will be made in total for a machine
+            #       with X, Y, Y1, and Z steppers.
             rail.set_position(newpos)
             if i in homing_axes:
                 self.limits[i] = rail.get_range()
