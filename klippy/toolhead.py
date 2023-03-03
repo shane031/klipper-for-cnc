@@ -656,7 +656,7 @@ class ToolHead:
             
             # NOTE: setup trapq append for the ABC axes here too.
             if self.abc_trapq is not None:
-                self.abc_trapq.trapq_append(
+                self.trapq_append(
                     self.abc_trapq, next_move_time,
                     move.accel_t, move.cruise_t, move.decel_t,
                     move.start_pos[3], move.start_pos[4], move.start_pos[5],
