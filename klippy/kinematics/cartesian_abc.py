@@ -24,14 +24,19 @@ class CartKinematicsABC(CartKinematics):
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
-    def __init__(self, toolhead, config):
+    def __init__(self, toolhead, config, trapq=None):
         self.printer = config.get_printer()
         
         # Axis names
         self.axis_names = toolhead.axis_names[3:6]  # Will get "ABC" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
-        
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
+        
+        # Get the trapq
+        if trapq is None:
+            self.trapq = toolhead.get_abc_trapq()
+        else:
+            self.trapq = trapq
         
         # Setup axis rails
         # self.dual_carriage_axis = None
@@ -50,7 +55,7 @@ class CartKinematicsABC(CartKinematics):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         
         for s in self.get_steppers():
-            s.set_trapq(toolhead.get_abc_trapq())
+            s.set_trapq(self.trapq)
             # TODO: check if this "generator" should be appended to 
             #       the "self.step_generators" list in the toolhead,
             #       or to the list in the new TrapQ.

@@ -7,11 +7,17 @@ import logging
 import stepper
 
 class CartKinematics:
-    def __init__(self, toolhead, config):
+    def __init__(self, toolhead, config, trapq=None):
         
         # Axis names
         self.axis_names = toolhead.axis_names[:3]  # Will get "ABC" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        
+        # Get the trapq
+        if trapq is None:
+            self.trapq = toolhead.get_trapq()
+        else:
+            self.trapq = trapq
         
         self.printer = config.get_printer()
         # Setup axis rails
@@ -26,7 +32,7 @@ class CartKinematics:
         for rail, axis in zip(self.rails, 'xyz'):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         for s in self.get_steppers():
-            s.set_trapq(toolhead.get_trapq())
+            s.set_trapq(self.trapq)
             toolhead.register_step_generator(s.generate_steps)
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)

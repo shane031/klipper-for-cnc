@@ -388,61 +388,31 @@ class ToolHead:
         self.kin_flush_times = []
         self.force_flush_time = self.last_kin_move_time = 0.
         
-        # Setup iterative solver
+        # Setup iterative solver methods
         ffi_main, ffi_lib = chelper.get_ffi()
-        self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.step_generators = []
         
-        # NOTE: setup TRAPQ for the extra ABC axes here.
-        self.abc_trapq = None
+        # NOTE: check TRAPQ for the extra ABC axes here.
         if len(self.axis_names) // 3 == 2:
             logging.info(f"\n\nToolHead: setting up ABC trapq.\n\n")
-            self.abc_trapq = TrapQ()
         elif len(self.axis_names) > 6:
             msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
             logging.exception(msg)
             raise config.error(msg)
         
+        # NOTE: Load trapq (iterative solvers) and kinematics for the requested axes.
+        self.kinematics = {}
+        self.load_axes(config=config, axes=self.axis_names)
+        
         # NOTE: load the gcode objects (?)
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
         
-        # Create kinematics class
+        # Create extruder kinematics class
         # NOTE: setup a dummy extruder at first, replaced later if configured.
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
-        # NOTE: get the "kinematics" type from "[printer]".
-        kin_name = config.get('kinematics')
-        try:
-            mod = importlib.import_module('kinematics.' + kin_name)
-            self.kin = mod.load_kinematics(self, config)
-        except config.error as e:
-            raise
-        except self.printer.lookup_object('pins').error as e:
-            raise
-        except:
-            msg = "Error loading kinematics '%s'" % (kin_name,)
-            logging.exception(msg)
-            raise config.error(msg)
-        
-        # Create ABC kinematics class
-        self.kin_abc = None
-        abc_kin_name = config.get('kinematics_abc', kin_name)
-        if self.abc_trapq is not None:
-            # NOTE: get the "kinematics_abc" type from "[printer]".
-            try:
-                logging.info(f"\n\nToolHead: setting up ABC kinematics.\n\n")
-                abc_mod = importlib.import_module('kinematics.' + abc_kin_name)
-                self.kin_abc = abc_mod.load_kinematics(self, config)
-            except config.error as e:
-                raise
-            except self.printer.lookup_object('pins').error as e:
-                raise
-            except:
-                msg = "Error loading ABC kinematics '%s'" % (abc_kin_name,)
-                logging.exception(msg)
-                raise config.error(msg)
         
         # Register commands
         gcode.register_command('G4', self.cmd_G4)
@@ -457,6 +427,72 @@ class ToolHead:
                    "manual_probe", "tuning_tower"]
         for module_name in modules:
             self.printer.load_object(config, module_name)
+    
+    # Load axes abstraction
+    def load_axes(self, config, axes="XYZABC"):
+        """_summary_
+
+        Args:
+            config (_type_): Klipper configuration object.
+            axes (str, optional): Axes specification string. Defaults to "XYZABC".
+        """
+        ffi_main, ffi_lib = chelper.get_ffi()
+        
+        # Setup XYZ axes
+        if "XYZ" in axes:
+            # Create XYZ trapq (setup XYZ iterative solver).
+            self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
+            # Create XYZ kinematics class.
+            self.kin = self.load_kinematics(config=config, 
+                                            config_name='kinematics',
+                                            trapq=self.trapq)
+            # Save the kinematics to the dict
+            self.kinematics["XYZ"] = self.kin_abc
+        else:
+            self.trapq = None
+            self.kin = None
+        
+        # Setup ABC axes
+        if "ABC" in axes:
+            # Create ABC trapq  (setup ABC iterative solver).
+            self.abc_trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+            # Create ABC kinematics class.
+            self.kin_abc = self.load_kinematics(config=config, 
+                                                config_name='kinematics_abc',
+                                                trapq=self.abc_trapq)
+            # Save the kinematics to the dict.
+            self.kinematics["ABC"] = self.kin_abc
+        else:
+            self.kin_abc = None
+            self.abc_trapq = None
+    
+    # Load kinematics object
+    def load_kinematics(self, config, trapq, config_name='kinematics'):
+        """Load kinematics for a set of axes.
+
+        Args:
+            config (_type_): Klipper configuration object.
+            trapq (_type_): Klipper trapq object.
+            config_name (str, optional): Name of the kinematics in the config. Defaults to 'kinematics'.
+
+        Returns:
+            CartKinematics: Kinematics object.
+        """
+        # NOTE: get the "kinematics" type from "[printer]".
+        kin_name = config.get(config_name)
+        try:
+            mod = importlib.import_module('kinematics.' + kin_name)
+            kin = mod.load_kinematics(self, config, trapq)
+        except config.error as e:
+            raise
+        except self.printer.lookup_object('pins').error as e:
+            raise
+        except:
+            msg = "Error loading kinematics '%s'" % (kin_name,)
+            logging.exception(msg)
+            raise config.error(msg)
+        
+        return kin
     
     # Print time tracking
     def _update_move_time(self, next_print_time):
@@ -491,7 +527,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, free_time)
             
             # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
-            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
+            self.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
@@ -813,11 +849,6 @@ class ToolHead:
         #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count])
-
-        # NOTE: "set_position_e" was inserted above and not after 
-        #       updating "commanded_pos" under the suspicion that 
-        #       an unmodified "commanded_pos" might be important.
-        self.commanded_pos[:] = newpos
         
         # NOTE: Set the position of the XYZ kinematics.
         # NOTE: The "homing_axes" argument is a tuple similar to
@@ -836,11 +867,48 @@ class ToolHead:
             homing_axes_abc = self.axes_to_xyz(homing_axes_abc)  # NOTE: returns [] if axes []
             logging.info("\n\n" + f"toolhead.set_position: setting ABC kinematic position with newpos[:3]={newpos[3:6]} and homing_axes_abc={homing_axes_abc} (converted)\n\n")
             self.kin_abc.set_position(newpos[3:6], homing_axes=tuple(homing_axes_abc))
+            self.set_kinematics_position(newpos[3:6], homing_axes=tuple(homing_axes_abc))
+            
+        # NOTE: "set_position_e" was inserted above and not after 
+        #       updating "commanded_pos" under the suspicion that 
+        #       an unmodified "commanded_pos" might be important.
+        self.commanded_pos[:] = newpos
         
         # NOTE: this event is mainly recived by gcode_move.reset_last_position,
         #       which updates its "self.last_position" with (presumably) the
         #       "self.commanded_pos" above.
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
+        
+        
+    def set_trap_position(self, trapq, newpos):
+        """Abstraction of set_position for different sets of kinematics.
+
+        Args:
+            trapq (trapq): trapezoidal queue.
+            newpos (list): 3-element list with the new positions for the trapq.
+        """
+        
+        # NOTE: Set the position of the toolhead's "trapq".
+        logging.info("\n\n" + f"toolhead.set_trap_position: setting trapq pos to newpos={newpos}.\n\n")
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trapq_set_position(self.trapq, self.print_time,
+                                   newpos[0], newpos[1], newpos[2])
+        
+        logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
+        self.kin.set_position(newpos, homing_axes=tuple(homing_axes))
+    
+    def set_kinematics_position(self, kin, newpos, homing_axes):
+        """Abstraction of set_position for different sets of kinematics.
+
+        Args:
+            kin (kinematics): Instance of a (cartesian) kinematics class.
+            newpos (list): 3-element list with the new positions for the kinematics.
+            homing_axes (tuple): 3-element tuple indicating the axes that should have their limits re-applied.
+        """
+        
+        logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
+        kin.set_position(newpos, homing_axes=tuple(homing_axes_xyz))
+
 
     def set_position_e(self, newpos_e):
         """Extruder version of set_position."""
@@ -1032,7 +1100,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
             
             # NOTE: call trapq_finalize_moves on the ABC exes too.
-            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
+            self.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
