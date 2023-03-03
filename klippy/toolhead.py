@@ -491,7 +491,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, free_time)
             
             # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
-            self.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
+            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
@@ -616,7 +616,7 @@ class ToolHead:
             
             # NOTE: setup trapq append for the ABC axes here too.
             if self.abc_trapq is not None:
-                self.trapq_append(
+                self.abc_trapq.trapq_append(
                     self.abc_trapq.trapq, next_move_time,
                     move.accel_t, move.cruise_t, move.decel_t,
                     move.start_pos[3], move.start_pos[4], move.start_pos[5],
@@ -1032,7 +1032,7 @@ class ToolHead:
             self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
             
             # NOTE: call trapq_finalize_moves on the ABC exes too.
-            self.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
+            self.abc_trapq.trapq_finalize_moves(self.abc_trapq.trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
