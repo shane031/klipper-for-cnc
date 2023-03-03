@@ -854,8 +854,9 @@ class ToolHead:
         # NOTE: Set the position of the axes "kinematics".
         for axes in ["XYZ", "ABC"]:
             kin = self.kinematics[axes]
+            # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.
+            homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            homing_axes = [axis for axis in homing_axes if axis in kin.axis]
             logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position with newpos={new_kin_pos} and homing_axes={homing_axes}\n\n")
             self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(homing_axes))
             
