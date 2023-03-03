@@ -166,5 +166,5 @@ class CartKinematics:
         carriage = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
         self._activate_carriage(carriage)
 
-def load_kinematics(toolhead, config):
-    return CartKinematics(toolhead, config)
+def load_kinematics(toolhead, config, trapq=None):
+    return CartKinematics(toolhead, config, trapq)
