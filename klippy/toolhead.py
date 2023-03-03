@@ -804,7 +804,7 @@ class ToolHead:
                                    newpos[0], newpos[1], newpos[2])
         
         # NOTE: Set the position of the ABC axis "trapq" too.
-        if self.abc_trapq is not None:
+        if (self.abc_trapq is not Non)e and (len(homing_axes) == 6):
             logging.info("\n\n" + f"toolhead.set_position: setting ABC trapq pos to newpos={newpos[3:6]}\n\n")
             # ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.abc_trapq.trapq, self.print_time,
