@@ -832,7 +832,7 @@ class ToolHead:
         
         return result
     
-    def get_elements(positions, axis):
+    def get_elements(self, positions, axis):
         return [ops[i] for i in axis]
     
     def set_position(self, newpos, homing_axes=()):
