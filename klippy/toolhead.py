@@ -402,13 +402,13 @@ class ToolHead:
             logging.exception(msg)
             raise config.error(msg)
         
-        # NOTE: Load trapq (iterative solvers) and kinematics for the requested axes.
-        self.kinematics = {}
-        self.load_axes(config=config, axes=self.axis_names)
-        
         # NOTE: load the gcode objects (?)
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
+        
+        # NOTE: Load trapq (iterative solvers) and kinematics for the requested axes.
+        self.kinematics = {}
+        self.load_axes(config=config, axes=self.axis_names)
         
         # Create extruder kinematics class
         # NOTE: setup a dummy extruder at first, replaced later if configured.
