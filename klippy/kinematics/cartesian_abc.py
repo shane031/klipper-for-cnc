@@ -176,6 +176,8 @@ class CartKinematicsABC(CartKinematics):
             move (tolhead.Move): Instance of the Move class.
         """
         
+        return
+        
         limits = self.limits
         xpos, ypos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[3:6]
         if (xpos < limits[0][0] or xpos > limits[0][1]
