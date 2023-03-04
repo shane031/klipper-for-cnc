@@ -840,9 +840,11 @@ class ToolHead:
         self.flush_step_generation()
             
         # NOTE: Set the position of the axes "trapq".
-        for axes in ["XYZ", "ABC"]:
+        for axes in list(self.kinematics):
+            # Iterate over["XYZ", "ABC"]
             logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq position.\n\n")
             kin = self.kinematics[axes]
+            # Filter the axis IDs according to the current kinematic
             new_kin_pos = self.get_elements(newpos, kin.axis)
             logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos}\n\n")
             self.set_kin_trap_position(kin.trapq, new_kin_pos)
@@ -853,7 +855,8 @@ class ToolHead:
         self.set_position_e(newpos_e=newpos[self.axis_count])
         
         # NOTE: Set the position of the axes "kinematics".
-        for axes in ["XYZ", "ABC"]:
+        for axes in list(self.kinematics):
+            # Iterate over["XYZ", "ABC"]
             logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position.\n\n")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.

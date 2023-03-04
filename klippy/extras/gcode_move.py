@@ -26,7 +26,7 @@ class GCodeMove:
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
         # TODO: find a way to get the axis value from the config, this does not work.
-        self.axis_names = config.get('axis', 'XYZABC')  # "XYZ" / "XYZABC"
+        # self.axis_names = config.get('axis', 'XYZABC')  # "XYZ" / "XYZABC"
         # self.axis_names = kwargs.get("axis", "XYZ")  # "XYZ" / "XYZABC"
         main_config = config.getsection("printer")
         self.axis_names = main_config.get('axis', 'XYZ')
