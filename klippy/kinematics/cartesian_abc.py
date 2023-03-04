@@ -187,7 +187,7 @@ class CartKinematicsABC(CartKinematics):
             self._check_endstops(move)
         
         # NOTE: check if the move involves the Z axis, to limit the speed.
-        if not move.axes_d[self.axis[3]]:
+        if not move.axes_d[self.axis[2]]:
             # Normal XY move - use defaults
             return
         else:
