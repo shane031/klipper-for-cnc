@@ -98,7 +98,7 @@ class HomingMove:
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
 
         # NOTE: Update XYZ and ABC steppers position.
-        for axes in list(toolhead.kinematics):
+        for axes in list(self.toolhead.kinematics):
             # Iterate over["XYZ", "ABC"]
             kin = self.kinematics[axes]
             for stepper in kin.get_steppers():
@@ -124,7 +124,7 @@ class HomingMove:
         result = []
         
         # NOTE: Run "calc_position" for the XYZ and ABC axes.
-        for axes in list(toolhead.kinematics):
+        for axes in list(self.toolhead.kinematics):
             # Iterate over["XYZ", "ABC"]
             kin = self.kinematics[axes]
             # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
@@ -166,7 +166,7 @@ class HomingMove:
         
         kin_spos = {}
         # Iterate over["XYZ", "ABC"]
-        for axes in list(toolhead.kinematics):
+        for axes in list(self.toolhead.kinematics):
             # NOTE: the "get_kinematics" method is defined in the ToolHead 
             #       class at "toolhead.py". It apparently returns the kinematics
             #       object, as loaded from a module in the "kinematics/" directory,
@@ -297,7 +297,7 @@ class HomingMove:
                 #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
                 
                 # NOTE: Get the stepper "halt_kin_spos" (halting positions).
-                halt_kin_spos = self.calc_halt_kin_spos(toolhead, extruder_steppers)
+                halt_kin_spos = self.calc_halt_kin_spos(extruder_steppers)
                 
                 # NOTE: Calculate the "actual" halting position in distance units. Examples:
                 #       calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
@@ -335,11 +335,11 @@ class HomingMove:
         #       when the endstop triggered.
         return trigpos
     
-    def calc_halt_kin_spos(self, toolhead, extruder_steppers):
+    def calc_halt_kin_spos(self, extruder_steppers):
         """Abstraction to calculate halt_kin_spos for all axes on the toolhead (XYZ, ABC, E)."""
         halt_kin_spos = {}
         # Iterate over["XYZ", "ABC"]
-        for axes in list(toolhead.kinematics):
+        for axes in list(self.toolhead.kinematics):
             kin = self.kinematics[axes]
             # NOTE: Uses "ffi_lib.itersolve_get_commanded_pos",
             #       probably reads the position previously set by
