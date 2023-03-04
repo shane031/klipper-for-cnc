@@ -155,7 +155,7 @@ class CartKinematicsABC(CartKinematics):
     
     def _check_endstops(self, move):
         end_pos = move.end_pos
-        for i in (0, 1, 2):
+        for i in tuple(self.axis):
             if (move.axes_d[i]
                 and (end_pos[i] < self.limits[i][0]
                      or end_pos[i] > self.limits[i][1])):
@@ -176,9 +176,10 @@ class CartKinematicsABC(CartKinematics):
         """
         
         limits = self.limits
-        xpos, ypos = [move.end_pos[axis] for axis in self.axis]  # move.end_pos[3:6]
+        xpos, ypos, zpos = [move.end_pos[axis] for axis in self.axis]  # move.end_pos[3:6]
         if (xpos < limits[0][0] or xpos > limits[0][1]
-            or ypos < limits[1][0] or ypos > limits[1][1]):
+            or ypos < limits[1][0] or ypos > limits[1][1]
+            or ypos < limits[2][0] or ypos > limits[2][1]):
             self._check_endstops(move)
         
         # NOTE: removed the "Z" logic here, as it is implemented in 
