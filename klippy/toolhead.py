@@ -463,7 +463,7 @@ class ToolHead:
                                                 config_name='kinematics_abc',
                                                 trapq=self.abc_trapq)
             # Specify which of the toolhead position elements correspon to the axis
-            self.kin_abc.axis = [3 ,4 ,5]
+            self.kin_abc.axis = [3, 4 ,5]
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
@@ -645,25 +645,23 @@ class ToolHead:
         for move in moves:
             logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
             
-            # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
-            if move.is_kinematic_move:
-                self.trapq_append(
-                    self.trapq, next_move_time,
-                    move.accel_t, move.cruise_t, move.decel_t,
-                    move.start_pos[0], move.start_pos[1], move.start_pos[2],
-                    move.axes_r[0], move.axes_r[1], move.axes_r[2],
-                    move.start_v, move.cruise_v, move.accel)
+            for axes in list(self.kinematics):
+                # Iterate over["XYZ", "ABC"]
+                logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq position.\n\n")
+                kin = self.kinematics[axes]
+                # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
+                if move.is_kinematic_move:
+                    self.trapq_append(
+                        kin.trapq, next_move_time,
+                        move.accel_t, move.cruise_t, move.decel_t,
+                        # NOTE: "kin.axis" is used to select the position value that corresponds
+                        #       to the current kinematic axis (e.g. kin.axis is [0,1,2] for the XYZ axis,
+                        #       or [3,4,5] for the ABC axis).
+                        move.start_pos[kin.axis[0]], move.start_pos[kin.axis[1]], move.start_pos[kin.axis[2]],
+                        move.axes_r[kin.axis[0]], move.axes_r[kin.axis[1]], move.axes_r[kin.axis[2]],
+                        move.start_v, move.cruise_v, move.accel)
             
-            # NOTE: setup trapq append for the ABC axes here too.
-            if self.abc_trapq is not None:
-                self.trapq_append(
-                    self.abc_trapq, next_move_time,
-                    move.accel_t, move.cruise_t, move.decel_t,
-                    move.start_pos[3], move.start_pos[4], move.start_pos[5],
-                    move.axes_r[3], move.axes_r[4], move.axes_r[5],
-                    move.start_v, move.cruise_v, move.accel)
-            
-            # NOTE: The same is done for the extruder's trapq.
+            # NOTE: Repeat for the extruder's trapq.
             if move.axes_d[self.axis_count]:
                 # NOTE: The extruder stepper move is likely synced to the main
                 #       XYZ movement here, by sharing the "next_move_time"
@@ -674,7 +672,7 @@ class ToolHead:
             next_move_time = (next_move_time + move.accel_t
                               + move.cruise_t + move.decel_t)
             
-            # NOTE: execute any "callbacks" registered 
+            # NOTE: Execute any "callbacks" registered 
             #       to be run at the end of this move.
             for cb in move.timing_callbacks:
                 cb(next_move_time)
