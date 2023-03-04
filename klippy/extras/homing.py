@@ -33,7 +33,7 @@ class StepperPosition:
         self.stepper_name = stepper.get_name()
         self.start_pos = stepper.get_mcu_position()
         self.halt_pos = self.trig_pos = None
-        logging.info("\n\n" + f"StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}"+ "\n\n")
+        logging.info("\n\n" + f"homing.StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}"+ "\n\n")
     def note_home_end(self, trigger_time):
         # NOTE: method called by "homing_move" to determine halt/trig positions.
 
