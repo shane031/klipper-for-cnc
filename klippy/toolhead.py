@@ -110,9 +110,11 @@ class Move:
         self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
     
     def move_error(self, msg="Move out of range"):
+        # TODO: check if the extruder axis is always passed to "self.end_pos".
         ep = self.end_pos
-        m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
-        # TODO: check if the extruder axis is always passed to "self.end_pos" ("ep" below).
+        m = msg + ":"
+        m += " ".join(["%.3f" % i for i in tuple(ep[:-1])])     # Add XYZABC axis coords.
+        m += " [%.3f]" % tuple(ep[-1:])                         # Add extruder coord.
         return self.toolhead.printer.command_error(m)
     
     def calc_junction(self, prev_move):
