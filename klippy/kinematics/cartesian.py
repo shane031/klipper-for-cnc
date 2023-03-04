@@ -125,6 +125,7 @@ class CartKinematics:
                 and (end_pos[axis] < self.limits[i][0]
                      or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
+                    # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
     def check_move(self, move):

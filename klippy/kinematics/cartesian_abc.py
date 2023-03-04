@@ -179,7 +179,7 @@ class CartKinematicsABC(CartKinematics):
         xpos, ypos, zpos = [move.end_pos[axis] for axis in self.axis]  # move.end_pos[3:6]
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]
-            or ypos < limits[2][0] or ypos > limits[2][1]):
+            or zpos < limits[2][0] or zpos > limits[2][1]):
             self._check_endstops(move)
         
         # NOTE: removed the "Z" logic here, as it is implemented in 
