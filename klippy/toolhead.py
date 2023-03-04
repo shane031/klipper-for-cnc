@@ -463,7 +463,7 @@ class ToolHead:
                                                 config_name='kinematics_abc',
                                                 trapq=self.abc_trapq)
             # Specify which of the toolhead position elements correspon to the axis
-            self.kin.axis = [3 ,4 ,5]
+            self.kin_abc.axis = [3 ,4 ,5]
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
