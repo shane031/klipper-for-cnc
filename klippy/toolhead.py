@@ -836,7 +836,7 @@ class ToolHead:
         return [toolhead_pos[axis] for axis in axes]
     
     def set_position(self, newpos, homing_axes=()):
-        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}.\n\n")
+        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}\n\n")
         self.flush_step_generation()
             
         # NOTE: Set the position of the axes "trapq".

@@ -450,7 +450,7 @@ class Homing:
         #       opposing limit coordinate.
         
         # Notify of upcoming homing operation
-        logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}.\n\n")
+        logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}\n\n")
         self.printer.send_event("homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
@@ -476,7 +476,7 @@ class Homing:
         # Perform second home
         if hi.retract_dist:
             # Retract
-            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}.\n\n")
+            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}\n\n")
             # startpos=[0.0, 0.0, 0.0, 468.0, 0.0, 0.0, 0.0] 
             # homepos=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             startpos = self._fill_coord(forcepos)
@@ -606,13 +606,13 @@ class PrinterHoming:
         
         # NOTE: XYZ homing.
         kin = toolhead.get_kinematics()
-        if any(i in [0,1,2] for i in axes):
-            self.home_axes(kin=kin, homing_axes=[a for a in axes if a in [0,1,2]])
+        if any(i in kin.axis for i in axes):
+            self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
         
         # NOTE: ABC homing.
         kin_abc = toolhead.get_kinematics_abc()
-        if any(i in [3,4,5] for i in axes) and kin_abc is not None:
-            self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in [3,4,5]])
+        if any(i in kin_abc.axis for i in axes) and kin_abc is not None:
+            self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in kin_abc.axis])
         
     def home_axes(self, kin, homing_axes):
         """Home the requested axis on the specified kinematics.
