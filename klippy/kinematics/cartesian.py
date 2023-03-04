@@ -75,14 +75,20 @@ class CartKinematics:
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
+        logging.info("\n\n" +
+                     f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
+                     f"with newpos={newpos} and homing_axes={homing_axes}.\n\n")
         for i, rail in enumerate(self.rails):
-            # NOTE: eventually calls "itersolve_set_position".
-            # NOTE: calls PrinterRail.set_position, which calls set_position
-            #       on each of the MCU_stepper objects in each PrinterRail.
+            logging.info(f"\n\nCartKinematics: setting newpos={newpos} on stepper: {rail.get_name()}\n\n")
+            # NOTE: The following calls PrinterRail.set_position, 
+            #       which calls set_position on each of the MCU_stepper objects 
+            #       in each PrinterRail.
             # NOTE: This means that 4 calls will be made in total for a machine
             #       with X, Y, Y1, and Z steppers.
+            # NOTE: This eventually calls "itersolve_set_position".
             rail.set_position(newpos)
             if i in homing_axes:
+                logging.info(f"\n\nCartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
                 self.limits[i] = rail.get_range()
     def note_z_not_homed(self):
         # Helper for Safe Z Home
