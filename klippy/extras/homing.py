@@ -197,6 +197,7 @@ class HomingMove:
         # Start endstop checking
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
+        logging.info(f"\n\nhoming.homing_move: homing move start.\n\n")
         for mcu_endstop, name in self.endstops:
             # NOTE: this calls "toolhead.get_position" to get "startpos".
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
@@ -220,9 +221,11 @@ class HomingMove:
         #       the associated "mcu time" would have already passed.
         #       It was not needed after the implementation of drip moves.
         #       I don't know yet why it remains.
+        logging.info(f"\n\nhoming.homing_move: dwell for HOMING_START_DELAY={HOMING_START_DELAY}\n\n")
         self.toolhead.dwell(HOMING_START_DELAY)
         
         # Issue move
+        logging.info(f"\n\nhoming.homing_move: issuing drip move.\n\n")
         error = None
         try:
             # NOTE: Before the "drip" commit, the following command 
@@ -237,6 +240,7 @@ class HomingMove:
             error = "Error during homing move: %s" % (str(e),)
         
         # Wait for endstops to trigger
+        logging.info(f"\n\nhoming.homing_move: waiting for endstop triggers.\n\n")
         trigger_times = {}
         # NOTE: probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
@@ -251,6 +255,7 @@ class HomingMove:
                 error = "No trigger on %s after full movement" % (name,)
         
         # Determine stepper halt positions
+        logging.info(f"\n\nhoming.homing_move: calculating haltpos.\n\n")
         # NOTE: "flush_step_generation" calls "flush" on the MoveQueue,
         #       and "_update_move_time" (which updates "self.print_time"
         #       and calls "trapq_finalize_moves").
@@ -333,6 +338,7 @@ class HomingMove:
 
         # NOTE: returns "trigpos", which is the position of the toolhead
         #       when the endstop triggered.
+        logging.info(f"\n\nhoming.homing_move: homing move end.\n\n")
         return trigpos
     
     def calc_halt_kin_spos(self, extruder_steppers):
