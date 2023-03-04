@@ -959,7 +959,8 @@ class ToolHead:
         
         # NOTE: Kinematic move checks for XYZ and ABC axes.
         if move.is_kinematic_move:
-            for axes in ["XYZ"]:    # list(self.kinematics):
+            # for axes in ["XYZ"]:
+            for axes in list(self.kinematics):    
                 # Iterate over["XYZ", "ABC"]
                 logging.info("\n\n" + f"toolhead.move: check_move on {axes} move.\n\n")
                 kin = self.kinematics[axes]
