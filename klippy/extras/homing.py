@@ -8,7 +8,7 @@ import logging, math
 # NOTE:
 #   -   https://github.com/Klipper3d/klipper/commit/78f4c25a14099564cf731bdaf5b97492a3a6fb47
 #   -   https://github.com/Klipper3d/klipper/commit/dd34768e3afb6b5aa46885109182973d88df10b7
-HOMING_START_DELAY = 0.001
+HOMING_START_DELAY = 0.005  # 0.001
 ENDSTOP_SAMPLE_TIME = .000015
 ENDSTOP_SAMPLE_COUNT = 4
 
