@@ -178,6 +178,7 @@ class CartKinematicsABC(CartKinematics):
         
         limits = self.limits
         xpos, ypos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[3:6]
+        logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on xpos={xpos} and ypos={ypos}.\n\n")
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
