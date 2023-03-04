@@ -255,12 +255,12 @@ class HomingMove:
                 error = "No trigger on %s after full movement" % (name,)
         
         # Determine stepper halt positions
-        logging.info(f"\n\nhoming.homing_move: calculating haltpos.\n\n")
         # NOTE: "flush_step_generation" calls "flush" on the MoveQueue,
         #       and "_update_move_time" (which updates "self.print_time"
         #       and calls "trapq_finalize_moves").
         self.toolhead.flush_step_generation()
         
+        logging.info(f"\n\nhoming.homing_move: calculating haltpos.\n\n")
         for sp in self.stepper_positions:
             # NOTE: get the time of endstop triggering
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
