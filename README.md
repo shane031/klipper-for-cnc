@@ -5,11 +5,11 @@ What works:
 - Movement seems to work :)
 - Homing now works.
 - Probing with G38 works.
+- Limit checks work.
 
 Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
-- Limit checks for ABC axes not implemented.
 - "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
 - `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-homing-extruder/issues/6
 - Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
