@@ -408,7 +408,7 @@ class ToolHead:
         
         # NOTE: Load trapq (iterative solvers) and kinematics for the requested axes.
         self.kinematics = {}
-        self.load_axes(config=config, axes=self.axis_names)
+        self.load_axes(config=config)
         
         # Create extruder kinematics class
         # NOTE: setup a dummy extruder at first, replaced later if configured.
@@ -429,7 +429,7 @@ class ToolHead:
             self.printer.load_object(config, module_name)
     
     # Load axes abstraction
-    def load_axes(self, config, axes="XYZABC"):
+    def load_axes(self, config):
         """_summary_
 
         Args:
@@ -439,7 +439,7 @@ class ToolHead:
         ffi_main, ffi_lib = chelper.get_ffi()
         
         # Setup XYZ axes
-        if "XYZ" in axes:
+        if "XYZ" in self.axis_names:
             # Create XYZ trapq (setup XYZ iterative solver).
             self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
             # Create XYZ kinematics class.
@@ -455,7 +455,7 @@ class ToolHead:
             self.kin = None
         
         # Setup ABC axes
-        if "ABC" in axes:
+        if "ABC" in self.axis_names:
             # Create ABC trapq  (setup ABC iterative solver).
             self.abc_trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
             # Create ABC kinematics class.
