@@ -76,8 +76,8 @@ class CartKinematics:
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
         logging.info("\n\n" +
-                     f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
-                     f"with newpos={newpos} and homing_axes={homing_axes}.\n\n")
+                     f"CartKinematics.set_position: setting kinematic position of {len(self.rails)} rails " +
+                     f"with newpos={newpos} and homing_axes={homing_axes}\n\n")
         for i, rail in enumerate(self.rails):
             logging.info(f"\n\nCartKinematics: setting newpos={newpos} on stepper: {rail.get_name()}\n\n")
             # NOTE: The following calls PrinterRail.set_position, 

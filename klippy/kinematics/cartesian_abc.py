@@ -117,7 +117,7 @@ class CartKinematicsABC(CartKinematics):
     def set_position(self, newpos, homing_axes):
         logging.info("\n\n" +
                      f"CartKinematicsABC.set_position: setting kinematic position of {len(self.rails)} rails " +
-                     f"with newpos={newpos} and homing_axes={homing_axes}.\n\n")
+                     f"with newpos={newpos} and homing_axes={homing_axes}\n\n")
         for i, rail in enumerate(self.rails):
             logging.info(f"\n\nCartKinematicsABC: setting newpos={newpos} on stepper: {rail.get_name()}\n\n")
             rail.set_position(newpos)
