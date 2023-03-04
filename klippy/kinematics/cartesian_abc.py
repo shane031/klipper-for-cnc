@@ -154,7 +154,7 @@ class CartKinematicsABC(CartKinematics):
         self.limits = [(1.0, -1.0)] * 3
     
     def _check_endstops(self, move):
-        logging.info("\n\n" + f"cartesian._check_endstops: triggered on {self.axis_names} move.\n\n")
+        logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move .\n\n")
         end_pos = move.end_pos
         for i, axis in enumerate(self.axis):
             if (move.axes_d[axis]
