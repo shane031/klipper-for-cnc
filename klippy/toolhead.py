@@ -858,10 +858,10 @@ class ToolHead:
             logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position.\n\n")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.
-            homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
+            kin_homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos} and homing_axes={homing_axes}\n\n")
-            self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(homing_axes))
+            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos} and kin_homing_axes={kin_homing_axes}\n\n")
+            self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(kin_homing_axes))
             
         # NOTE: "set_position_e" was inserted above and not after 
         #       updating "commanded_pos" under the suspicion that 
