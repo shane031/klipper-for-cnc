@@ -647,7 +647,7 @@ class ToolHead:
             
             for axes in list(self.kinematics):
                 # Iterate over["XYZ", "ABC"]
-                logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq position.\n\n")
+                logging.info("\n\n" + f"toolhead._process_moves: appending move to {axes} trapq.\n\n")
                 kin = self.kinematics[axes]
                 # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
                 if move.is_kinematic_move:
@@ -952,23 +952,32 @@ class ToolHead:
         # NOTE: Stepper move commands are not sent with
         #       a "clock" argument.
 
-        # NOTE: move checks.
+        # NOTE: Move checks.
         if not move.move_d:
             logging.info(f"\n\ntoolhead.move: early return, nothing to move. move.move_d={move.move_d}\n\n")
             return
+        
+        # NOTE: Kinematic move checks for XYZ and ABC axes.
         if move.is_kinematic_move:
-            self.kin.check_move(move)
+            for axes in list(self.kinematics):
+                # Iterate over["XYZ", "ABC"]
+                logging.info("\n\n" + f"toolhead.move: check_move on {axes} move.\n\n")
+                kin = self.kinematics[axes]
+                kin.check_move(move)
+            # self.kin.check_move(move)
             # TODO: implement move checks for ABC axes here too.
             # if self.abc_trapq is not None:
             #     self.kin_abc.check_move(move)
+            
+        # NOTE: Kinematic move checks for E axis.
         if move.axes_d[self.axis_count]:
             self.extruder.check_move(move)
         
-        # NOTE: update "commanded_pos" with the "end_pos"
+        # NOTE: Update "commanded_pos" with the "end_pos"
         #       of the current move command.
         self.commanded_pos[:] = move.end_pos
         
-        # NOTE: add the Move object to the MoveQueue.
+        # NOTE: Add the Move object to the MoveQueue.
         self.move_queue.add_move(move)
         
         if self.print_time > self.need_check_stall:

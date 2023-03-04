@@ -6,18 +6,13 @@ What works:
 - Homing now works.
 - Probing with G38 works.
 
-Bugs:
-
-- `SET_KINEMATIC_POSITION` will _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Must track down the cause.
-- See: https://github.com/naikymen/klipper-homing-extruder/issues/6
-
 Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
 - Limit checks for ABC axes not implemented.
 - "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
-
-Perhaps it would have been better/simpler to use multiple extruder axes instead.
+- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-homing-extruder/issues/6
+- Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
 
 ----
 
@@ -25,7 +20,7 @@ Welcome to my fork of the Klipper project, with awesome home-able extruders and 
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
-# General docs on Klipper
+# Original Klipper docs
 
 https://www.klipper3d.org/
 

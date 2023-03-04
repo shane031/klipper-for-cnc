@@ -174,25 +174,26 @@ class CartKinematicsABC(CartKinematics):
         Args:
             move (tolhead.Move): Instance of the Move class.
         """
-        # TODO: replace or remove the "Z" logic here.
         
         limits = self.limits
-        # TODO: Avoid hardcoding of "move.end_pos[3:6]" to grab ABC coords. 
-        xpos, ypos = move.end_pos[3:6]
+        xpos, ypos = [move.end_pos[axis] for axis in self.axis]  # move.end_pos[3:6]
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
         
+        # NOTE: removed the "Z" logic here, as it is implemented in 
+        #       the XYZ cartesian kinematic check already.
         # NOTE: check if the move involves the Z axis, to limit the speed.
-        if not move.axes_d[2]:
-            # Normal XY move - use defaults
-            return
-        else:
-            # Move with Z - update velocity and accel for slower Z axis
-            self._check_endstops(move)
-            z_ratio = move.move_d / abs(move.axes_d[2])
-            move.limit_speed(
-                self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+        # if not move.axes_d[2]:
+        #     # Normal XY move - use defaults
+        #     return
+        # else:
+        #     # Move with Z - update velocity and accel for slower Z axis
+        #     self._check_endstops(move)
+        #     z_ratio = move.move_d / abs(move.axes_d[2])
+        #     move.limit_speed(
+        #         self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+        return
     
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip(self.axis_names, self.limits) if l <= h]
