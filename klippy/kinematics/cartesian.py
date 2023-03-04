@@ -118,6 +118,7 @@ class CartKinematics:
                 self._home_axis(homing_state, axis, self.rails[axis])
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
+    
     def _check_endstops(self, move):
         logging.info("\n\n" + f"cartesian._check_endstops: triggered on {self.axis_names} move.\n\n")
         end_pos = move.end_pos
@@ -129,10 +130,11 @@ class CartKinematics:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
+    
     def check_move(self, move):
         limits = self.limits
         xpos, ypos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[:2]
-        logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on xpos={xpos} and ypos={ypos}.\n\n")
+        logging.info("\n\n" + f"cartesian.check_move: checking move ending on xpos={xpos} and ypos={ypos}.\n\n")
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
@@ -144,6 +146,7 @@ class CartKinematics:
         z_ratio = move.move_d / abs(move.axes_d[2])
         move.limit_speed(
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+    
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip("xyz", self.limits) if l <= h]
         return {
