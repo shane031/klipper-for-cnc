@@ -23,6 +23,7 @@ class Heater:
         self.sensor = sensor
         self.min_temp = config.getfloat('min_temp', minval=KELVIN_TO_CELSIUS)
         self.max_temp = config.getfloat('max_temp', above=self.min_temp)
+        self.samples = config.getint('samples', 1)
         self.sensor.setup_minmax(self.min_temp, self.max_temp)
         self.sensor.setup_callback(self.temperature_callback)
         self.pwm_delay = self.sensor.get_report_time_delta()
@@ -39,6 +40,8 @@ class Heater:
         self.lock = threading.Lock()
         self.last_temp = self.smoothed_temp = self.target_temp = 0.
         self.last_temp_time = 0.
+        # NOTE: temperature smoothing array.
+        self.last_temps = [None for i in range(self.samples)]
         # pwm caching
         self.next_pwm_time = 0.
         self.last_pwm_value = 0.
@@ -61,6 +64,31 @@ class Heater:
         gcode.register_mux_command("SET_HEATER_TEMPERATURE", "HEATER",
                                    self.name, self.cmd_SET_HEATER_TEMPERATURE,
                                    desc=self.cmd_SET_HEATER_TEMPERATURE_help)
+    
+    def get_smooth_temp(self):
+        """Calculate average temperature in self.last_temps.
+
+        Returns:
+            float: average of self.last_temps (None entries skipped)
+        """
+        temp_array = [i for i in self.last_temps if i is not None]
+        temp_array_sum = sum(temp_array)
+        temp_array_len = len(temp_array)
+        
+        # NOTE: handle all None case.
+        if temp_array_len == 0:
+            temp_array_len = 1
+        
+        return float(temp_array_sum / temp_array_len)
+    
+    def add_smooth_temp(self, temp):
+        # Remove oldest temp
+        del(self.last_temps[0])
+        # Add new temp
+        self.last_temps += [temp]
+        # Return last temps
+        return self.last_temps
+    
     def set_pwm(self, read_time, value):
         if self.target_temp <= 0.:
             value = 0.
@@ -75,16 +103,37 @@ class Heater:
         #logging.debug("%s: pwm=%.3f@%.3f (from %.3f@%.3f [%.3f])",
         #              self.name, value, pwm_time,
         #              self.last_temp, self.last_temp_time, self.target_temp)
+    
     def temperature_callback(self, read_time, temp):
-        with self.lock:
-            time_diff = read_time - self.last_temp_time
+        with self.lock:           
             self.last_temp = temp
             self.last_temp_time = read_time
-            self.control.temperature_update(read_time, temp, self.target_temp)
+            
+            # NOTE: Smooth "temp" with a time-point average.
+            #       This introduces some lag but might help with 
+            #       noisy sensor setups.
+            self.add_smooth_temp(temp)
+            smooth_temp = self.get_smooth_temp()
+            
+            # NOTE: use the averaged/smoothed "smooth_temp" as PID input.
+            self.control.temperature_update(read_time, smooth_temp, self.target_temp)
+            
+            # NOTE: Calculate time and temp differences
+            time_diff = read_time - self.last_temp_time
             temp_diff = temp - self.smoothed_temp
+            # NOTE: Calculate the prportion of "smooth_time" that elapsed
+            #       since the last update (limited to 1).
             adj_time = min(time_diff * self.inv_smooth_time, 1.)
+            
+            # NOTE: Add to "self.smoothed_temp" the fraction of "temp_diff"
+            #       that corresponds to the elapsed fraction of "smooth_time".
+            # NOTE: The value of "smoothed_temp" is updated with temperature
+            #       "diff"s that can be popsitive or nevative.
             self.smoothed_temp += temp_diff * adj_time
+            
+            # TODO: Check who uses "can_extrude" for a generic heater.
             self.can_extrude = (self.smoothed_temp >= self.min_extrude_temp)
+        
         #logging.debug("temp: %.3f %f = %f", read_time, temp)
     # External commands
     def get_pwm_delay(self):
@@ -179,6 +228,7 @@ class ControlPID:
         self.Kp = config.getfloat('pid_Kp') / PID_PARAM_BASE
         self.Ki = config.getfloat('pid_Ki') / PID_PARAM_BASE
         self.Kd = config.getfloat('pid_Kd') / PID_PARAM_BASE
+        # NOTE: this is "smooth_time" (from a "heater_generic" config).
         self.min_deriv_time = heater.get_smooth_time()
         self.temp_integ_max = 0.
         if self.Ki:
@@ -187,31 +237,65 @@ class ControlPID:
         self.prev_temp_time = 0.
         self.prev_temp_deriv = 0.
         self.prev_temp_integ = 0.
+    
     def temperature_update(self, read_time, temp, target_temp):
+        """Implements PID and sets PWM output.
+        
+        NOTE: The implementation is rather strange, or severly underdocumented at least.
+        """
+        # NOTE: calculate elapsed time since last update.
         time_diff = read_time - self.prev_temp_time
+        
         # Calculate change of temperature
         temp_diff = temp - self.prev_temp
+        
+        # Estimate the derivative
         if time_diff >= self.min_deriv_time:
+            # NOTE: If the elapsed time since the last measurement (temp_diff) 
+            #       is greater than the configured "smooth_time", compute the 
+            #       derivative directly from current data.
             temp_deriv = temp_diff / time_diff
         else:
-            temp_deriv = (self.prev_temp_deriv * (self.min_deriv_time-time_diff)
-                          + temp_diff) / self.min_deriv_time
-        # Calculate accumulated temperature "error"
+            # NOTE: If the elapsed time since the last measurement (temp_diff) 
+            #       is **less** than the configured "smooth_time", compute the 
+            #       remaining time to "self.min_deriv_time":
+            remaining_time = self.min_deriv_time - time_diff
+            # NOTE: Then estimate the temperature change associated to the
+            #       remaining time, using the derivative from the last update.
+            estimated_remaining_temp = self.prev_temp_deriv * remaining_time
+            # NOTE: Add the estimation to the temperature change since the last
+            #       update, to estimate the temp diff associated to an elapsed
+            #       time of "self.min_deriv_time".
+            estimated_temp_diff = temp_diff + estimated_remaining_temp
+            # NOTE: Estimate the derivative.
+            temp_deriv = estimated_temp_diff / self.min_deriv_time
+        
+        # Calculate accumulated temperature "error".
+        # NOTE: This is for the PID's integral term.
         temp_err = target_temp - temp
-        temp_integ = self.prev_temp_integ + temp_err * time_diff
+        temp_integ = self.prev_temp_integ + (temp_err * time_diff)
+        # NOTE: The term is limited to "self.temp_integ_max" which is
+        #       defined as "self.heater_max_power / self.Ki" above,
+        #       and ensured to be positive.
         temp_integ = max(0., min(self.temp_integ_max, temp_integ))
+        
         # Calculate output
         co = self.Kp*temp_err + self.Ki*temp_integ - self.Kd*temp_deriv
         #logging.debug("pid: %f@%.3f -> diff=%f deriv=%f err=%f integ=%f co=%d",
         #    temp, read_time, temp_diff, temp_deriv, temp_err, temp_integ, co)
         bounded_co = max(0., min(self.heater_max_power, co))
         self.heater.set_pwm(read_time, bounded_co)
+        
         # Store state for next measurement
         self.prev_temp = temp
         self.prev_temp_time = read_time
         self.prev_temp_deriv = temp_deriv
         if co == bounded_co:
+            # NOTE: If the PID output was not limited/bounded (see above),
+            #       replace the previous integral with the new one.
             self.prev_temp_integ = temp_integ
+            # TODO: ask why.
+    
     def check_busy(self, eventtime, smoothed_temp, target_temp):
         temp_diff = target_temp - smoothed_temp
         return (abs(temp_diff) > PID_SETTLE_DELTA
