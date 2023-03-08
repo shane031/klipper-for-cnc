@@ -108,7 +108,9 @@ class Heater:
         #              self.last_temp, self.last_temp_time, self.target_temp)
     
     def temperature_callback(self, read_time, temp):
-        with self.lock:           
+        with self.lock:
+            # NOTE: Calculate time and temp differences
+            time_diff = read_time - self.last_temp_time
             self.last_temp = temp
             self.last_temp_time = read_time
             
@@ -121,8 +123,7 @@ class Heater:
             # NOTE: use the averaged/smoothed "smooth_temp" as PID input.
             self.control.temperature_update(read_time, smooth_temp, self.target_temp)
             
-            # NOTE: Calculate time and temp differences
-            time_diff = read_time - self.last_temp_time
+            # NOTE: Calculate temp differences
             temp_diff = temp - self.smoothed_temp
             # NOTE: Calculate the prportion of "smooth_time" that elapsed
             #       since the last update (limited to 1).
