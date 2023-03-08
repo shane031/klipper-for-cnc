@@ -80,7 +80,7 @@ class Heater:
             temp_array_len = 1
             
         avg_temp = float(temp_array_sum / temp_array_len)
-        logging.info(f"\n\nget_smooth_temp: returning avg_temp={avg_temp}.\n\n")
+        logging.info(f"\n\nget_smooth_temp: returning avg_temp={avg_temp} with samples={temp_array_len}\n\n")
         
         return avg_temp
     
@@ -88,7 +88,7 @@ class Heater:
         # Remove oldest temp
         del(self.last_temps[0])
         # Add new temp
-        self.last_temps += [temp]
+        self.last_temps.append(temp)
         # Return last temps
         return self.last_temps
     
