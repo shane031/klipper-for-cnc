@@ -78,8 +78,11 @@ class Heater:
         # NOTE: handle all None case.
         if temp_array_len == 0:
             temp_array_len = 1
+            
+        avg_temp = float(temp_array_sum / temp_array_len)
+        logging.info(f"\n\nget_smooth_temp: returning avg_temp={avg_temp}.\n\n")
         
-        return float(temp_array_sum / temp_array_len)
+        return avg_temp
     
     def add_smooth_temp(self, temp):
         # Remove oldest temp
