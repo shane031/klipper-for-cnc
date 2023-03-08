@@ -38,6 +38,10 @@ class Heater:
         self.smooth_time = config.getfloat('smooth_time', 1., above=0.)
         self.inv_smooth_time = 1. / self.smooth_time
         self.lock = threading.Lock()
+        # NOTE: "smoothed temp" is smooth in the sense that it is updated
+        #       with the difference between the last temperature and itself
+        #       (instead of using the difference between the last temperature
+        #       and the previous one, which might have more variability).
         self.last_temp = self.smoothed_temp = self.target_temp = 0.
         self.last_temp_time = 0.
         # NOTE: temperature smoothing array.
