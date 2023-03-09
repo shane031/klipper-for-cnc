@@ -23,7 +23,7 @@ class Heater:
         self.sensor = sensor
         self.min_temp = config.getfloat('min_temp', minval=KELVIN_TO_CELSIUS)
         self.max_temp = config.getfloat('max_temp', above=self.min_temp)
-        self.samples = config.getint('samples', 2, above=1)
+        self.samples = config.getint('samples', 2, minval=2)
         self.sensor.setup_minmax(self.min_temp, self.max_temp)
         self.sensor.setup_callback(self.temperature_callback)
         self.pwm_delay = self.sensor.get_report_time_delta()
