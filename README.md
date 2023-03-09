@@ -1,4 +1,4 @@
-Trying to add ABC axes on this fork, by duplicating the trapq object.
+# 6+Axes Toolhead Branch
 
 What works:
 
@@ -6,6 +6,7 @@ What works:
 - Homing now works.
 - Probing with G38 works.
 - Limit checks work.
+- I also mingled with the PID code a bit, to mitigate the effect of measurement noise (read on).
 
 Important TODOs:
 
@@ -124,6 +125,54 @@ Configure the additional ABC steppers: [printer_steppers_abc.cfg](./config/confi
 [stepper_c]
 # Regular stepper configuration.
 # ...
+```
+
+### PID sample smoothing config
+
+Have a look at: [heaters.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/heaters.cfg)
+
+```yaml
+[thermistor thermistor1]
+# A regular thermistor configuration.
+temperature1: 24.5
+resistance1: 83800
+beta: 3950
+
+[heater_generic well_plate_heater]
+# This is the new parameter.
+# Set "samples" to an integer value "n". The last "n" measurements will be 
+# then used to compute the P term (by averaging) and the D term (by regression).
+samples: 10
+# The rest of the config is standard stuff, left here as an example.
+gcode_id: INCUB
+heater_pin: heaters:PB0  # D8
+max_power: 0.5
+sensor_type: thermistor1
+sensor_pin: heaters:PC0 # A0
+pullup_resistor: 67400    # Using 9930 was far noisier.
+smooth_time: 2
+control: pid
+pid_Kp: 7.0
+pid_Ki: 0.008
+pid_Kd: 1.0
+#pwm_cycle_time:
+min_temp: 18
+max_temp: 60
+
+[verify_heater well_plate_heater]
+# My heater is slow, so the "check_gain_time" value was increased.
+check_gain_time: 90
+#max_error: 120
+#hysteresis: 5
+#heating_gain: 2
+
+[idle_timeout]
+timeout: 600
+gcode:
+  M84
+# TURN_OFF_HEATERS
+# The turn off heaters command was removed here because it interfered with my use case.
+# Make sure to restore the defaults if you use a 3d-printer.
 ```
 
 ### Extruder homing config
