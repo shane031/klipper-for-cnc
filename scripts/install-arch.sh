@@ -3,6 +3,7 @@
 
 PYTHONDIR="${HOME}/klippy-env"
 SRCDIR="${HOME}/klipper"
+CONFIG="${HOME}/printer.cfg"
 
 # Step 1: Install system packages
 install_packages()
@@ -52,7 +53,7 @@ start_software()
     report_status "Launching Klipper host software..."
     deactivate && echo "Deactivated current venv." || echo "No venv to deactivate."
     activate_virtualenv
-    python3 ${SRCDIR}/klippy/klippy.py
+    python3 ${SRCDIR}/klippy/klippy.py $CONFIG
 }
 
 # Helper functions
