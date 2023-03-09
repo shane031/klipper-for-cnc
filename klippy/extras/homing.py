@@ -598,9 +598,9 @@ class PrinterHoming:
         logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
         
         # NOTE: Home all of the requested axes, from their respective kinematics.
-        for axes in list(toolhead.kinematics):
+        for kin_axes in list(toolhead.kinematics):
             # Iterate over ["XYZ", "ABC"].
-            kin = toolhead.kinematics[axes]
+            kin = toolhead.kinematics[kin_axes]
             if any(i in kin.axis for i in axes):
                 self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
         
