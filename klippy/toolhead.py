@@ -526,14 +526,23 @@ class ToolHead:
                 #       which it meant to "Generate step times for a range of moves on the trapq".
                 sg(sg_flush_time)
             free_time = max(fft, sg_flush_time - kin_flush_delay)
-            
-            # NOTE: Update move times on the toolhead, meaning:
+                
+            # NOTE: Update move times on the toolhead's trapqs, meaning:
             #           "Expire any moves older than `free_time` from
             #           the trapezoid velocity queue" (see trapq.c).
-            self.trapq_finalize_moves(self.trapq, free_time)
+            for axes in list(self.kinematics):
+                # Iterate over ["XYZ", "ABC"].
+                kin = self.kinematics[axes]
+                logging.info(f"\n\nToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}\n\n")
+                self.trapq_finalize_moves(kin.trapq, free_time)
             
-            # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
-            self.trapq_finalize_moves(self.abc_trapq, free_time)
+            # # NOTE: Update move times on the toolhead, meaning:
+            # #           "Expire any moves older than `free_time` from
+            # #           the trapezoid velocity queue" (see trapq.c).
+            # self.trapq_finalize_moves(self.trapq, free_time)
+            
+            # # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
+            # self.trapq_finalize_moves(self.abc_trapq, free_time)
             
             # NOTE: Update move times on the extruder
             #       by calling "trapq_finalize_moves" in PrinterExtruder.
