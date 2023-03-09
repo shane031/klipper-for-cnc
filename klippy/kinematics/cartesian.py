@@ -7,7 +7,19 @@ import logging
 import stepper
 
 class CartKinematics:
-    def __init__(self, toolhead, config):
+    def __init__(self, toolhead, config, trapq=None):
+        
+        # Axis names
+        self.axis = [0, 1, 2]
+        self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "XYZ" from "XYZABC"
+        self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        
+        # Get the trapq
+        if trapq is None:
+            self.trapq = toolhead.get_trapq()
+        else:
+            self.trapq = trapq
+        
         self.printer = config.get_printer()
         # Setup axis rails
         self.dual_carriage_axis = None
@@ -21,7 +33,7 @@ class CartKinematics:
         for rail, axis in zip(self.rails, 'xyz'):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         for s in self.get_steppers():
-            s.set_trapq(toolhead.get_trapq())
+            s.set_trapq(self.trapq)
             toolhead.register_step_generator(s.generate_steps)
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
@@ -63,10 +75,20 @@ class CartKinematics:
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
+        logging.info("\n\n" +
+                     f"CartKinematics.set_position: setting kinematic position of {len(self.rails)} rails " +
+                     f"with newpos={newpos} and homing_axes={homing_axes}\n\n")
         for i, rail in enumerate(self.rails):
-            # NOTE: calls "itersolve_set_position".
+            logging.info(f"\n\nCartKinematics: setting newpos={newpos} on stepper: {rail.get_name()}\n\n")
+            # NOTE: The following calls PrinterRail.set_position, 
+            #       which calls set_position on each of the MCU_stepper objects 
+            #       in each PrinterRail.
+            # NOTE: This means that 4 calls will be made in total for a machine
+            #       with X, Y, Y1, and Z steppers.
+            # NOTE: This eventually calls "itersolve_set_position".
             rail.set_position(newpos)
             if i in homing_axes:
+                logging.info(f"\n\nCartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
                 self.limits[i] = rail.get_range()
     def note_z_not_homed(self):
         # Helper for Safe Z Home
@@ -75,16 +97,19 @@ class CartKinematics:
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None, None, None, None]
+        homepos = [None for i in range(self.axis_count + 1)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:
             forcepos[axis] -= 1.5 * (hi.position_endstop - position_min)
         else:
             forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+        
         # Perform homing
+        logging.info(f"\n\ncartesian._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
     def home(self, homing_state):
+        logging.info(f"\n\ncartesian.home: homing axis changed_axes={homing_state.changed_axes}\n\n")
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
             if axis == self.dual_carriage_axis:
@@ -99,18 +124,24 @@ class CartKinematics:
                 self._home_axis(homing_state, axis, self.rails[axis])
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
+    
     def _check_endstops(self, move):
+        logging.info("\n\n" + f"cartesian._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
         end_pos = move.end_pos
-        for i in (0, 1, 2):
-            if (move.axes_d[i]
-                and (end_pos[i] < self.limits[i][0]
-                     or end_pos[i] > self.limits[i][1])):
+        for i, axis in enumerate(self.axis):
+            if (move.axes_d[axis]
+                and (end_pos[axis] < self.limits[i][0]
+                     or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
-                    raise move.move_error("Must home axis first")
+                    # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
+                    logging.info(f"cartesian._check_endstops: Must home axis {self.axis_names[i]} first.")
+                    raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
+    
     def check_move(self, move):
         limits = self.limits
-        xpos, ypos = move.end_pos[:2]
+        xpos, ypos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[:2]
+        logging.info("\n\n" + f"cartesian.check_move: checking move ending on xpos={xpos} and ypos={ypos}.\n\n")
         if (xpos < limits[0][0] or xpos > limits[0][1]
             or ypos < limits[1][0] or ypos > limits[1][1]):
             self._check_endstops(move)
@@ -122,6 +153,7 @@ class CartKinematics:
         z_ratio = move.move_d / abs(move.axes_d[2])
         move.limit_speed(
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+    
     def get_status(self, eventtime):
         axes = [a for a, (l, h) in zip("xyz", self.limits) if l <= h]
         return {
@@ -148,5 +180,5 @@ class CartKinematics:
         carriage = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
         self._activate_carriage(carriage)
 
-def load_kinematics(toolhead, config):
-    return CartKinematics(toolhead, config)
+def load_kinematics(toolhead, config, trapq=None):
+    return CartKinematics(toolhead, config, trapq)

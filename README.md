@@ -1,8 +1,27 @@
+# 6+Axes Toolhead Branch
+
+What works:
+
+- Movement seems to work :)
+- Homing now works.
+- Probing with G38 works.
+- Limit checks work.
+- I also mingled with the PID code a bit, to mitigate the effect of measurement noise (read on).
+
+Important TODOs:
+
+- Run tests! Only basic functionality has been covered.
+- "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
+- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-homing-extruder/issues/6
+- Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
+
+----
+
 Welcome to my fork of the Klipper project, with awesome home-able extruders and CNC-style probing!
 
 [![Klipper](docs/img/klipper-logo-small.png)](https://www.klipper3d.org/)
 
-# General docs on Klipper
+# Original Klipper docs
 
 https://www.klipper3d.org/
 
@@ -15,10 +34,21 @@ To begin using Klipper start by [installing](https://www.klipper3d.org/Installat
 Klipper is Free Software. See the [license](COPYING) or read the [documentation](https://www.klipper3d.org/Overview.html). We depend on
 the generous support from our [sponsors](https://www.klipper3d.org/Sponsors.html).
 
-# Fork notes
+# Fork notes: 7-axis
+
+Config examples at the next section.
 
 This fork implements:
 
+- CNC on XYZABCE axes.
+    - Module: core modifications to toolhead, homing, and cartesian kinematics. New "abc" cartesian kinematics: [cartesian_abc.py](./klippy/kinematics/cartesian_abc.py)
+    - Commands:
+        - Move: `G1 X10 Y10 Z10 A10 B10 C10 E10` (same as a regular G1 command).
+        - Home: `G28 A` (same as regular `G28`).
+        - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
+        - And so on ...
+    - Caveats: needs testing on longer GCODE programs. Limit checks not implemented. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
+    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Alternate kinematics for the XYZ axes not tested.
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
@@ -29,7 +59,7 @@ This fork implements:
     - Example command: `G38.2 X20 F10`
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
-    - Known incompatibilites: `[probe_G38_multi ...]`
+    - Module incompatibilites: `[probe_G38_multi ...]`
 - General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
     - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
@@ -43,6 +73,10 @@ This fork implements:
     - You can now count on absolute coordinate systems staying that way unless you update them explicitly (e.g. with `G92 E0` and similar commands).
     - The origin used to be altered without warning after every tool-change (i.e. extruder activation) in a way equivalent to sending `G92 E0`. This means that the extruder's origins were effectively relative to the last position of the extruder before a toolchange, which was enforced in Klipper to support the obscure expectations of old slicers.
     - See discussion at: https://klipper.discourse.group/t/6558
+- The PID controller now uses sample averaging and linear regression to compute the P and D terms, respectively.
+    - This replaces the rather obscure pre-existing logic.
+    - This brings much improvement for noisy ADCs, such as the one in my Arduino UNO.
+    - The `samples` config parameter must be set to, at least, `2`. I tested it with 5.
 
 Rather minor modifications in Klippy's core were made to accommodate these features. This fork exists because a massive amount of effort is needed to merge new stuff into "main" Klipper. Fortunately this means that pull requests would be very welcome here, even for cool but half-baked features.
 
@@ -57,6 +91,89 @@ Cheers!
 See examples here: [config-pi-pico-mainsail](./config/configs-pipetting-bot/config-pi-pico-mainsail)
 
 These are meant as reference configs; you _must_ adjust them to match your setup first.
+
+### Extra ABC axes config
+
+See examples here: [labo-robot-pinmap](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap)
+
+Configure extra ABC kinematics: [printer.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer.cfg)
+
+```yaml
+[printer]
+# Regular pritner configuration.
+kinematics: cartesian
+# Units: mm/s and mm/s^2:
+max_velocity: 5000    # F120000
+max_z_velocity: 250   # F30000
+max_accel: 1000
+# Add ABC kinematics to the toolhead:
+kinematics_abc: cartesian_abc
+axis: XYZABC
+```
+
+Configure the additional ABC steppers: [printer_steppers_abc.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/printer_steppers_abc.cfg)
+
+```yaml
+[stepper_a]
+# Regular stepper configuration.
+# ...
+
+[stepper_b]
+# Regular stepper configuration.
+# ...
+
+[stepper_c]
+# Regular stepper configuration.
+# ...
+```
+
+### PID sample smoothing config
+
+Have a look at: [heaters.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/heaters.cfg)
+
+```yaml
+[thermistor thermistor1]
+# A regular thermistor configuration.
+temperature1: 24.5
+resistance1: 83800
+beta: 3950
+
+[heater_generic well_plate_heater]
+# This is the new parameter.
+# Set "samples" to an integer value "n". The last "n" measurements will be 
+# then used to compute the P term (by averaging) and the D term (by regression).
+samples: 10
+# The rest of the config is standard stuff, left here as an example.
+gcode_id: INCUB
+heater_pin: heaters:PB0  # D8
+max_power: 0.5
+sensor_type: thermistor1
+sensor_pin: heaters:PC0 # A0
+pullup_resistor: 67400    # Using 9930 was far noisier.
+smooth_time: 2
+control: pid
+pid_Kp: 7.0
+pid_Ki: 0.008
+pid_Kd: 1.0
+#pwm_cycle_time:
+min_temp: 18
+max_temp: 60
+
+[verify_heater well_plate_heater]
+# My heater is slow, so the "check_gain_time" value was increased.
+check_gain_time: 90
+#max_error: 120
+#hysteresis: 5
+#heating_gain: 2
+
+[idle_timeout]
+timeout: 600
+gcode:
+  M84
+# TURN_OFF_HEATERS
+# The turn off heaters command was removed here because it interfered with my use case.
+# Make sure to restore the defaults if you use a 3d-printer.
+```
 
 ### Extruder homing config
 
@@ -111,6 +228,8 @@ Note that `[probe_G38]` is incompatible with `[probe_G38_multi extruder]`.
 
 ### Multi-probing config
 
+Note that this module also implements the regular `G38.n` commands, using the probe section associated to the active extruder's name. 
+
 Config: [probe_G38_multi.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap/probe_G38_multi.cfg)
 
 ```yaml
@@ -120,7 +239,7 @@ pin: ^tools:PC5
 z_offset: 0
 
 
-[probe_G38_multi extruder1]
+[probe_G38_multi my_probe]
 recovery_time: 0.0
 pin: ^tools:PB1
 z_offset: 0

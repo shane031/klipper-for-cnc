@@ -7,3 +7,4 @@ klippy/.version
 klippy/extras/.ipynb_checkpoints*
 *.directory
 /.vscode/c_cpp_properties.json
+/klippy/.vscode/*

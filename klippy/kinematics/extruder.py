@@ -340,6 +340,11 @@ class PrinterExtruder:
         if self.extruder_stepper is None:
             return 0.
         return self.extruder_stepper.find_past_position(print_time)
+    
+    def calc_position(self, stepper_positions):
+        # NOTE: borrowed from the cartesian kinematics for "homing.py".
+        return [stepper_positions[rail.get_name()] for rail in self.rails]
+    
     def cmd_M104(self, gcmd, wait=False):
         # Set Extruder Temperature
         temp = gcmd.get_float('S', 0.)
@@ -381,6 +386,7 @@ class PrinterExtruder:
 # NOTE: this dummy extruder class is used to initialize 
 #       ToolHead classes at ToolHead.py.
 class DummyExtruder:
+    name = None
     def __init__(self, printer):
         self.printer = printer
     def update_move_time(self, flush_time):
@@ -392,7 +398,7 @@ class DummyExtruder:
     def calc_junction(self, prev_move, move):
         return move.max_cruise_v2
     def get_name(self):
-        return ""
+        return self.name
     def get_heater(self):
         raise self.printer.command_error("Extruder not configured")
     def get_trapq(self):

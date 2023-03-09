@@ -192,7 +192,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
         params = gcmd.get_command_parameters()
         try:
             # Parse axis coordinates
-            for pos, axis in enumerate('XYZ'):
+            for pos, axis in enumerate(toolhead.axis_names):
                 if axis in params:
                     v = float(params[axis])
                     if not absolute_coord:
@@ -207,10 +207,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
                 v = float(params['E']) * self.extrude_factor
                 if not absolute_coord or not absolute_extrude:
                     # value relative to position of last move
-                    last_position[3] += v
+                    last_position[toolhead.axis_count] += v
                 else:
                     # value relative to base coordinate position
-                    last_position[3] = v + base_position[3]
+                    last_position[toolhead.axis_count] = v + base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
             
@@ -289,7 +289,7 @@ class ProbeG38multi(probe_G38.ProbeG38):
 
         # NOTE: parse coordinates from a "MUX" command.
         try:
-            for pos, axis in enumerate('XYZ'):
+            for pos, axis in enumerate(toolhead.axis_names):
                 # NOTE: "pos" is 0, 1, 2.
                 # NOTE: "axis" is X, Y, Z.
                 coord = gcmd.get_float(axis, None)
@@ -309,10 +309,10 @@ class ProbeG38multi(probe_G38.ProbeG38):
                 v = float(coord) * self.extrude_factor
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
-                    self.last_position[3] += v
+                    self.last_position[toolhead.axis_count] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[3] = v + base_position[3]
+                    self.last_position[toolhead.axis_count] = v + base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
             
@@ -351,6 +351,8 @@ class PrinterProbeMux(probe.PrinterProbe):
         config: ?
         mcu_probe: this is of "ProbeEndstopWrapper" class, which is a wrapper for "MCU_endstop".
         """
+        
+        # TODO: check if this init can be stripped down.
         self.printer = config.get_printer()
         self.name = config.get_name()
         self.mcu_probe_name=mcu_probe_name

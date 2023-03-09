@@ -33,7 +33,7 @@ class StepperPosition:
         self.stepper_name = stepper.get_name()
         self.start_pos = stepper.get_mcu_position()
         self.halt_pos = self.trig_pos = None
-        logging.info("\n\n" + f"StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}"+ "\n\n")
+        logging.info("\n\n" + f"homing.StepperPosition: add stepper {self.stepper_name} to endstop {self.endstop_name}"+ "\n\n")
     def note_home_end(self, trigger_time):
         # NOTE: method called by "homing_move" to determine halt/trig positions.
 
@@ -76,8 +76,8 @@ class HomingMove:
     def _calc_endstop_rate(self, mcu_endstop, movepos, speed):  # movepos  = [0.0, 0.0, 0.0, -110]
         startpos = self.toolhead.get_position()                 # startpos = [0.0, 0.0, 0.0, 0.0]
         axes_d = [mp - sp for mp, sp in zip(movepos, startpos)]
-        move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))      # 150.0
-        move_t = move_d / speed                                 # 150.0 / 25.0 = 6.0
+        move_d = math.sqrt(sum([d*d for d in axes_d[:self.toolhead.axis_count]]))   # 150.0
+        move_t = move_d / speed                                                     # 150.0 / 25.0 = 6.0
         max_steps = max([(abs(s.calc_position_from_coord(startpos)
                               - s.calc_position_from_coord(movepos))
                           / s.get_step_dist())
@@ -97,12 +97,15 @@ class HomingMove:
         # NOTE: log input for reference
         logging.info(f"\n\ncalc_toolhead_pos input: kin_spos={str(kin_spos)} offsets={str(offsets)}\n\n")
 
-        kin = self.toolhead.get_kinematics()
-        for stepper in kin.get_steppers():
-            sname = stepper.get_name()
-            # NOTE: update the stepper positions by converting the "offset" steps
-            #       to "mm" units and adding them to the original "halting" position.
-            kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
+        # NOTE: Update XYZ and ABC steppers position.
+        for axes in list(self.toolhead.kinematics):
+            # Iterate over["XYZ", "ABC"]
+            kin = self.toolhead.kinematics[axes]
+            for stepper in kin.get_steppers():
+                sname = stepper.get_name()  # NOTE: Example: "stepper_x", "stepper_a", etc.
+                # NOTE: update the stepper positions by converting the "offset" steps
+                #       to "mm" units and adding them to the original "halting" position.
+                kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
 
         # NOTE: Repeat the above for the extruders.
         extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
@@ -111,35 +114,45 @@ class HomingMove:
                 sname = stepper.get_name()
                 kin_spos[sname] += offsets.get(sname, 0) * stepper.get_step_dist()
         
-        # NOTE: this call to get_position is only used to acquire the extruder
-        #       position, and append it to XYZ components below.
-        #       Example:
+        # NOTE: This call to get_position is only used to acquire the extruder
+        #       position, and append it to XYZ components below. Example:
         #           thpos=[0.0, 0.0, 0.0, 0.0]
         thpos = self.toolhead.get_position()
-
-        # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
-        #       kinematics and selects "stepper_positions" with matching names.
-        #       Perhaps other kinematics do something more elaborate.
-        # NOTE: Elements 1-3 from the output are combined with element 4 from "thpos".
-        #       This is likely because the 4th element is the extruder, which is not
-        #       normally "homeable". So the last position is re-used to form the
-        #       updated toolhead position vector.
-        # NOTE: Examples (CartKinematics):
-        #       -   calc_position input stepper_positions={'extruder': -1.420625}
-        #       -   calc_position return pos=[-1.420625, 0.0, 0.0]
-        result = list(kin.calc_position(stepper_positions=kin_spos))[:3] + thpos[3:]
-
-        # NOTE: now ditch "thpos" (toolhead.get_position()), replacing 
-        #       it by the equivalent for the active extruder.
-        extruder = self.printer.lookup_object('toolhead').get_extruder()
-        result[3] = kin_spos[extruder.name]
         
-        # NOTE: log output for reference
-        logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
-        # NOTE: example:
+        # NOTE: This list is used to define "haltpos", which is then passed to "toolhead.set_position".
+        #       It must therefore have enough elements (4 for XYZE, or 7 for XYZABCE).
+        result = []
+        
+        # NOTE: Run "calc_position" for the XYZ and ABC axes.
+        for axes in list(self.toolhead.kinematics):
+            # Iterate over["XYZ", "ABC"]
+            kin = self.toolhead.kinematics[axes]
+            # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
+            #       kinematics and selects "stepper_positions" with matching names.
+            #       Perhaps other kinematics do something more elaborate.
+            # NOTE: Elements 1-3 from the output are combined with element 4 from "thpos".
+            #       This is likely because the 4th element is the extruder, which is not
+            #       normally "homeable". So the last position is re-used to form the
+            #       updated toolhead position vector.
+            # NOTE: Examples (CartKinematics):
+            #       -   calc_position input stepper_positions={'extruder': -1.420625}
+            #       -   calc_position return pos=[-1.420625, 0.0, 0.0]
+            result += list(kin.calc_position(stepper_positions=kin_spos))[:3]
+        
+        # TODO: Check if "calc_position" should be run in the extruder kinematics too.
+        # NOTE: Ditched "thpos[3:]" (from "toolhead.get_position()" above),
+        #       replacing it by the equivalent for the active extruder.
+        extruder = self.printer.lookup_object('toolhead').get_extruder()
+        if extruder.name is not None:
+            result += [kin_spos[extruder.name]]
+        else:
+            result += [thpos[self.toolhead.axis_count]]
+                
+        # NOTE: Log output for reference, example:
         #       calc_toolhead_pos output=[-1.420625, 0.0, 0.0, 0.0]
+        logging.info(f"\n\ncalc_toolhead_pos output: {str(result)}\n\n")
 
-        # NOTE: this "result" is used to override "haltpos" below, which
+        # NOTE: This "result" is used to override "haltpos" below, which
         #       is then passed to "toolhead.set_position".
         return result
     
@@ -150,27 +163,31 @@ class HomingMove:
         
         # Note start location
         self.toolhead.flush_step_generation()
-
-        # NOTE: the "get_kinematics" method is defined in the ToolHead 
-        #       class at "toolhead.py". It apparently returns the kinematics
-        #       object, as loaded from a module in the "kinematics/" directory,
-        #       during the class's __init__.
-        kin = self.toolhead.get_kinematics()
         
-        # NOTE: this step calls the "get_steppers" method on the provided
-        #       kinematics, which returns a list of "MCU_stepper" objects.
-        kin_spos = {s.get_name(): s.get_commanded_position()
-                    for s in kin.get_steppers()}
+        kin_spos = {}
+        # Iterate over["XYZ", "ABC"]
+        for axes in list(self.toolhead.kinematics):
+            # NOTE: the "get_kinematics" method is defined in the ToolHead 
+            #       class at "toolhead.py". It apparently returns the kinematics
+            #       object, as loaded from a module in the "kinematics/" directory,
+            #       during the class's __init__.
+            kin = self.toolhead.kinematics[axes]
+            # NOTE: this step calls the "get_steppers" method on the provided
+            #       kinematics, which returns a dict of "MCU_stepper" objects,
+            #       with names as "stepper_x", "stepper_y", etc.
+            kin_spos.update({s.get_name(): s.get_commanded_position()
+                            for s in kin.get_steppers()})
 
         # NOTE: Repeat the above for the extruders, adding them to the "kin_spos" dict.
         #       This is important later on, when calling "calc_toolhead_pos".
         extruder_steppers = self.printer.lookup_extruder_steppers()  # [ExtruderStepper]
+        # NOTE: Dummy extruders wont enter the for loop below (as extruder_steppers=[]).
         for extruder_stepper in extruder_steppers:
             # Get PrinterStepper (MCU_stepper) objects.
             for s in extruder_stepper.rail.get_steppers():
                 kin_spos.update({s.get_name(): s.get_commanded_position()})
         
-        # NOTE: "Tracking of stepper positions during a homing/probing move"
+        # NOTE: "Tracking of stepper positions during a homing/probing move".
         #       Build a "StepperPosition" class for each of the steppers
         #       associated to each endstop in the "self.endstops" list of tuples,
         #       containing elements like: (MCU_endstop, "name").
@@ -180,29 +197,35 @@ class HomingMove:
         # Start endstop checking
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
+        logging.info(f"\n\nhoming.homing_move: homing move start.\n\n")
         for mcu_endstop, name in self.endstops:
             # NOTE: this calls "toolhead.get_position" to get "startpos".
             rest_time = self._calc_endstop_rate(mcu_endstop=mcu_endstop,
                                                 movepos=movepos,  # [0.0, 0.0, 0.0, -110.0]
                                                 speed=speed)
-            # NOTE: "wait" is a "reactor.completion" object, returned by
-            #       the "home_start" method of "MCU_endstop" (at mcu.py)
+            # NOTE: "wait" is a "ReactorCompletion" object (from "reactor.py"),
+            #       setup by the "home_start" method of "MCU_endstop" (at mcu.py)
             wait = mcu_endstop.home_start(print_time=print_time, 
                                           sample_time=ENDSTOP_SAMPLE_TIME,
                                           sample_count=ENDSTOP_SAMPLE_COUNT, 
                                           rest_time=rest_time,
                                           triggered=triggered)
             endstop_triggers.append(wait)
-        all_endstop_trigger = multi_complete(self.printer, endstop_triggers)
+        # NOTE: the "endstop_triggers" list contains "reactor.completion" objects.
+        #       Those are created by returned by the "home_start" method 
+        #       of "MCU_endstop" (at mcu.py).
+        all_endstop_trigger = multi_complete(printer=self.printer, completions=endstop_triggers)
 
         # NOTE: This dwell used to be needed by low-power RPi2. Otherwise
         #       calculations would take too long, and by the time they were sent,
         #       the associated "mcu time" would have already passed.
         #       It was not needed after the implementation of drip moves.
         #       I don't know yet why it remains.
+        logging.info(f"\n\nhoming.homing_move: dwell for HOMING_START_DELAY={HOMING_START_DELAY}\n\n")
         self.toolhead.dwell(HOMING_START_DELAY)
         
         # Issue move
+        logging.info(f"\n\nhoming.homing_move: issuing drip move.\n\n")
         error = None
         try:
             # NOTE: Before the "drip" commit, the following command 
@@ -217,6 +240,7 @@ class HomingMove:
             error = "Error during homing move: %s" % (str(e),)
         
         # Wait for endstops to trigger
+        logging.info(f"\n\nhoming.homing_move: waiting for endstop triggers.\n\n")
         trigger_times = {}
         # NOTE: probably gets the time just after the last move.
         move_end_print_time = self.toolhead.get_last_move_time()
@@ -236,6 +260,7 @@ class HomingMove:
         #       and calls "trapq_finalize_moves").
         self.toolhead.flush_step_generation()
         
+        logging.info(f"\n\nhoming.homing_move: calculating haltpos.\n\n")
         for sp in self.stepper_positions:
             # NOTE: get the time of endstop triggering
             tt = trigger_times.get(sp.endstop_name, move_end_print_time)
@@ -248,6 +273,7 @@ class HomingMove:
         #       This chunk was added in commit:
         #       https://github.com/Klipper3d/klipper/commit/3814a13251aeca044f6dbbccda706263040e1bec
         if probe_pos:
+            # TODO: update G38 to work with ABC axis.
             halt_steps = {sp.stepper_name: sp.halt_pos - sp.start_pos
                           for sp in self.stepper_positions}
             trig_steps = {sp.stepper_name: sp.trig_pos - sp.start_pos
@@ -275,20 +301,12 @@ class HomingMove:
                 #           set_position: input:  [0.0, 0.0, 0.0, -110.0] homing_axes=()
                 #           set_position: output: [0.0, 0.0, 0.0, 0.0]  (i.e. passed to toolhead.set_position).
                 
-                # NOTE: uses "ffi_lib.itersolve_get_commanded_pos",
-                #       probably reads the position previously set by
-                #       "stepper.set_position" / "itersolve_set_position".
-                halt_kin_spos = {s.get_name(): s.get_commanded_position()
-                                 for s in kin.get_steppers()}
-
-                # NOTE: Repeat the above for the extruder steppers (defined above).
-                for extruder_stepper in extruder_steppers:
-                    # Get PrinterStepper (MCU_stepper) objects.
-                    for s in extruder_stepper.rail.get_steppers():
-                        halt_kin_spos.update({s.get_name(): s.get_commanded_position()})
+                # NOTE: Get the stepper "halt_kin_spos" (halting positions).
+                halt_kin_spos = self.calc_halt_kin_spos(extruder_steppers)
                 
-                # NOTE: calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
-                # NOTE: calc_toolhead_pos output: [-1.420625, 0.0, 0.0, 0.0]
+                # NOTE: Calculate the "actual" halting position in distance units. Examples:
+                #       calc_toolhead_pos input: kin_spos={'extruder1': 0.0} offsets={'extruder1': -2273}
+                #       calc_toolhead_pos output: [-1.420625, 0.0, 0.0, 0.0]
                 haltpos = self.calc_toolhead_pos(kin_spos=halt_kin_spos, 
                                                  offsets=over_steps)
 
@@ -320,7 +338,28 @@ class HomingMove:
 
         # NOTE: returns "trigpos", which is the position of the toolhead
         #       when the endstop triggered.
+        logging.info(f"\n\nhoming.homing_move: homing move end.\n\n")
         return trigpos
+    
+    def calc_halt_kin_spos(self, extruder_steppers):
+        """Abstraction to calculate halt_kin_spos for all axes on the toolhead (XYZ, ABC, E)."""
+        halt_kin_spos = {}
+        # Iterate over["XYZ", "ABC"]
+        for axes in list(self.toolhead.kinematics):
+            kin = self.toolhead.kinematics[axes]
+            # NOTE: Uses "ffi_lib.itersolve_get_commanded_pos",
+            #       probably reads the position previously set by
+            #       "stepper.set_position" / "itersolve_set_position".
+            halt_kin_spos.update({s.get_name(): s.get_commanded_position()
+                                 for s in kin.get_steppers()})
+
+        # NOTE: Repeat the above for the extruder steppers (defined above).
+        for extruder_stepper in extruder_steppers:
+            # Get PrinterStepper (MCU_stepper) objects.
+            for s in extruder_stepper.rail.get_steppers():
+                halt_kin_spos.update({s.get_name(): s.get_commanded_position()})
+        
+        return halt_kin_spos
     
     def check_no_movement(self, axes=None):
         """
@@ -402,32 +441,50 @@ class Homing:
         # NOTE: The "forcepos" argument is passed 1.5 times the
         #       difference between the endstop position and the
         #       opposing limit coordinate.
+        
         # Notify of upcoming homing operation
+        logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}\n\n")
         self.printer.send_event("homing:home_rails_begin", self, rails)
+        
         # Alter kinematics class to think printer is at forcepos
-        homing_axes = [axis for axis in range(3) if forcepos[axis] is not None]
+        axis_count = self.toolhead.axis_count
+        # NOTE: Get the axis IDs of each non-null axis in forcepos.
+        homing_axes = [axis for axis in range(axis_count) if forcepos[axis] is not None]
+        # NOTE: fill each "None" position values with the 
+        #       current position (from toolhead.get_position)
+        #       of the corresponding axis.
         startpos = self._fill_coord(forcepos)
         homepos = self._fill_coord(movepos)
         # NOTE: esto usa "trapq_set_position" sobre el trapq del XYZ.
         # NOTE: homing_axes se usa finalmente en "CartKinematics.set_position",
         #       para asignarle limites a los "rails" que se homearon. Nada más.
         self.toolhead.set_position(startpos, homing_axes=homing_axes)
+        
         # Perform first home
         endstops = [es for rail in rails for es in rail.get_endstops()]
         hi = rails[0].get_homing_info()
         hmove = HomingMove(self.printer, endstops)
         hmove.homing_move(homepos, hi.speed)
+        
         # Perform second home
         if hi.retract_dist:
             # Retract
+            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}\n\n")
+            # startpos=[0.0, 0.0, 0.0, 468.0, 0.0, 0.0, 0.0] 
+            # homepos=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
+            
             axes_d = [hp - sp for hp, sp in zip(homepos, startpos)]
-            move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
+            
+            # TODO: consider using all coordinates, not just XYZ(ABC).
+            move_d = math.sqrt(sum([d*d for d in axes_d[:axis_count]]))
+            
             retract_r = min(1., hi.retract_dist / move_d)
             retractpos = [hp - ad * retract_r
                           for hp, ad in zip(homepos, axes_d)]
             self.toolhead.move(retractpos, hi.retract_speed)
+            
             # Home again
             startpos = [rp - ad * retract_r
                         for rp, ad in zip(retractpos, axes_d)]
@@ -438,6 +495,7 @@ class Homing:
                 raise self.printer.command_error(
                     "Endstop %s still triggered after retract"
                     % (hmove.check_no_movement(),))
+        
         # Signal home operation complete
         self.toolhead.flush_step_generation()
         self.trigger_mcu_pos = {sp.stepper_name: sp.trig_pos
@@ -524,16 +582,56 @@ class PrinterHoming:
         return epos
 
     def cmd_G28(self, gcmd):
+        logging.info(f"\n\nPrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}\n\n")
+        
+        toolhead = self.printer.lookup_object('toolhead')
         # Move to origin
         axes = []
-        for pos, axis in enumerate('XYZ'):
+        for pos, axis in enumerate(toolhead.axis_names):
+        # for pos, axis in enumerate('XYZ'):
             if gcmd.get(axis, None) is not None:
                 axes.append(pos)
         if not axes:
-            axes = [0, 1, 2]
+            axes = list(range(toolhead.axis_count))
+            # axes = [0, 1, 2]
+        
+        logging.info(f"\n\nPrinterHoming.cmd_G28: homing axes={axes}\n\n")
+        
+        # NOTE: Home all of the requested axes, from their respective kinematics.
+        for kin_axes in list(toolhead.kinematics):
+            # Iterate over ["XYZ", "ABC"].
+            kin = toolhead.kinematics[kin_axes]
+            if any(i in kin.axis for i in axes):
+                self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
+        
+        # # NOTE: XYZ homing.
+        # kin = toolhead.get_kinematics()
+        # if any(i in kin.axis for i in axes):
+        #     self.home_axes(kin=kin, homing_axes=[a for a in axes if a in kin.axis])
+        
+        # # NOTE: ABC homing.
+        # kin_abc = toolhead.get_kinematics_abc()
+        # if any(i in kin_abc.axis for i in axes) and kin_abc is not None:
+        #     self.home_axes(kin=kin_abc, homing_axes=[a for a in axes if a in kin_abc.axis])
+        
+    def home_axes(self, kin, homing_axes):
+        """Home the requested axis on the specified kinematics.
+
+        Args:
+            kin (kinematics): Kinematics class for the axes.
+            homing_axes (list): List of axis, coherced internally to [0,1,2].
+
+        Raises:
+            self.printer.command_error: _description_
+        """
+        # NOTE: Convert ABC axis IDs to XYZ IDs (i.e. 3,4,5 to 0,1,2).
+        #       Not useful, adapting "home_rails" would have been complicated.
+        # axes = self.axes_to_xyz(homing_axes)
+        axes = homing_axes
+        logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes}\n\n")
+        
         homing_state = Homing(self.printer)
         homing_state.set_axes(axes)
-        kin = self.printer.lookup_object('toolhead').get_kinematics()
         try:
             # NOTE: In the cart kinematics, "kin.home" iterates over each 
             #       axis calling "Homing.home_rails", which then uses

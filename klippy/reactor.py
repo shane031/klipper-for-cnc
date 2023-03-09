@@ -10,6 +10,12 @@ import chelper, util
 _NOW = 0.
 _NEVER = 9999999999999999.
 
+"""
+Use printer.get_reactor() to obtain access to the global "event reactor" class. 
+
+This reactor class allows one to schedule timers, wait for input on file descriptors, and to "sleep" the host code.
+"""
+
 class ReactorTimer:
     def __init__(self, callback, waketime):
         self.callback = callback

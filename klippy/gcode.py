@@ -8,7 +8,8 @@ import os, re, logging, collections, shlex
 class CommandError(Exception):
     pass
 
-Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'e'))
+Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'e', 'a', 'b', 'c'), 
+                               defaults = (None,None,None,None,None,None,None))
 
 class GCodeCommand:
     error = CommandError

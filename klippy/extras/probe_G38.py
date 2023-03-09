@@ -63,6 +63,14 @@ class ProbeEndstopWrapperG38(probe.ProbeEndstopWrapper):
             # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
             if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
                 self.add_stepper(stepper)
+                
+        # NOTE: Register ABC steppers too.
+        kin_abc = self.printer.lookup_object('toolhead').get_kinematics_abc()
+        if kin_abc is not None:
+            for stepper in kin_abc.get_steppers():
+                # NOTE: get_steppers returns all "PrinterStepper"/"MCU_stepper" objects in the kinematic.
+                if stepper.is_active_axis('x') or stepper.is_active_axis('y') or stepper.is_active_axis('z'):
+                    self.add_stepper(stepper)
         
         # NOTE: register steppers from all extruders.
         extruder_objs = self.printer.lookup_extruders()
@@ -218,8 +226,8 @@ class ProbeG38:
         # NOTE: coordinate code parser copied from "cmd_G1" at "gcode_move.py".
         params = gcmd.get_command_parameters()
         try:
-            # Parse axis coordinates
-            for pos, axis in enumerate('XYZ'):
+            # Parse XYZ(ABC) axis move coordinates.
+            for pos, axis in enumerate(toolhead.axis_names):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
@@ -234,10 +242,10 @@ class ProbeG38:
                 v = float(params['E']) * self.extrude_factor
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
-                    self.last_position[3] += v
+                    self.last_position[toolhead.axis_count] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[3] = v + self.base_position[3]
+                    self.last_position[toolhead.axis_count] = v + self.base_position[toolhead.axis_count]
                 # NOTE: register which axes are being probed
                 probe_axes.append(active_extruder_name)  # Append "extruderN"
             
@@ -333,8 +341,13 @@ class ProbeG38:
                 # NOTE: log the error as usual if it is was not a timeout error.
                 raise self.printer.command_error(reason)
         
-        self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f e=%.3f"
-                                % (epos[0], epos[1], epos[2], epos[3]))
+        if toolhead.axis_count == 3:
+            self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f e=%.3f" % tuple(epos))
+        elif toolhead.axis_count == 6:
+            self.gcode.respond_info("probe trigger at x=%.3f y=%.3f z=%.3f a=%.3f b=%.3f c=%.3f e=%.3f"
+                                    % tuple(epos))
+        else:
+            raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
         
         # TODO: find out why it returns the fourth position.
         return epos[:3]

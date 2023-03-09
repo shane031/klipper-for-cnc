@@ -94,6 +94,7 @@ class PrinterProbe:
         if self.mcu_probe in endstops:
             self.multi_probe_begin()
     def _handle_home_rails_end(self, homing_state, rails):
+        logging.info(f"\n\nprobe._handle_home_rails_end: function triggered.\n\n")
         endstops = [es for rail in rails for es, name in rail.get_endstops()]
         if self.mcu_probe in endstops:
             self.multi_probe_end()

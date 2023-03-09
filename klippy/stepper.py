@@ -131,6 +131,7 @@ class MCU_stepper:
             self._stepper_kinematics, coord[0], coord[1], coord[2])
     
     def set_position(self, coord):
+        logging.info("\n\n" + f"MCU_stepper.set_position: setting coord={coord} on stepper={self._name}\n\n")
         # NOTE: reads current position from "get_commanded_position()",
         #       adds the "_mcu_position_offset" and converts to position
         #       dividing by "_step_dist".
@@ -140,12 +141,14 @@ class MCU_stepper:
         ffi_main, ffi_lib = chelper.get_ffi()
 
         # NOTE: "itersolve_set_position" sets "sk->commanded_pos" (at itersolve.c)
+        logging.info("\n\n" + f"MCU_stepper.set_position: calling itersolve_set_position\n\n")
         ffi_lib.itersolve_set_position(sk, coord[0], coord[1], coord[2])
 
         # NOTE: "_set_mcu_position" uses "self.get_commanded_position" 
         #       and "itersolve_get_commanded_pos" to read "sk->commanded_pos" 
         #       (at itersolve.c), which has just been set above,
         #       and updates "self._mcu_position_offset".
+        logging.info("\n\n" + f"MCU_stepper.set_position: calling _set_mcu_position\n\n")
         self._set_mcu_position(mcu_pos)
     
     def get_commanded_position(self):
@@ -267,7 +270,7 @@ class MCU_stepper:
 # Helper code to build a stepper object from a config section
 def PrinterStepper(config, units_in_radians=False):
     printer = config.get_printer()
-    name = config.get_name()
+    name = config.get_name()  # NOTE: Example: "stepper_x".
     # Stepper definition
     ppins = printer.lookup_object('pins')
     step_pin = config.get('step_pin')
@@ -334,7 +337,7 @@ class PrinterRail:
         # Primary stepper and endstop
         self.stepper_units_in_radians = units_in_radians
         
-        # NOTE: List of 
+        # NOTE: List of MCU_stepper objects (setup by PrinterStepper).
         self.steppers = []
         
         # NOTE: list of tuples with elements: (mcu_endstop, name)
@@ -355,13 +358,18 @@ class PrinterRail:
         #       the stepper to this class.
         self.add_extra_stepper(config)
         
-        # NOTE: this grabs the first "MCU_stepper" item in the list.
+        # NOTE: this grabs the first "MCU_stepper" item in the list,
+        #       which was added by the call to "add_extra_stepper" above.
         mcu_stepper = self.steppers[0]
+        
         # NOTE: The get_name function is inherited from the
         #       first stepper in the steppers list of the
         #       PrinterRail class. It thus keeps only the first
         #       one. I imagine something like this:
         #       Keep "stepper_x" from ["stepper_x", "stepper_x1"]
+        #       The "mcu_stepper.get_name" function will return
+        #       "stepper_x" unless "short=True", in which case it
+        #       will return just "x".
         self.get_name = mcu_stepper.get_name
         # TODO: I don't know what these do yet.
         self.get_commanded_position = mcu_stepper.get_commanded_position
@@ -538,6 +546,7 @@ class PrinterRail:
             stepper.set_trapq(trapq)
     def set_position(self, coord):
         for stepper in self.steppers:
+            # NOTE: calls "MCU_stepper.set_position".
             stepper.set_position(coord)
 
 # Wrapper for dual stepper motor support
