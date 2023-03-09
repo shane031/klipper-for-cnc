@@ -245,6 +245,42 @@ class ControlPID:
         
         return avg_temp
     
+    def linear_regression(self, x, y):
+        """Least squares by ChatGPT.
+        Calculates the linear regression of the given data using the method of least squares.
+
+        Args:
+            x (list): A list of x-coordinates of the data points.
+            y (list): A list of y-coordinates of the data points.
+
+        Returns:
+            tuple: A tuple containing the slope and y-intercept of the regression line.
+
+        Raises:
+            ValueError: If the input lists are of unequal length or if there are missing or invalid data points.
+
+        Examples:
+            >>> x = [1, 2, 3, 4, 5]
+            >>> y = [2, 4, 5, 4, 5]
+            >>> slope, y_intercept = linear_regression(x, y)
+            >>> slope
+            0.6
+            >>> y_intercept
+            2.2
+        """
+
+        n = len(x)
+        sum_x = sum(x)
+        sum_y = sum(y)
+        sum_xy = sum([x[i] * y[i] for i in range(n)])
+        sum_x_sq = sum([x[i] ** 2 for i in range(n)])
+        
+        # Calculate the slope and y-intercept of the line
+        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x_sq - sum_x ** 2)
+        y_intercept = (sum_y - slope * sum_x) / n
+        
+        return slope, y_intercept
+    
     def temperature_update(self, read_time, temp, target_temp):
         """Implements PID and sets PWM output.
         
@@ -263,9 +299,9 @@ class ControlPID:
         if len(self.last_measurements) >= 2:
             # NOTE: Use linear regression on the last 5 (self.samples)  
             #       measurements to calculate the derivative term.
-            x = np.array(self.last_measurement_times[-self.samples:]) - read_time
-            y = np.array(self.last_measurements[-self.samples:])
-            slope, _ = np.polyfit(x, y, 1)
+            x = self.last_measurement_times[-self.samples:] # NOTE: no need to subtract "read_time" for slope calculation.
+            y = self.last_measurements[-self.samples:]
+            slope, y_intercept = self.linear_regression(x, y)
             # NOTE: Originally "slope / self.sample_time". 
             #       Chat GPT does not do dimensional analysis.
             derivative_term = slope
