@@ -1113,15 +1113,26 @@ class ToolHead:
             # NOTE: deletes al moves in the queue
             self.move_queue.reset()
             
-            # NOTE: This calls a function in "trapq.c", described as:
+            # NOTE: "trapq_finalize_moves" calls a function in "trapq.c", described as:
             #       - Expire any moves older than `print_time` from the trapezoid velocity queue
             #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
             #       I am guessing here that "older" means "with a smaller timestamp",
             #       otherwise it does not make sense.
-            self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            for axes in list(self.kinematics):
+                # Iterate over ["XYZ", "ABC"].
+                kin = self.kinematics[axes]
+                logging.info(f"\n\nToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})\n\n")
+                self.trapq_finalize_moves(kin.trapq, self.reactor.NEVER)
             
-            # NOTE: call trapq_finalize_moves on the ABC exes too.
-            self.trapq_finalize_moves(self.abc_trapq, self.reactor.NEVER)
+            # # NOTE: This calls a function in "trapq.c", described as:
+            # #       - Expire any moves older than `print_time` from the trapezoid velocity queue
+            # #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
+            # #       I am guessing here that "older" means "with a smaller timestamp",
+            # #       otherwise it does not make sense.
+            # self.trapq_finalize_moves(self.trapq, self.reactor.NEVER)
+            
+            # # NOTE: call trapq_finalize_moves on the ABC exes too.
+            # self.trapq_finalize_moves(self.abc_trapq, self.reactor.NEVER)
 
             # NOTE: the above may be specific to toolhead and not to extruder...
             #       Add an "event" that calls this same method on the 
