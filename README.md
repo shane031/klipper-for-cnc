@@ -134,7 +134,7 @@ Important TODOs:
 
 - Run tests! Only basic functionality has been covered.
 - "Extra" steppers not tested (i.e. `stepper_a1`, etc.)
-- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-homing-extruder/issues/6
+- `SET_KINEMATIC_POSITION` would _sometimes_ cause `MCU 'tools' shutdown: Rescheduled timer in the past`. I find this error hard to reproduce. Maybe its my UNO's fault. Must track down the cause. See: https://github.com/naikymen/klipper-for-cnc/issues/6
 - Consider if it would have been better/simpler to use multiple extruder axes instead of full "cartesian" axes. Adding axes one by one would have been simpler this way. For now, full stepper_a, stepper_b, and stepper_c config sections are mandatory.
 
 ### PID sample smoothing config
@@ -274,13 +274,13 @@ The easiest way is to use a KIAUH "klipper_repos.txt" file. Details at: https://
 1. SSH into the Pi.
 2. Copy "klipper_repos.txt.example" to "klipper_repos.txt".
     - Use the command: `cp kiauh/klipper_repos.txt.example  kiauh/klipper_repos.txt`
-4. Edit the `kiauh/klipper_repos.txt` file to append "`naikymen/klipper-homing-extruder,pipetting`" after the last line.
-    - Use the command: `echo "naikymen/klipper-homing-extruder,pipetting" >> kiauh/klipper_repos.txt`
+4. Edit the `kiauh/klipper_repos.txt` file to append "`naikymen/klipper-for-cnc,pipetting`" after the last line.
+    - Use the command: `echo "naikymen/klipper-for-cnc,pipetting" >> kiauh/klipper_repos.txt`
 5. Start KIAUH.
     - Use the command: `./kiauh/kiauh.sh`
 7. Choose option "`6) [Settings]`".
 8. Choose option "`1) Set custom Klipper repository`".
-9. Choose the option corresonding to "`naikymen/klipper-homing-extruder -> pipetting`"
+9. Choose the option corresonding to "`naikymen/klipper-for-cnc -> pipetting`"
 10. Use KIAUH to uninstall and reinstall Klipper.
 
 ## Updates through moonraker
@@ -312,7 +312,7 @@ index a3bfac3..ba33057 100644
              "firmware_date": firmware_date,
 -            "firmware_link": "https://github.com/Klipper3d/klipper",
 +            # "firmware_link": "https://github.com/Klipper3d/klipper",
-+            "firmware_link": "https://github.com/naikymen/klipper-homing-extruder",
++            "firmware_link": "https://github.com/naikymen/klipper-for-cnc",
          }
          diff = self._get_object_diff(fw_info, self.cache.firmware_info)
          if diff:
@@ -326,7 +326,7 @@ index 4bcccbc..7c48aef 100644
          "moved_origin": "https://github.com/kevinoconnor/klipper.git",
 -        "origin": "https://github.com/Klipper3d/klipper.git",
 +        # "origin": "https://github.com/Klipper3d/klipper.git",
-+        "origin": "https://github.com/naikymen/klipper-homing-extruder.git",
++        "origin": "https://github.com/naikymen/klipper-for-cnc.git",
 +        "primary_branch": "pipetting",
          "requirements": "scripts/klippy-requirements.txt",
          "venv_args": "-p python2",
