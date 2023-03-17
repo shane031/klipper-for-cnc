@@ -269,7 +269,9 @@ class MoveQueue:
             return
         
         # Generate step times for all moves ready to be flushed
-        # NOTE: The clock time when this move will be sent are not yet known.
+        # NOTE: The clock time when this move will be executed is not yet explicit,
+        #       it will be calculated  by "_process_moves", and then updated with
+        #       a call to "_update_move_time".
         logging.info("\n\nMoveQueue flush: calling _process_moves.\n\n")
         self.toolhead._process_moves(moves=queue[:flush_count])
 
@@ -347,6 +349,8 @@ class ToolHead:
         self.mcu = self.all_mcus[0]
         self.can_pause = True
         if self.mcu.is_fileoutput():
+            # NOTE: This triggers if 'debugoutput' is not None in the config,
+            #       see "mcu.py".
             self.can_pause = False
         self.move_queue = MoveQueue(self)
         self.commanded_pos = [0.0 for i in range(self.axis_count + 1)]
@@ -1026,12 +1030,32 @@ class ToolHead:
         self._check_stall()
     
     def wait_moves(self):
+        
+        # NOTE: Calls "move_queue.flush" unless in "special queuing state"
+        #       (e.g. drip mode).
+        # TODO: Check if this is the cause of the bug reported at Discord:
+        #       https://discord.com/channels/431557959978450984/801826273227177984/1085312803558133800
+        #       And fixed by an M400:
+        #       https://discord.com/channels/431557959978450984/801826273227177984/1086104085201158260
         self._flush_lookahead()
+        
+        # NOTE: See "reactor.py"
+        #       "Return the monotonic system time as a double"
         eventtime = self.reactor.monotonic()
-        while (not self.special_queuing_state
-               or self.print_time >= self.mcu.estimated_print_time(eventtime)):
+        
+        # NOTE: Loop while the queuing state is "regular" (e.g. not "drip"),
+        #       or while the "print_time" is greater than the result of
+        #       "mcu.estimated_print_time(eventtime)" (which converts "clock time"
+        #       to "print time", see "clocksync.py").
+        while (not self.special_queuing_state) or (self.print_time >= self.mcu.estimated_print_time(eventtime)):
+            
+            # NOTE: break the loop if the toolhead "cannot be paused".
             if not self.can_pause:
                 break
+            
+            # NOTE: "pause" the reactor for a bit before looping again.
+            #       This command does a bunch of undocumented stuff with
+            #       greenlet objects, and may use "time.sleep" in some case.
             eventtime = self.reactor.pause(eventtime + 0.100)
     
     def set_extruder(self, extruder, extrude_pos):
