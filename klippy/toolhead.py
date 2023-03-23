@@ -401,10 +401,11 @@ class ToolHead:
         self.step_generators = []
         
         # NOTE: check TRAPQ for the extra ABC axes here.
-        if len(self.axis_names) // 3 == 2:
-            logging.info(f"\n\nToolHead: setting up ABC trapq.\n\n")
-        elif len(self.axis_names) > 6:
-            msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
+        if len(self.axis_names) == 6:
+            logging.info(f"\n\nToolHead: setting up additional ABC trapq.\n\n")
+        elif len(self.axis_names) > 3:
+            msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)}) axes is unsupported."
+            msg += " Use either XYZ (3) or XYZABC (6) axes."
             logging.exception(msg)
             raise config.error(msg)
         
