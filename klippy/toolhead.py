@@ -483,14 +483,15 @@ class ToolHead:
         # NOTE: get the "kinematics" type from "[printer]".
         kin_name = config.get(config_name)
         
+        # Create a Trapq for the kinematics
+        ffi_main, ffi_lib = chelper.get_ffi()
+        trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+
         # NOTE: check for a "no kinematics" setup.
         if kin_name == "none":
-            return None, None
+            return None, trapq
         
         try:
-            # Create a Trapq for the kinematics
-            ffi_main, ffi_lib = chelper.get_ffi()
-            trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
             # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
             # Run the modules setup function.
