@@ -340,6 +340,9 @@ class ToolHead:
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
+        # TODO: support more kinematics.
+        self.supported_kinematics = ["cartesian", "cartesian_abc", "none"]
+        
         logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
         
         self.printer = config.get_printer()
@@ -472,6 +475,12 @@ class ToolHead:
     def load_kinematics(self, config, axes_ids, config_name='kinematics'):
         """Load kinematics for a set of axes.
 
+        Note: this requires the Kinematics module to accept a "trapq" object,
+        which it must use. Thus, the "load_kinematics" function must also
+        be able to pass the object to the instantiation of the new knimeatics class.
+
+        Most kinematics in this branch have not been updated.
+
         Args:
             config (_type_): Klipper configuration object.
             axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
@@ -482,15 +491,18 @@ class ToolHead:
         """
         # NOTE: get the "kinematics" type from "[printer]".
         kin_name = config.get(config_name)
+
+        # TODO: Support other kinematics is due. Error out for now.
+        if kin_name not in self.supported_kinematics:
+            msg = f"Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
+            logging.exception(msg)
+            raise config.error(msg)
         
         # Create a Trapq for the kinematics
         ffi_main, ffi_lib = chelper.get_ffi()
         trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
-
-        # NOTE: check for a "no kinematics" setup.
-        if kin_name == "none":
-            return None, trapq
         
+        # Set up the kinematics object
         try:
             # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
