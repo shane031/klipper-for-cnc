@@ -437,53 +437,44 @@ class ToolHead:
     
     # Load axes abstraction
     def load_axes(self, config):
-        """_summary_
+        """Convnenience function to setup kinematics and trapq objects for the toolhead.
+
+        The definition of this function contains several "hardcoded" variables that should
+        be moved to a separate config file eventually, or be otherwise configurable.
 
         Args:
             config (_type_): Klipper configuration object.
-            axes (str, optional): Axes specification string. Defaults to "XYZABC".
         """
-        ffi_main, ffi_lib = chelper.get_ffi()
         
         # Setup XYZ axes
         if "XYZ" in self.axis_names:
-            # Create XYZ trapq (setup XYZ iterative solver).
-            self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
-            # Create XYZ kinematics class.
-            self.kin = self.load_kinematics(config=config, 
-                                            config_name='kinematics',
-                                            trapq=self.trapq)
-            # Specify which of the toolhead position elements correspon to the axis
-            self.kin.axis = [0, 1, 2]
-            # Save the kinematics to the dict
+            # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
+            self.kin, self.trapq = self.load_kinematics(config=config, 
+                                                        config_name='kinematics',
+                                                        axes_ids = [0, 1, 2])
+            # Save the kinematics to the dict.
             self.kinematics["XYZ"] = self.kin
         else:
-            self.trapq = None
-            self.kin = None
+            self.kin, self.trapq = None, None
         
         # Setup ABC axes
         if "ABC" in self.axis_names:
-            # Create ABC trapq  (setup ABC iterative solver).
-            self.abc_trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
-            # Create ABC kinematics class.
-            self.kin_abc = self.load_kinematics(config=config, 
-                                                config_name='kinematics_abc',
-                                                trapq=self.abc_trapq)
-            # Specify which of the toolhead position elements correspon to the axis
-            self.kin_abc.axis = [3, 4 ,5]
+            # Create ABC kinematics class, and its ABC trapq (iterative solver).
+            self.kin_abc, self.abc_trapq = self.load_kinematics(config=config, 
+                                                                config_name='kinematics_abc',
+                                                                axes_ids=[3, 4 ,5])
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
-            self.kin_abc = None
-            self.abc_trapq = None
+            self.kin_abc, self.abc_trapq = None, None
     
     # Load kinematics object
-    def load_kinematics(self, config, trapq, config_name='kinematics'):
+    def load_kinematics(self, config, axes_ids, config_name='kinematics'):
         """Load kinematics for a set of axes.
 
         Args:
             config (_type_): Klipper configuration object.
-            trapq (_type_): Klipper trapq object.
+            axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
             config_name (str, optional): Name of the kinematics in the config. Defaults to 'kinematics'.
 
         Returns:
@@ -491,9 +482,21 @@ class ToolHead:
         """
         # NOTE: get the "kinematics" type from "[printer]".
         kin_name = config.get(config_name)
+        
+        # NOTE: check for a "no kinematics" setup.
+        if kin_name == "none":
+            return None, None
+        
         try:
+            # Create a Trapq for the kinematics
+            ffi_main, ffi_lib = chelper.get_ffi()
+            trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+            # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
+            # Run the modules setup function.
             kin = mod.load_kinematics(self, config, trapq)
+            # Specify which of the toolhead position elements correspon to the axis.
+            kin.axis = axes_ids.copy()
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
@@ -503,7 +506,7 @@ class ToolHead:
             logging.exception(msg)
             raise config.error(msg)
         
-        return kin
+        return kin, trapq
     
     # Print time tracking
     def _update_move_time(self, next_print_time):
