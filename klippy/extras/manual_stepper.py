@@ -36,13 +36,16 @@ class ManualStepper:
         gcode.register_mux_command('MANUAL_STEPPER', "STEPPER",
                                    stepper_name, self.cmd_MANUAL_STEPPER,
                                    desc=self.cmd_MANUAL_STEPPER_help)
+    
     def sync_print_time(self):
+        """ Synchronize the toolheads next print time and the local next print time."""
         toolhead = self.printer.lookup_object('toolhead')
         print_time = toolhead.get_last_move_time()
         if self.next_cmd_time > print_time:
             toolhead.dwell(self.next_cmd_time - print_time)
         else:
             self.next_cmd_time = print_time
+    
     def do_enable(self, enable):
         self.sync_print_time()
         stepper_enable = self.printer.lookup_object('stepper_enable')
@@ -91,27 +94,41 @@ class ManualStepper:
         #       as a "virtual toolhead"
         phoming.manual_home(self, endstops, pos, speed,
                             triggered, check_trigger)
+    
     cmd_MANUAL_STEPPER_help = "Command a manually configured stepper"
     def cmd_MANUAL_STEPPER(self, gcmd):
+        # Enabling
         enable = gcmd.get_int('ENABLE', None)
         if enable is not None:
             self.do_enable(enable)
+        # Setting position
         setpos = gcmd.get_float('SET_POSITION', None)
         if setpos is not None:
             self.do_set_position(setpos)
+        # Parameters
         speed = gcmd.get_float('SPEED', self.velocity, above=0.)
         accel = gcmd.get_float('ACCEL', self.accel, minval=0.)
         homing_move = gcmd.get_int('STOP_ON_ENDSTOP', 0)
+        
+        # Route the commmand to the corresponding implementation.
+        # Homing.
         if homing_move:
             movepos = gcmd.get_float('MOVE')
             self.do_homing_move(movepos, speed, accel,
                                 homing_move > 0, abs(homing_move) == 1)
+        # Regular move.
         elif gcmd.get_float('MOVE', None) is not None:
             movepos = gcmd.get_float('MOVE')
+            # NOTE: "Normally future G-Code commands will be scheduled to run 
+            #       after the stepper move completes, however if a manual
+            #       stepper move uses SYNC=0 then future G-Code movement 
+            #       commands may run in parallel with the stepper movement."
             sync = gcmd.get_int('SYNC', 1)
             self.do_move(movepos, speed, accel, sync)
+        # No move.
         elif gcmd.get_int('SYNC', 0):
             self.sync_print_time()
+    
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
         # NOTE: this is the first function called by "homing_move",
