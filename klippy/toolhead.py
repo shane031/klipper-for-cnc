@@ -579,7 +579,7 @@ class ToolHead:
                 break
     
     def _calc_print_time(self):
-        # NOTE: called during "special" queuing states, 
+        # NOTE: Called during "special" queuing states, 
         #       by "get_last_move_time" or "_process_moves".
         # NOTE: This function updates "self.print_time" directly.
         # NOTE: Also sends a "toolhead:sync_print_time" event, handled by
@@ -587,10 +587,10 @@ class ToolHead:
         #       "reactor.update_timer" and sends an "idle_timeout:printing" 
         #       event (which is only handled by tmc2660.py).
 
-        # NOTE: get the current (host) system time.
+        # NOTE: Get the current (host) system time.
         curtime = self.reactor.monotonic()
         
-        # NOTE: method from MCU (at mcu.py) that calls the
+        # NOTE: Method from MCU (at mcu.py) that calls the
         #       "self._clocksync.estimated_print_time" 
         #       method from the ClockSync class (at clocksync.py).
         #       The method uses "get_clock" to get "self.clock_est" 
@@ -782,7 +782,7 @@ class ToolHead:
         #       which can be used to schedule a new move,
         #       after others have finished.
 
-        # NOTE: The "_flush_lookahead" method calls:
+        # NOTE: The "_flush_lookahead" method calls either:
         #       - flush_step_generation: which updates "self.print_time" through "_update_move_time".
         #       - move_queue.flush: also ends up updating "self.print_time".
         self._flush_lookahead()
