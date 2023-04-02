@@ -94,6 +94,26 @@ class ExtruderStepper:
         self.stepper.set_position([extruder.last_position, 0., 0.])
         self.stepper.set_trapq(extruder.get_trapq())
         self.motion_queue = extruder_name
+    
+    def set_position(self, newpos_e, homing_e=False, print_time=None):
+        """ExtruderStepper version of set_position in toolhead.py"""
+        logging.info("\n\n" + f"ExtruderStepper.set_position: setting E to newpos={newpos_e}.\n\n")
+
+        if print_time is None:
+            toolhead = self.printer.lookup_object('toolhead')
+            print_time = toolhead.print_time
+
+        # Set its position
+        ffi_main, ffi_lib = chelper.get_ffi()
+        ffi_lib.trapq_set_position(self.trapq, 
+                                   print_time,
+                                   newpos_e, 0., 0.)
+
+        # NOTE: The following calls PrinterRail.set_position, which
+        #       calls set_position on each of the MCU_stepper objects 
+        #       in each PrinterRail.
+        #       It eventually calls "itersolve_set_position".
+        self.rail.set_position([newpos_e, 0., 0.])
     def _set_pressure_advance(self, pressure_advance, smooth_time):
         old_smooth_time = self.pressure_advance_smooth_time
         if not self.pressure_advance:
@@ -218,6 +238,11 @@ class PrinterExtruder:
             'max_extrude_only_distance', 50., minval=0.)
         self.instant_corner_v = config.getfloat(
             'instantaneous_corner_velocity', 1., minval=0.)
+
+        # NOTE: Get the axis ID of the extruder axis. Will
+        #       be equal to the amount of axes in the toolhead,
+        #       either XYZ=3 or XYZABC=6.
+        self.axis_idx = toolhead.axis_count
         
         # Setup extruder trapq (trapezoidal motion queue)
         ffi_main, ffi_lib = chelper.get_ffi()
@@ -298,6 +323,27 @@ class PrinterExtruder:
                 "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\n"
                 "See the 'max_extrude_cross_section' config option for details"
                 % (area, self.max_extrude_ratio * self.filament_area))
+    def set_position(self, newpos_e, homing_axes=(), print_time=None):
+        """PrinterExtruder version of set_position in toolhead.py
+        This should set the position in the 'trapq' and in the 'extruder kin'.
+        """
+        if print_time is None:
+            toolhead = self.printer.lookup_object('toolhead')
+            print_time = toolhead.print_time
+        
+        # NOTE: Check if the E axis is being homed. This
+        #       will signal the stepper to set its limits 
+        #       and appear as "homed".
+        homing_e = self.axis_idx in homing_axes
+
+        # NOTE: Have the ExtruderStepper set its "Trapq" and 
+        #       "MCU_stepper" positions.
+        self.extruder_stepper.set_position(
+            newpos_e=newpos_e,
+            homing_e=homing_e,
+            print_time=print_time)
+
+
     def calc_junction(self, prev_move, move):
         diff_r = move.axes_r[3] - prev_move.axes_r[3]
         if diff_r:

@@ -953,19 +953,11 @@ class ToolHead:
             # Do nothing if the extruder is a "Dummy" extruder.
             pass
         else:
-            # Get the "trapq" from the active extruder.
-            extruder_trapq = extruder.get_trapq()  # extruder trapq (from ffi)
-
-            # Get the stepper
-            extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
-            rail = extruder_stepper.rail                  # PrinterRail
-
-            # Set its position
-            ffi_main, ffi_lib = chelper.get_ffi()
-            ffi_lib.trapq_set_position(extruder_trapq, 
-                                       self.print_time,
-                                       newpos_e, 0., 0.)
-            rail.set_position([newpos_e, 0., 0.])
+            # NOTE: Let the "extruder kinematic" set its position. This will call
+            #       set position on the "trapq" and "rail" objects of the
+            #       active ExtruderStepper class
+            # TODO: the "homing_axes" parameter is not used rait nau.
+            extruder.set_position(newpos_e, homing_axes, self.print_time)
     
     def move(self, newpos, speed):
         """ToolHead.move() creates a Move() object with the parameters of the move (in cartesian space and in units of seconds and millimeters).
