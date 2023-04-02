@@ -882,7 +882,7 @@ class ToolHead:
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
-        self.set_position_e(newpos_e=newpos[self.axis_count])
+        self.set_position_e(newpos_e=newpos[self.axis_count], homing_axes=homing_axes)
         
         # NOTE: Set the position of the axes "kinematics".
         for axes in list(self.kinematics):
@@ -942,7 +942,7 @@ class ToolHead:
         else:
             logging.info("\n\n" + f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
 
-    def set_position_e(self, newpos_e):
+    def set_position_e(self, newpos_e, homing_axes=()):
         """Extruder version of set_position."""
         logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
         
