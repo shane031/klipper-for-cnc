@@ -906,7 +906,7 @@ class ToolHead:
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
         
     def set_kin_trap_position(self, trapq, newpos):
-        """Abstraction of set_position for different sets of kinematics.
+        """Abstraction of trapq_set_position for different sets of kinematics.
 
         Args:
             trapq (trapq): trapezoidal queue.
@@ -923,7 +923,7 @@ class ToolHead:
             logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     
     def set_kinematics_position(self, kin, newpos, homing_axes):
-        """Abstraction of set_position for different sets of kinematics.
+        """Abstraction of kin.set_position for different sets of kinematics.
 
         Args:
             kin (kinematics): Instance of a (cartesian) kinematics class.
