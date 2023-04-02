@@ -1004,7 +1004,7 @@ class ToolHead:
             
         # NOTE: Kinematic move checks for E axis.
         if move.axes_d[self.axis_count]:
-            self.extruder.check_move(move)
+            self.extruder.check_move(move, e_axis=self.axis_count)
         
         # NOTE: Update "commanded_pos" with the "end_pos"
         #       of the current move command.
