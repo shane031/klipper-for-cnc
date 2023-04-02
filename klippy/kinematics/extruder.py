@@ -36,6 +36,15 @@ class ExtruderStepper:
         #       method, which the MCU_stepper object returned "PrinterStepper" does
         #       not have, but the PrinterRail does. This has been patched.
         self.stepper = self.steppers[0]
+
+        # NOTE: Setup attributes for limit checks, useful for syringe extruders.
+        # TODO: Check if this works as expected for extruder limit checking.
+        self.limits = [(1.0, -1.0)]
+        self.axes_min, self.axes_max = None, None
+        if self.can_home:
+            range = self.rail.get_range()
+            self.axes_min = toolhead.Coord(e=range[0])
+            self.axes_max = toolhead.Coord(e=range[1])
         
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
@@ -69,10 +78,23 @@ class ExtruderStepper:
         toolhead = self.printer.lookup_object('toolhead')
         toolhead.register_step_generator(self.stepper.generate_steps)
         self._set_pressure_advance(self.config_pa, self.config_smooth_time)
+    
     def get_status(self, eventtime):
-        return {'pressure_advance': self.pressure_advance,
-                'smooth_time': self.pressure_advance_smooth_time,
-                'motion_queue': self.motion_queue}
+
+        status = {'pressure_advance': self.pressure_advance,
+                  'smooth_time': self.pressure_advance_smooth_time,
+                  'motion_queue': self.motion_queue}
+
+        if self.can_home:
+            axes = [a for a, (l, h) in zip("e", self.limits) if l <= h]
+            statis.update({
+                'homed_axes': "".join(axes),
+                'axis_minimum': self.axes_min,
+                'axis_maximum': self.axes_max,
+            })
+
+        return status
+    
     def find_past_position(self, print_time):
         mcu_pos = self.stepper.get_past_mcu_position(print_time)
         return self.stepper.mcu_to_commanded_position(mcu_pos)
