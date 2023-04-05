@@ -82,9 +82,13 @@ class GCodeMove:
         #       used throughout Klipper.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
+        
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
+        # NOTE: Default function for "position_with_transform", 
+        #       overriden later on by "_handle_ready" (which sets
+        #       toolhead.get_position) or "set_move_transform".
         self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
     
     def _handle_ready(self):
@@ -133,7 +137,11 @@ class GCodeMove:
         self.reset_last_position()
         for axis in homing_state.get_axes():
             self.base_position[axis] = self.homing_position[axis]
+    
     def set_move_transform(self, transform, force=False):
+        # NOTE: This method is called by bed_mesh, bed_tilt,
+        #       skewcorrection, etc. to set a special move 
+        #       transformation function.
         if self.move_transform is not None and not force:
             raise self.printer.config_error(
                 "G-Code move transform already specified")
@@ -171,10 +179,13 @@ class GCodeMove:
     
     def reset_last_position(self):
         # NOTE: Handler for "toolhead:set_position" and other events,
-        #       sent at least by "toolhead.set_position".
-        #       Also called by "_handle_activate_extruder" and other methods.
+        #       sent at least by "toolhead.set_position" and also
+        #       called by "_handle_activate_extruder" (and other methods).
         logging.info("\n\n" + f"gcode_move.reset_last_position: triggered.\n\n")
         if self.is_printer_ready:
+            # NOTE: The "" method is actually either "transform.get_position",
+            #       "toolhead.get_position", or a default function returning "0.0" 
+            #       for all axis.
             self.last_position = self.position_with_transform()
             logging.info("\n\n" + f"gcode_move.reset_last_position: set self.last_position={self.last_position}\n\n")
         else:
