@@ -15,17 +15,25 @@ STALL_TIME = 0.100
 # Calculate a move's accel_t, cruise_t, and cruise_v
 def calc_move_time(dist, speed, accel):
     axis_r = 1.
+    
     if dist < 0.:
         axis_r = -1.
         dist = -dist
+    
     if not accel or not dist:
         return axis_r, 0., dist / speed, speed
+    
     max_cruise_v2 = dist * accel
+    
     if max_cruise_v2 < speed**2:
         speed = math.sqrt(max_cruise_v2)
+    
     accel_t = speed / accel
+    
     accel_decel_d = accel_t * speed
+    
     cruise_t = (dist - accel_decel_d) / speed
+    
     return axis_r, accel_t, cruise_t, speed
 
 class ForceMove:

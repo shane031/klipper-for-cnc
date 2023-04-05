@@ -340,6 +340,9 @@ class ToolHead:
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
+        # TODO: support more kinematics.
+        self.supported_kinematics = ["cartesian", "cartesian_abc", "none"]
+        
         logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
         
         self.printer = config.get_printer()
@@ -401,10 +404,11 @@ class ToolHead:
         self.step_generators = []
         
         # NOTE: check TRAPQ for the extra ABC axes here.
-        if len(self.axis_names) // 3 == 2:
-            logging.info(f"\n\nToolHead: setting up ABC trapq.\n\n")
-        elif len(self.axis_names) > 6:
-            msg = "Error loading toolhead with more than 7 axis '%s'" % (self.axis_names,)
+        if len(self.axis_names) == 6:
+            logging.info(f"\n\nToolHead: setting up additional ABC trapq.\n\n")
+        elif len(self.axis_names) > 3:
+            msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)}) axes is unsupported."
+            msg += " Use either XYZ (3) or XYZABC (6) axes."
             logging.exception(msg)
             raise config.error(msg)
         
@@ -436,53 +440,50 @@ class ToolHead:
     
     # Load axes abstraction
     def load_axes(self, config):
-        """_summary_
+        """Convnenience function to setup kinematics and trapq objects for the toolhead.
+
+        The definition of this function contains several "hardcoded" variables that should
+        be moved to a separate config file eventually, or be otherwise configurable.
 
         Args:
             config (_type_): Klipper configuration object.
-            axes (str, optional): Axes specification string. Defaults to "XYZABC".
         """
-        ffi_main, ffi_lib = chelper.get_ffi()
         
         # Setup XYZ axes
         if "XYZ" in self.axis_names:
-            # Create XYZ trapq (setup XYZ iterative solver).
-            self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
-            # Create XYZ kinematics class.
-            self.kin = self.load_kinematics(config=config, 
-                                            config_name='kinematics',
-                                            trapq=self.trapq)
-            # Specify which of the toolhead position elements correspon to the axis
-            self.kin.axis = [0, 1, 2]
-            # Save the kinematics to the dict
+            # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
+            self.kin, self.trapq = self.load_kinematics(config=config, 
+                                                        config_name='kinematics',
+                                                        axes_ids = [0, 1, 2])
+            # Save the kinematics to the dict.
             self.kinematics["XYZ"] = self.kin
         else:
-            self.trapq = None
-            self.kin = None
+            self.kin, self.trapq = None, None
         
         # Setup ABC axes
         if "ABC" in self.axis_names:
-            # Create ABC trapq  (setup ABC iterative solver).
-            self.abc_trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
-            # Create ABC kinematics class.
-            self.kin_abc = self.load_kinematics(config=config, 
-                                                config_name='kinematics_abc',
-                                                trapq=self.abc_trapq)
-            # Specify which of the toolhead position elements correspon to the axis
-            self.kin_abc.axis = [3, 4 ,5]
+            # Create ABC kinematics class, and its ABC trapq (iterative solver).
+            self.kin_abc, self.abc_trapq = self.load_kinematics(config=config, 
+                                                                config_name='kinematics_abc',
+                                                                axes_ids=[3, 4 ,5])
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
-            self.kin_abc = None
-            self.abc_trapq = None
+            self.kin_abc, self.abc_trapq = None, None
     
     # Load kinematics object
-    def load_kinematics(self, config, trapq, config_name='kinematics'):
+    def load_kinematics(self, config, axes_ids, config_name='kinematics'):
         """Load kinematics for a set of axes.
+
+        Note: this requires the Kinematics module to accept a "trapq" object,
+        which it must use. Thus, the "load_kinematics" function must also
+        be able to pass the object to the instantiation of the new knimeatics class.
+
+        Most kinematics in this branch have not been updated.
 
         Args:
             config (_type_): Klipper configuration object.
-            trapq (_type_): Klipper trapq object.
+            axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
             config_name (str, optional): Name of the kinematics in the config. Defaults to 'kinematics'.
 
         Returns:
@@ -490,9 +491,25 @@ class ToolHead:
         """
         # NOTE: get the "kinematics" type from "[printer]".
         kin_name = config.get(config_name)
+
+        # TODO: Support other kinematics is due. Error out for now.
+        if kin_name not in self.supported_kinematics:
+            msg = f"Error loading kinematics '{kin_name}'. Currently supported kinematics: {self.supported_kinematics}"
+            logging.exception(msg)
+            raise config.error(msg)
+        
+        # Create a Trapq for the kinematics
+        ffi_main, ffi_lib = chelper.get_ffi()
+        trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)  # TrapQ()
+        
+        # Set up the kinematics object
         try:
+            # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
+            # Run the modules setup function.
             kin = mod.load_kinematics(self, config, trapq)
+            # Specify which of the toolhead position elements correspon to the axis.
+            kin.axis = axes_ids.copy()
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
@@ -502,7 +519,7 @@ class ToolHead:
             logging.exception(msg)
             raise config.error(msg)
         
-        return kin
+        return kin, trapq
     
     # Print time tracking
     def _update_move_time(self, next_print_time):
@@ -562,7 +579,7 @@ class ToolHead:
                 break
     
     def _calc_print_time(self):
-        # NOTE: called during "special" queuing states, 
+        # NOTE: Called during "special" queuing states, 
         #       by "get_last_move_time" or "_process_moves".
         # NOTE: This function updates "self.print_time" directly.
         # NOTE: Also sends a "toolhead:sync_print_time" event, handled by
@@ -570,10 +587,10 @@ class ToolHead:
         #       "reactor.update_timer" and sends an "idle_timeout:printing" 
         #       event (which is only handled by tmc2660.py).
 
-        # NOTE: get the current (host) system time.
+        # NOTE: Get the current (host) system time.
         curtime = self.reactor.monotonic()
         
-        # NOTE: method from MCU (at mcu.py) that calls the
+        # NOTE: Method from MCU (at mcu.py) that calls the
         #       "self._clocksync.estimated_print_time" 
         #       method from the ClockSync class (at clocksync.py).
         #       The method uses "get_clock" to get "self.clock_est" 
@@ -765,7 +782,7 @@ class ToolHead:
         #       which can be used to schedule a new move,
         #       after others have finished.
 
-        # NOTE: The "_flush_lookahead" method calls:
+        # NOTE: The "_flush_lookahead" method calls either:
         #       - flush_step_generation: which updates "self.print_time" through "_update_move_time".
         #       - move_queue.flush: also ends up updating "self.print_time".
         self._flush_lookahead()
@@ -865,7 +882,7 @@ class ToolHead:
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
         logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
-        self.set_position_e(newpos_e=newpos[self.axis_count])
+        self.set_position_e(newpos_e=newpos[self.axis_count], homing_axes=homing_axes)
         
         # NOTE: Set the position of the axes "kinematics".
         for axes in list(self.kinematics):
@@ -889,7 +906,7 @@ class ToolHead:
         self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
         
     def set_kin_trap_position(self, trapq, newpos):
-        """Abstraction of set_position for different sets of kinematics.
+        """Abstraction of trapq_set_position for different sets of kinematics.
 
         Args:
             trapq (trapq): trapezoidal queue.
@@ -906,7 +923,7 @@ class ToolHead:
             logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     
     def set_kinematics_position(self, kin, newpos, homing_axes):
-        """Abstraction of set_position for different sets of kinematics.
+        """Abstraction of kin.set_position for different sets of kinematics.
 
         Args:
             kin (kinematics): Instance of a (cartesian) kinematics class.
@@ -925,7 +942,7 @@ class ToolHead:
         else:
             logging.info("\n\n" + f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
 
-    def set_position_e(self, newpos_e):
+    def set_position_e(self, newpos_e, homing_axes=()):
         """Extruder version of set_position."""
         logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
         
@@ -936,19 +953,11 @@ class ToolHead:
             # Do nothing if the extruder is a "Dummy" extruder.
             pass
         else:
-            # Get the "trapq" from the active extruder.
-            extruder_trapq = extruder.get_trapq()  # extruder trapq (from ffi)
-
-            # Get the stepper
-            extruder_stepper = extruder.extruder_stepper  # ExtruderStepper
-            rail = extruder_stepper.rail                  # PrinterRail
-
-            # Set its position
-            ffi_main, ffi_lib = chelper.get_ffi()
-            ffi_lib.trapq_set_position(extruder_trapq, 
-                                       self.print_time,
-                                       newpos_e, 0., 0.)
-            rail.set_position([newpos_e, 0., 0.])
+            # NOTE: Let the "extruder kinematic" set its position. This will call
+            #       set position on the "trapq" and "rail" objects of the
+            #       active ExtruderStepper class
+            # TODO: the "homing_axes" parameter is not used rait nau.
+            extruder.set_position(newpos_e, homing_axes, self.print_time)
     
     def move(self, newpos, speed):
         """ToolHead.move() creates a Move() object with the parameters of the move (in cartesian space and in units of seconds and millimeters).
@@ -987,7 +996,7 @@ class ToolHead:
             
         # NOTE: Kinematic move checks for E axis.
         if move.axes_d[self.axis_count]:
-            self.extruder.check_move(move)
+            self.extruder.check_move(move, e_axis=self.axis_count)
         
         # NOTE: Update "commanded_pos" with the "end_pos"
         #       of the current move command.

@@ -146,6 +146,16 @@ class ClockSync:
         sample_time, clock, freq = self.clock_est
         return float(reqclock - clock)/freq + sample_time
     def estimated_print_time(self, eventtime):
+        # NOTE: Probably estimates an MCU time equivalent that corresponds
+        #       to a certain (monotonic) system time.
+        # NOTE: Example: this receives "curtime" from "toolhead._calc_print_time",
+        #       which is actually the system "reactor.monotonic()" clock in seconds.
+        #       First, this monotonic time is converted to MCU clock ticks
+        #       and added to the estimated MCU clock by "get_clock". Why so?
+        #       The clock ticks are then converted to seconds by
+        #       "clock_to_print_time".
+        #       This quantity is returned and used by "toolhead._calc_print_time"
+        #       to update its "print_time".
         return self.clock_to_print_time(self.get_clock(eventtime))
     # misc commands
     def clock32_to_clock64(self, clock32):

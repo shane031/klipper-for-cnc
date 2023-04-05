@@ -74,6 +74,7 @@ class CartKinematics:
         return [s for rail in rails for s in rail.get_steppers()]
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
+    
     def set_position(self, newpos, homing_axes):
         logging.info("\n\n" +
                      f"CartKinematics.set_position: setting kinematic position of {len(self.rails)} rails " +
@@ -87,9 +88,15 @@ class CartKinematics:
             #       with X, Y, Y1, and Z steppers.
             # NOTE: This eventually calls "itersolve_set_position".
             rail.set_position(newpos)
+            
+            # NOTE: set limits if the axis is (being) homed.
             if i in homing_axes:
+                # NOTE: This will put the axis to a "homed" state, which means that
+                #       the unhomed part of the kinematic move check will pass from
+                #       now on.
                 logging.info(f"\n\nCartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
                 self.limits[i] = rail.get_range()
+            
     def note_z_not_homed(self):
         # Helper for Safe Z Home
         self.limits[2] = (1.0, -1.0)
@@ -136,6 +143,7 @@ class CartKinematics:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
                     logging.info(f"cartesian._check_endstops: Must home axis {self.axis_names[i]} first.")
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
+                # NOTE: else raise a move error without a message.
                 raise move.move_error()
     
     def check_move(self, move):
