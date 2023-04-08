@@ -982,6 +982,8 @@ class ToolHead:
             return
         
         # NOTE: Kinematic move checks for XYZ and ABC axes.
+        #       The check is skipped if the displacement vector is "small"
+        #       (and thus is_kinematic_move is False, see the "Move" class above).
         if move.is_kinematic_move:
             # for axes in ["XYZ"]:
             for axes in list(self.kinematics):    

@@ -98,6 +98,7 @@ class ExtruderStepper:
     def find_past_position(self, print_time):
         mcu_pos = self.stepper.get_past_mcu_position(print_time)
         return self.stepper.mcu_to_commanded_position(mcu_pos)
+    
     def sync_to_extruder(self, extruder_name):
         # NOTE: from the following I guess that the
         #       "SYNC_STEPPER_TO_EXTRUDER" command 
@@ -314,6 +315,7 @@ class PrinterExtruder:
         return self.trapq
     def stats(self, eventtime):
         return self.heater.stats(eventtime)
+    
     def check_move(self, move, e_axis=3):
         # NOTE: get the extruder component of the move (ratio of total displacement).
         axis_r = move.axes_r[e_axis]

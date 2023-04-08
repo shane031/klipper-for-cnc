@@ -100,7 +100,10 @@ class CartKinematics:
     def note_z_not_homed(self):
         # Helper for Safe Z Home
         self.limits[2] = (1.0, -1.0)
+    
     def _home_axis(self, homing_state, axis, rail):
+        # NOTE: "homing_state" is an instance of the "Homing" class.
+        
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
@@ -115,7 +118,9 @@ class CartKinematics:
         # Perform homing
         logging.info(f"\n\ncartesian._home_axis: homing axis={axis} with forcepos={forcepos} and homepos={homepos}\n\n")
         homing_state.home_rails([rail], forcepos, homepos)
+    
     def home(self, homing_state):
+        # NOTE: "homing_state" is an instance of the "Homing" class.
         logging.info(f"\n\ncartesian.home: homing axis changed_axes={homing_state.changed_axes}\n\n")
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
@@ -129,6 +134,7 @@ class CartKinematics:
                 self._activate_carriage(altc)
             else:
                 self._home_axis(homing_state, axis, self.rails[axis])
+    
     def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
     

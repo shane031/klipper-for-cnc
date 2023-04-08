@@ -457,7 +457,7 @@ class Homing:
         homepos = self._fill_coord(movepos)
         # NOTE: esto usa "trapq_set_position" sobre el trapq del XYZ.
         # NOTE: homing_axes se usa finalmente en "CartKinematics.set_position",
-        #       para asignarle limites a los "rails" que se homearon. Nada más.
+        #       para asignarle limites a los "rails" que se homearon.
         self.toolhead.set_position(startpos, homing_axes=homing_axes)
         
         # Perform first home

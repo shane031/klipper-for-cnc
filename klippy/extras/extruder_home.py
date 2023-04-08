@@ -166,16 +166,17 @@ class ExtruderHoming:
         # NOTE: Get original toolhead position 
         self.th_orig_pos = self.toolhead.get_position()
         
-        # NOTE: get homing information, speed and move coordinate.
+        # NOTE: Get homing information, speed and move coordinate.
         self.homing_info = self.rail.get_homing_info()
         speed = self.homing_info.speed
+        
         # NOTE: Use XYZ from the toolhead, and E from the config file + estimation.
         pos = self.th_orig_pos[:3] + [self.get_movepos(self.homing_info)]
 
         # Get rail limits
         position_min, position_max = self.rail.get_range()
         
-        # NOTE: force extruder to a certain starting position.
+        # NOTE: Force extruder to a certain starting position.
         #       Originally 0.0, now position_max, which requires an
         #       endstop position of 0.0 to home in the right direction.
         if self.homing_info.positive_dir:
