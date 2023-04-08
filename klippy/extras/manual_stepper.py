@@ -98,7 +98,7 @@ class ManualStepper:
         self.trapq_append_move(
             self.trapq, 
             print_time=self.next_cmd_time,
-            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
+            accel_t=accel_t, cruise_t=cruise_t, decel_t=accel_t,
             start_pos_x=cp, start_pos_y=0.0, start_pos_z=0.0,
             axes_r_x=axis_r, axes_r_y=0.0, axes_r_z=0.0,
             start_v=0.0, cruise_v=cruise_v, accel=accel)
