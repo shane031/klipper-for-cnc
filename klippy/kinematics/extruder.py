@@ -121,16 +121,6 @@ class ExtruderStepper:
         """ExtruderStepper version of set_position in toolhead.py"""
         logging.info("\n\n" + f"ExtruderStepper.set_position: setting E to newpos={newpos_e}.\n\n")
 
-        if print_time is None:
-            toolhead = self.printer.lookup_object('toolhead')
-            print_time = toolhead.print_time
-
-        # Set its position
-        ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.trapq_set_position(self.trapq, 
-                                   print_time,
-                                   newpos_e, 0., 0.)
-
         # NOTE: The following calls PrinterRail.set_position, which
         #       calls set_position on each of the MCU_stepper objects 
         #       in each PrinterRail.
@@ -281,6 +271,7 @@ class PrinterExtruder:
         self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
         self.trapq_append = ffi_lib.trapq_append
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        self.trapq_set_position = ffi_lib.trapq_set_position
         
         # Setup extruder stepper
         # NOTE: an ExtruderStepper class is instantiated if no pins
@@ -396,18 +387,19 @@ class PrinterExtruder:
         if print_time is None:
             toolhead = self.printer.lookup_object('toolhead')
             print_time = toolhead.print_time
+
+        # Set the TRAPQ's position
+        self.trapq_set_position(self.trapq, print_time, newpos_e, 0., 0.)
         
         # NOTE: Check if the E axis is being homed. This
         #       will signal the stepper to set its limits 
         #       and appear as "homed".
         homing_e = self.axis_idx in homing_axes
 
-        # NOTE: Have the ExtruderStepper set its "Trapq" and 
-        #       "MCU_stepper" positions.
-        self.extruder_stepper.set_position(
-            newpos_e=newpos_e,
-            homing_e=homing_e,
-            print_time=print_time)
+        # NOTE: Have the ExtruderStepper set its "MCU_stepper" position.
+        self.extruder_stepper.set_position(newpos_e=newpos_e,
+                                           homing_e=homing_e,
+                                           print_time=print_time)
 
 
     def calc_junction(self, prev_move, move):
