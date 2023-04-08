@@ -29,7 +29,7 @@ the generous support from our [sponsors](https://www.klipper3d.org/Sponsors.html
 
 # Fork notes: 7+axis and more
 
-Config examples at the next section.
+> Find the associated configuration examples at the following sections.
 
 This fork implements:
 
@@ -39,32 +39,37 @@ This fork implements:
         - Move: `G1 X10 Y10 Z10 A10 B10 C10 E10` (same as a regular G1 command).
         - Home: `G28 A` (same as regular `G28`).
         - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
-        - And so on ...
-    - Caveats: needs testing on longer GCODE programs. Limit checks not implemented. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
+        - And so on …
+    - Configuration: add ABC kinematics to `[printer]` and the corresponding `[stepper_abc]` sections (details below).
+    - Limitations: needs testing on longer GCODE programs. Limit checks not implemented. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
     - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Alternate kinematics for the XYZ axes not tested.
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
     - Mux-command: `HOME_EXTRUDER EXTRUDER=extruder` (will activate `extruder` and reactivate the previous extruder when done).
-    - Caveats: It is untested on extruder steppers configured as `[extruder_stepper]` later synced to a particular `[extruder]`. No "second home" is performed.
+    - Configuration: add homing parameters to `[extruder]` and add `[extruder_home extruder]` (details below).
+    - Note: if "homing parameters" are added to an extruder's config, it will need to be homed (or unlocked with `SET_KINEMATIC_POSITION`) before it can be moved.
+    - Limitations: It is untested on extruder steppers configured as `[extruder_stepper]` later synced to a particular `[extruder]`. No "second home" is performed.
 - Probing in arbitrary directions with `G38.2`, `G38.3`, `G38.4`, and `G38.5` (single-probe version).
     - Module: [probe_G38.py](./klippy/extras/probe_G38.py)
-    - Example command: `G38.2 X20 F10`
+    - Command: `G38.2 X20 F10`
     - For reference, see [LinuxCNC](http://linuxcnc.org/docs/stable/html/gcode/g-code.html#gcode:g38)'s definition of _G38.n Straight Probe_ commands.
+    - Configuration: add a `[probe_G38]` section, specifying the probe pin (details below).
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Module incompatibilites: `[probe_G38_multi ...]`
 - General probing with multiple probe pins is supported by an experimental module:
     - Module: [probe_G38_multi.py](./klippy/extras/probe_G38_multi.py)
-    - Example multi-command: `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
-    - Example mono-command: `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
+    - Command (multiprobe): `MULTIPROBE2 PROBE_NAME=extruder1 Z=-20 F=1` (replace the `2` in `MULTIPROBE2` with `3`, `4`, or `5` for the other probing modes).
+    - Command (monoprobe): `G38.2 X20 F10` (replace `.2` by `.3-.5` for the other probing modes). To choose the probe pin, this command will try to match the probe's config name to an extruder name, or fail.
+    - Configuration: add a `[probe_G38_multi PROBENAME]` section, specifying the probe pin (details below). If `PROBENAME` matches an extruder's name (e.g. `extruder`) the probe pin remains associated to it. The probe on the active extruder is used for "monoprobe" commands.
     - The probes can be queried with `QUERY_ENDSTOPS` (instead of `QUERY_PROBE`).
     - Note: affected by `G90`/`G91` and `M82`/ `M83`.
     - Known incompatibilites: `[probe_G38]`
 - The `SET_KINEMATIC_POSITION` command now works with extruder position as well.
     - Try this out: `SET_KINEMATIC_POSITION E=66.6`
 - Absolute extruder moves are now absolute.
-    - You can now count on absolute coordinate systems staying that way unless you update them explicitly (e.g. with `G92 E0` and similar commands).
-    - The origin used to be altered without warning after every tool-change (i.e. extruder activation) in a way equivalent to sending `G92 E0`. This means that the extruder's origins were effectively relative to the last position of the extruder before a toolchange, which was enforced in Klipper to support the obscure expectations of old slicers.
+    - You can now rely on absolute coordinate systems staying that way unless you update them explicitly (e.g. with `G92 E0` and similar commands).
+    - The extruder's coordinate origin used to be altered without warning after every tool-change (i.e. extruder activation) in a way equivalent to sending `G92 E0`. This means that the extruder's origins were effectively relative to the last position of the extruder before a toolchange, which was enforced in Klipper to support the obscure expectations of old slicers.
     - See discussion at: https://klipper.discourse.group/t/6558
 - The PID controller now uses sample averaging and linear regression to compute the P and D terms, respectively.
     - This replaces the rather obscure pre-existing logic.
@@ -195,7 +200,7 @@ Main configs:
 - [printer_extruder_p200.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/printer_extruder_p200.cfg)
 - [home_extruder.cfg](./config/configs-pipetting-bot/configs-mainsail/labo-robot-pinmap-xyze/home_extruder.cfg)
 
-Configure your extruders normally, and then add the required homing parameters.
+Configure your extruders normally, and then add the required homing parameters. See notes below.
 
 At a glance:
 
@@ -228,6 +233,8 @@ endstop_pin: gpio18  # REPLACE WITH THE PIN OF **YOUR** HOMING ENDSTOP
 [extruder_home extruder1]
 # No parameters needed.
 ```
+
+If "homing parameters" are added to an extruder's config, it will need to be homed (or unlocked with `SET_KINEMATIC_POSITION`) before it can be moved, even if the corresponding `[extruder_home extruder]` is not set.
 
 Note that the `[extruder]` must have an "endstop_pin" defined for it to be home-able. It is otherwise setup as a "regular" extruder, and a corresponding `[extruder_home extruder]` section will not work as exected. For instance, a `HOME_EXTRUDER EXTRUDER=extruder` command fail with this error: `'MCU_stepper' object has no attribute 'get_endstops'`
 
