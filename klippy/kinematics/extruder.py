@@ -119,6 +119,38 @@ class ExtruderStepper:
         self.stepper.set_position([extruder.last_position, 0., 0.])
         self.stepper.set_trapq(extruder.get_trapq())
         self.motion_queue = extruder_name
+
+    def check_move_limits(self, move, e_axis=3):
+        """ExtruderStepper version of check_move_limits in toolhead.py"""
+
+        if self.can_home:
+            # NOTE: Software limit checks, borrowed from "cartesian.py".
+            epos = move.end_pos[e_axis]
+            logging.info("\n\n" + f"extruder_stepper.check_move_limits: checking move ending on epos={epos}" + "\n\n")
+            if (epos < self.limits[0][0] or epos > self.limits[0][1]):
+                self._check_endstops(move, e_axis)
+        else:
+            logging.info("\n\n" + f"extruder_stepper.check_move_limits: E stepper not home-able, skipping check on move ending on epos={epos}" + "\n\n")
+        
+    def _check_endstops(self, move, e_axis=3):
+        """ExtruderStepper version of _check_endstops in toolhead.py"""
+
+        # NOTE: Software limit checks, borrowed from "cartesian.py".
+        logging.info("\n\n" + f"extruder_stepper._check_endstops: move limit check triggered.\n\n")
+        end_pos = move.end_pos[e_axis]
+        
+        # NOTE: Check if the extruder move is out of bounds.
+        if (move.axes_d[e_axis] and (end_pos < self.limits[0][0] or end_pos > self.limits[0][1])):
+            # NOTE: The move is not allowed, check if this is due to unhomed axis.
+            if self.limits[0][0] > self.limits[0][1]:
+                # NOTE: "self.limits" will be "(1.0, -1.0)" when not homed, triggering this.
+                logging.info(f"extruder._check_endstops: Must home extruder axis ({e_axis}) first.")
+                raise move.move_error(f"Must home extruder axis ({e_axis}) first.")
+            # NOTE: Else raise a move error without a message.
+            raise move.move_error()
+        else:
+            # NOTE: Everything seems fine.
+            logging.info(f"extruder_stepper._check_endstops: The extruder's move to {end_pos} on axis {e_axis} checks out.")
     
     def set_position(self, newpos_e, homing_e=False, print_time=None):
         """ExtruderStepper version of set_position in toolhead.py"""
@@ -136,7 +168,7 @@ class ExtruderStepper:
             # NOTE: This will put the axis to a "homed" state, which means that
             #       the unhomed part of the kinematic move check will pass from
             #       now on.
-            logging.info(f"\n\nCartKinematics: setting limits={rail.get_range()} on stepper: {rail.get_name()}\n\n")
+            logging.info(f"\n\nCartKinematics: setting limits={self.rail.get_range()} on stepper: {self.rail.get_name()}\n\n")
             self.limits[0] = self.rail.get_range()
     
     def _set_pressure_advance(self, pressure_advance, smooth_time):
@@ -352,37 +384,7 @@ class PrinterExtruder:
                 % (area, self.max_extrude_ratio * self.filament_area))
         
         # NOTE: implement software limit checks.
-        if self.can_home:
-            self.check_move_limits(move, e_axis)
-
-    def check_move_limits(self, move, e_axis=3):
-        """PrinterExtruder version of check_move_limits in toolhead.py"""
-
-        # NOTE: Software limit checks, borrowed from "cartesian.py".
-        epos = move.end_pos[e_axis]
-        logging.info("\n\n" + f"extruder.check_move_limits: checking move ending on epos={epos}" + "\n\n")
-        if (epos < self.limits[0][0] or epos > self.limits[0][1]):
-            self._check_endstops(move, e_axis)
-        
-    def _check_endstops(self, move, e_axis=3):
-        """PrinterExtruder version of _check_endstops in toolhead.py"""
-
-        # NOTE: Software limit checks, borrowed from "cartesian.py".
-        logging.info("\n\n" + f"extruder._check_endstops: check triggered.\n\n")
-        end_pos = move.end_pos[e_axis]
-        
-        # NOTE: Check if the extruder move is out of bounds.
-        if (move.axes_d[e_axis] and (end_pos < self.limits[0][0] or end_pos > self.limits[0][1])):
-            # NOTE: The move is not allowed, check if this is due to unhomed axis.
-            if self.limits[0][0] > self.limits[0][1]:
-                # NOTE: "self.limits" will be "(1.0, -1.0)" when not homed, triggering this.
-                logging.info(f"extruder._check_endstops: Must home extruder axis {e_axis} first.")
-                raise move.move_error(f"Must home extruder axis {e_axis} first.")
-            # NOTE: Else raise a move error without a message.
-            raise move.move_error()
-        else:
-            # NOTE: Everything seems fine.
-            logging.info(f"extruder._check_endstops: The extruder move to {end_pos} on axis {e_axis} checks out.")
+        self.extruder_stepper.check_move_limits(move, e_axis)
 
     def set_position(self, newpos_e, homing_axes=(), print_time=None):
         """PrinterExtruder version of set_position in toolhead.py
