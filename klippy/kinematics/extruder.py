@@ -41,10 +41,6 @@ class ExtruderStepper:
         # TODO: Check if this works as expected for extruder limit checking.
         self.limits = [(1.0, -1.0)]
         self.axes_min, self.axes_max = None, None
-        if self.can_home:
-            range = self.rail.get_range()
-            self.axes_min = toolhead.Coord(e=range[0])
-            self.axes_max = toolhead.Coord(e=range[1])
         
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
@@ -78,6 +74,12 @@ class ExtruderStepper:
         toolhead = self.printer.lookup_object('toolhead')
         toolhead.register_step_generator(self.stepper.generate_steps)
         self._set_pressure_advance(self.config_pa, self.config_smooth_time)
+
+        # NOTE: Setup attributes for limit checks, useful for syringe extruders.
+        if self.can_home:
+            range = self.rail.get_range()
+            self.axes_min = toolhead.Coord(e=range[0])
+            self.axes_max = toolhead.Coord(e=range[1])
     
     def get_status(self, eventtime):
 
