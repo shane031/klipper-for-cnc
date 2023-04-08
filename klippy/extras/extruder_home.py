@@ -183,8 +183,8 @@ class ExtruderHoming:
             e_startpos = position_min
         else:
             e_startpos = position_max
-        self.toolhead.set_position(startpos)
         startpos = self.th_orig_pos[:self.toolhead.axis_count] + [e_startpos]
+        self.toolhead.set_position(startpos, homing_axes=(self.toolhead.axis_count, ))
 
         # NOTE: flag homing start
         self.homing = True
