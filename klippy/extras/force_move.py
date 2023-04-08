@@ -153,14 +153,14 @@ class ForceMove:
                 b = gcmd.get_float('B', curpos[4])
                 c = gcmd.get_float('C', curpos[5])
                 logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", x, y, z, a, b, c, e)
-                toolhead.set_position([x, y, z, a, b, c, e], homing_axes=(0, 1, 2, 3, 4, 5))
+                toolhead.set_position([x, y, z, a, b, c, e], homing_axes=(0, 1, 2, 3, 4, 5, 6))
         elif toolhead.axis_names == "XYZ":
             logging.info("SET_KINEMATIC_POSITION pos=%.3f,%.3f,%.3f,%.3f", x, y, z, e)
             # NOTE: The "homing_axes" argument is used to
             #       set axis limits by the (cartesian) kinematics.
             #       Passing "3" for the extruder is not needed for now,
             #       and would proably fail.
-            toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2))
+            toolhead.set_position([x, y, z, e], homing_axes=(0, 1, 2, 3))
 
 def load_config(config):
     return ForceMove(config)
