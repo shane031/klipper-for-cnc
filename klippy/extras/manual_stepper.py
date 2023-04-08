@@ -96,7 +96,6 @@ class ManualStepper:
         axis_r, accel_t, cruise_t, cruise_v = force_move.calc_move_time(dist, speed, accel)
         
         self.trapq_append_move(
-            self.trapq, 
             print_time=self.next_cmd_time,
             accel_t=accel_t, cruise_t=cruise_t, decel_t=accel_t,
             start_pos_x=cp, start_pos_y=0.0, start_pos_z=0.0,
