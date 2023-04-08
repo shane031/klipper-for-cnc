@@ -87,7 +87,7 @@ class ExtruderStepper:
 
         if self.can_home:
             axes = [a for a, (l, h) in zip("e", self.limits) if l <= h]
-            statis.update({
+            status.update({
                 'homed_axes': "".join(axes),
                 'axis_minimum': self.axes_min,
                 'axis_maximum': self.axes_max,
