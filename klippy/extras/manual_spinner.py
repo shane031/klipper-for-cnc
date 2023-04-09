@@ -52,81 +52,6 @@ class ManualSpinner(manual_stepper.ManualStepper):
                                    stepper_name, self.cmd_SPIN_MANUAL_STEPPER,
                                    desc=self.cmd_SPIN_MANUAL_STEPPER_help)
 
-    def do_start(self, speed, accel, sync=True):
-        self.sync_print_time()
-        cp = self.rail.get_commanded_position()
-
-        # Acceleration parameters
-        accel_t, cruise_t, decel_t = speed / accel, 0.0, 0.0
-        axis_r = 1.0
-        start_v, cruise_v, accel = 0.0, 0.0, accel
-        
-        self.trapq_append_move(
-            print_time=self.next_cmd_time,
-            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
-            start_pos_x=cp, start_pos_y=0.0, start_pos_z=0.0,
-            axes_r_x=axis_r, axes_r_y=0.0, axes_r_z=0.0,
-            start_v=start_v, cruise_v=cruise_v, accel=accel)
-        
-        movetime = accel_t + cruise_t + decel_t
-        self.do_final_updates(movetime, sync)
-
-        logging.info(f"\n\ndo_spin_move: sending do_start at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
-        return movetime
-
-    def do_cruise(self, dist, speed, sync=True):
-        self.sync_print_time()
-        cp = self.rail.get_commanded_position()
-        
-        # Cruising parameters
-        accel_t, cruise_t, decel_t = 0.0, dist / speed, 0.0
-        axis_r = 1.0
-        start_v, cruise_v, accel = speed, speed, 0.0
-
-        self.trapq_append_move(
-            print_time=self.next_cmd_time,
-            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
-            start_pos_x=cp, start_pos_y=0.0, start_pos_z=0.0,
-            axes_r_x=axis_r, axes_r_y=0.0, axes_r_z=0.0,
-            start_v=start_v, cruise_v=cruise_v, accel=accel)
-        
-        movetime = accel_t + cruise_t + decel_t
-        self.do_final_updates(movetime, sync)
-
-        logging.info(f"\n\ndo_spin_move: sending do_cruise at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
-        return movetime
-
-    def do_break(self, speed, decel, sync=True):
-        self.sync_print_time()
-        cp = self.rail.get_commanded_position()
-
-        # Breaking parameters
-        accel_t, cruise_t, decel_t = 0.0, 0.0, speed / decel
-        axis_r = 1.0
-        start_v, cruise_v, accel = speed, speed, decel
-        # NOTE: Both "start_v" and "cruise_v" must have the value of
-        #       the initial speed. If "cruise_v" is set to 0.0, then the
-        #       move actually starts from speed 0, and accelerates.
-
-        self.trapq_append_move(
-            print_time=self.next_cmd_time,
-            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
-            start_pos_x=cp, start_pos_y=0.0, start_pos_z=0.0,
-            axes_r_x=axis_r, axes_r_y=0.0, axes_r_z=0.0,
-            start_v=start_v, cruise_v=cruise_v, accel=accel)
-        
-        movetime = accel_t + cruise_t + decel_t
-        self.do_final_updates(movetime, sync)
-
-        logging.info(f"\n\ndo_spin_move: sending do_break at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
-        return movetime
-
-    def break_dist(self, speed, accel):
-        # See: https://en.wikipedia.org/wiki/Acceleration#Uniform_acceleration
-        break_distance = (speed**2) / (2*accel)
-        # break_time = speed / accel
-        return break_distance
-
     # Spin GCODE command
     cmd_SPIN_MANUAL_STEPPER_help = "Spin a manually configured stepper continuously"
     def cmd_SPIN_MANUAL_STEPPER(self, gcmd):
@@ -147,6 +72,90 @@ class ManualSpinner(manual_stepper.ManualStepper):
         else:
             # Else it will be done automatically, just update the speed.
             self.spin_speed = speed
+
+    # Continuous rotation move repeat timer.
+    def handle_ready(self):
+        """Register timer callback for continuous stepper rotation.
+        Logic borrowed from "delayed_gcode.py".
+        """
+        logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
+        self.spin_timer = self.reactor.register_timer(
+            # Callback function.
+            self.do_spin_move,
+            # Initially the timer should be inactive.
+            self.reactor.NEVER)
+
+    def do_start(self, speed, accel, sync=True):
+        self.sync_print_time()
+        cp = self.rail.get_commanded_position()
+
+        # Acceleration parameters
+        accel_t, cruise_t, decel_t = speed / accel, 0.0, 0.0
+        start_v, cruise_v, accel = 0.0, 0.0, accel
+        
+        # Calculate total move time
+        movetime = accel_t + cruise_t + decel_t
+
+        # Append move to the trapq
+        self.trapq_append_move(
+            print_time=self.next_cmd_time,
+            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
+            start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
+
+        # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
+        self.do_final_updates(movetime, sync)
+
+        logging.info(f"\n\ndo_spin_move: sent do_start at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        return movetime
+
+    def do_cruise(self, dist, speed, sync=True):
+        # self.sync_print_time()
+        cp = self.rail.get_commanded_position()
+        
+        # Cruising parameters
+        accel_t, cruise_t, decel_t = 0.0, dist / speed, 0.0
+        start_v, cruise_v, accel = speed, speed, 0.0
+
+        # Calculate total move time
+        movetime = accel_t + cruise_t + decel_t
+
+        # Append move to the trapq
+        self.trapq_append_move(
+            print_time=self.next_cmd_time,
+            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
+            start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
+
+        # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
+        self.do_final_updates(movetime, sync)
+
+        logging.info(f"\n\ndo_spin_move: sent do_cruise at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        return movetime
+
+    def do_break(self, speed, decel, sync=True):
+        self.sync_print_time()
+        cp = self.rail.get_commanded_position()
+
+        # Breaking parameters
+        accel_t, cruise_t, decel_t = 0.0, 0.0, speed / decel
+        start_v, cruise_v, accel = speed, speed, decel
+        # NOTE: Both "start_v" and "cruise_v" must have the value of
+        #       the initial speed. If "cruise_v" is set to 0.0, then the
+        #       move actually starts from speed 0, and accelerates.
+
+        # Calculate total move time
+        movetime = accel_t + cruise_t + decel_t
+
+        # Append move to the trapq
+        self.trapq_append_move(
+            print_time=self.next_cmd_time,
+            accel_t=accel_t, cruise_t=cruise_t, decel_t=decel_t,
+            start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
+
+        # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
+        self.do_final_updates(movetime, sync)
+
+        logging.info(f"\n\ndo_spin_move: sent do_break at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        return movetime
     
     # Continuous rotation (move repeat) timer callback function.
     def do_spin_move(self, eventtime):
@@ -236,7 +245,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # the time at which this callback was triggered).
             # In this way the next move will be queued at the midpoint of the cruise
             # move that was just queued.
-            waketime = eventtime + time_to_next_move - movetime/2.0
+            waketime = eventtime + time_to_next_move - movetime*0.75
         
         # Break move (decelerate).
         elif not self.spin_speed and self.spinning:
@@ -276,17 +285,12 @@ class ManualSpinner(manual_stepper.ManualStepper):
         logging.info(f"\n\ndo_spin_move: function ended with waketime={waketime}\n\n")
         return waketime
 
-    # Continuous rotation move repeat timer.
-    def handle_ready(self):
-        """Register timer callback for continuous stepper rotation.
-        Logic borrowed from "delayed_gcode.py".
-        """
-        logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
-        self.spin_timer = self.reactor.register_timer(
-            # Callback function.
-            self.do_spin_move,
-            # Initially the timer should be inactive.
-            self.reactor.NEVER)
+    def break_dist(self, speed, accel):
+        """Calculate acceleration/breaking distance from speed and acceleration."""
+        # See: https://en.wikipedia.org/wiki/Acceleration#Uniform_acceleration
+        break_distance = (speed**2) / (2*accel)
+        # break_time = speed / accel
+        return break_distance
 
 def load_config_prefix(config):
     return ManualSpinner(config)
