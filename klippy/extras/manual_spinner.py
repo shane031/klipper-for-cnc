@@ -507,10 +507,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
         movetime = accel_t + cruise_t + decel_t
 
         # Append move to the trapq
-        self.trapq_append_move(
-            print_time=self.next_cmd_time,
-            start_pos_x=cp, cruise_t=(dist / speed),
-            start_v=speed, cruise_v=speed)
+        # TODO: the split of appends did not have an obvious effect.
+        n_splits=8
+        for i in range(n_splits):
+            self.trapq_append_move(
+                print_time=self.next_cmd_time + i*(movetime/n_splits),
+                start_pos_x=cp + i*(dist/n_splits), cruise_t=(dist / speed)  / (n_splits),
+                start_v=speed, cruise_v=speed)
 
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
         self.gen_stps_fin_moves(movetime, sync)
@@ -593,10 +596,11 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Calls "itersolve_generate_steps" which "Generates 
         # step times for a range of moves on the trapq" (itersolve.c).
         generate_steps_up_to = self.next_cmd_time
-        # generate_steps_up_to = self.next_cmd_time - movetime*0.1
+        # generate_steps_up_to = self.next_cmd_time - movetime*0.1  # NOTE: worse step interval peaks
         # generate_steps_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1  # NOTE: worse step interval peaks
         # generate_steps_up_to = self.next_cmd_time + self.NEXT_CMD_ANTICIP_TIME  # NOTE: stepcompress o=2 i=0 c=39 a=0: Invalid sequence
         # generate_steps_up_to = self.next_cmd_time + 0.005
+        # generate_steps_up_to = self.next_cmd_time + movetime*0.1
         self.rail.generate_steps(generate_steps_up_to)
         
         # Expire any moves older than `print_time` from the 
@@ -605,9 +609,9 @@ class ManualSpinner(manual_stepper.ManualStepper):
         finalize_moves_up_to = self.next_cmd_time + 99999.9
         # finalize_moves_up_to = self.next_cmd_time  # - movetime*0.01 # stepcompress error
         # finalize_moves_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1
-        # finalize_moves_up_to = self.next_cmd_time - movetime*0.5
         # finalize_moves_up_to = self.next_cmd_time - 2*movetime  # NOTE: original self.next_cmd_time, no effect.
         # TODO: Perhaps in this case not all moves should be flushed, as intentended for a "manual_stepper".
+        finalize_moves_up_to = self.next_cmd_time - movetime*0.5
         self.trapq_finalize_moves(self.trapq, finalize_moves_up_to)
         
         self.toolhead.note_kinematic_activity(self.next_cmd_time)
