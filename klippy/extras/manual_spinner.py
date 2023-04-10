@@ -7,6 +7,7 @@ import stepper, chelper
 from . import force_move, manual_stepper
 import logging
 from queue import Queue, Empty
+from threading import Event
 
 class ManualSpinner(manual_stepper.ManualStepper):
     def __init__(self, config):
@@ -32,8 +33,9 @@ class ManualSpinner(manual_stepper.ManualStepper):
         self.DEFAULT_TIMER_DELAY = 1.0
         # self.spin_move_delay = 1.0
 
-        # Command queue
+        # Command queue and event
         self.cmd_queue = Queue(0)
+        self.cmd_event = Event()
 
         if config.get('endstop_pin', None) is not None:
             self.can_home = True
@@ -78,19 +80,23 @@ class ManualSpinner(manual_stepper.ManualStepper):
         """
         self.toolhead = self.printer.lookup_object('toolhead')
         logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
+        
+        # waketime = self.time_at_print_time()
+        waketime = self.reactor.NEVER
         self.spin_timer = self.reactor.register_timer(
             # Callback function.
             self.do_spin_move,
             # Initially the timer should be inactive.
-            self.reactor.NEVER)
+            waketime)
 
-    def time_at_print_time(self):
+    def time_at_print_time(self, print_time=None):
         # Current system time
         eventtime = self.reactor.monotonic()
         # Current (estimated) MCU print_time
         est_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
-        # Actual MCU print_time (after the last move)
-        print_time = self.toolhead.get_last_move_time()
+        if not print_time:
+            # Actual MCU print_time (after the last move)
+            print_time = self.toolhead.get_last_move_time()
         # System time just after the last move
         sys_print_time = eventtime + (print_time - est_print_time)
         return sys_print_time
@@ -99,6 +105,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
     cmd_SPIN_MANUAL_STEPPER_help = "Spin a manually configured stepper continuously"
     def cmd_SPIN_MANUAL_STEPPER(self, gcmd):
         """Rotate continuously"""
+
+        # Wait for other threads: wait for the spin_move callback to count unfinished queue tasks.
+        # self.cmd_event.wait()
+
+        # Block waiting threads: prevent the spin_move callback from count unfinished queue tasks yet.
+        self.cmd_event.clear()
+
         # Save parameters
         movedist = gcmd.get_float('MOVE', 360.0)
         speed = gcmd.get_float('SPEED', self.velocity)
@@ -106,20 +119,64 @@ class ManualSpinner(manual_stepper.ManualStepper):
         sync = gcmd.get_int('SYNC', 1)
         spin_params = (movedist, abs(speed), accel, sync)
 
-        logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: got command with spin_params={spin_params}.\n\n")
-        
         # Put the command's data in the command queue.
-        if self.cmd_queue.unfinished_tasks == 0:
-            # Wake up the timer function "now" only if the queue is empty.
-            # self.reactor.update_timer(self.spin_timer, self.reactor.NOW)
-            waketime = self.time_at_print_time()
-            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={waketime}.\n\n")
-            self.reactor.update_timer(self.spin_timer, waketime)
-            self.cmd_queue.put(spin_params, block=False)
+        self.cmd_queue.put(spin_params, block=False)
+        logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: queuing command with spin_params={spin_params} self.spin_speed={self.spin_speed} self.cmd_queue.unfinished_tasks={self.cmd_queue.unfinished_tasks}\n\n")
+
+        # Wake the timer at system_print_time if it is dead.
+        if (self.reactor.NEVER == self.spin_timer.waketime):
+            system_print_time = self.time_at_print_time()
+            self.reactor.update_timer(self.spin_timer, system_print_time)
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer dead. Triggering do_spin_move at waketime={system_print_time}.\n\n")
         else:
-            # Let the timer update itself.
-            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
-            self.cmd_queue.put(spin_params, block=False)
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer alive, doing nothing.\n\n")
+
+        # Release waiting threads: let the spin_move callback count unfinished tasks.
+        self.cmd_event.set()
+
+        # Wake the timer at print_time if it is set to wake up later on
+        # (covers "self.spin_timer.waketime == self.reactor.NEVER").
+        # system_print_time = self.time_at_print_time()
+        # if (system_print_time < self.spin_timer.waketime):
+        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: system_print_time is before waketime, triggering do_spin_move at waketime={system_print_time}.\n\n")
+        #     self.reactor.update_timer(self.spin_timer, system_print_time)
+        # else:
+        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: system_print_time is after waketime, doing nothing.\n\n")
+
+        # if (self.cmd_queue.unfinished_tasks == 0) and (not self.spin_speed):
+        #     # Wake up the timer function "now" only if the queue is empty,
+        #     # and the stepper is not actively spinning.
+            
+        #     # NOTE: "now" in system-time terms is wrong most contexts.
+        #     # self.reactor.update_timer(self.spin_timer, self.reactor.NOW)
+            
+        #     # Get the estimated system time at the next toolhead print_time.
+        #     system_print_time = self.time_at_print_time()  # NOTE: this is a future time.
+
+        #     # If the timer is set to wake up later on, then wake it up earlier.
+        #     if system_print_time < self.spin_timer.waketime:
+        #         self.reactor.update_timer(self.spin_timer, system_print_time)
+        #         logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={system_print_time}.\n\n")
+        #     else:
+        #         logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at original waketime={self.spin_timer.waketime}.\n\n")
+            
+        # else:
+        #     # Let the timer update itself.
+        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
+
+        # # Put the command's data in the command queue.
+        # if (self.cmd_queue.unfinished_tasks == 0) and (not self.spin_speed):
+        #     # Wake up the timer function "now" only if the queue is empty,
+        #     # and the stepper is not actively spinning.
+        #     # self.reactor.update_timer(self.spin_timer, self.reactor.NOW)
+        #     waketime = self.time_at_print_time()
+        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={waketime}.\n\n")
+        #     self.reactor.update_timer(self.spin_timer, waketime)
+        #     self.cmd_queue.put(spin_params, block=False)
+        # else:
+        #     # Let the timer update itself.
+        #     logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
+        #     self.cmd_queue.put(spin_params, block=False)
 
         # # If the speed is not set, then the stepper must be idling.
         # if not self.spin_speed:
@@ -149,12 +206,17 @@ class ManualSpinner(manual_stepper.ManualStepper):
     # Continuous rotation (move repeat) timer callback function.
     def do_spin_move(self, eventtime):
 
+        # Actual MCU print_time (after the last move)
+        print_time = self.toolhead.get_last_move_time()
+        # Current (estimated) MCU print_time
+        est_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
+
         # Get a command from the queue (put there by "cmd_SPIN_MANUAL_STEPPER").
         new_spin_params = self.cmd_queue_get()
         old_speed = self.spin_params[1]
 
         # Verbooooseeee
-        logging.info(f"\n\ndo_spin_move: called at eventtime={eventtime} with next_cmd_time={self.next_cmd_time} new_spin_params={new_spin_params} old_speed={old_speed}\n\n")
+        logging.info(f"\n\ndo_spin_move: called at eventtime={eventtime} est_print_time={est_print_time} with next_cmd_time={self.next_cmd_time} toolhead.print_time={print_time} new_spin_params={new_spin_params} old_speed={old_speed}\n\n")
         
         # If a new command is available, get the updated speed.
         if new_spin_params:
@@ -208,9 +270,12 @@ class ManualSpinner(manual_stepper.ManualStepper):
                                       sync=self.spin_params[3])   # SYNC
             
             # TODO: handle negative displacement with copysign.
-            crustime = self.do_cruise(dist=cruise_dist, 
-                                      speed=self.spin_params[1],  # SPEED
-                                      sync=self.spin_params[3])   # SYNC
+            if cruise_dist > 0.0:
+                crustime = self.do_cruise(dist=cruise_dist, 
+                                        speed=self.spin_params[1],  # SPEED
+                                        sync=self.spin_params[3])   # SYNC
+            else:
+                crustime = 0.0
             
             # Calculate the time the current move takes,
             # directly from the "do_x" functions.
@@ -226,13 +291,26 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # In this way the next move will be queued during the current move
             # (i.e. before it finishes) to avoid sudden stops between them.
             # waketime = eventtime + time_to_next_move*0.2
+
+            # Calculate the time between this timer event triggered (est_event_print_time),
+            # and the time of the move's physical execution happens (self.next_cmd_time).
+            # The move will happen "time_to_next_move" seconds after 
+            # the current event's trigger time (in system units).
+            time_to_next_move = self.next_cmd_time - est_event_print_time
+            # This can be used to set the waketime a bit before "time_to_next_move" is reached.
+            movetime = time_to_next_move
             
             # Add a fraction of the move duration to the current system time (actually
             # the time at which this callback was triggered).
             # In this way the next move will be queued at the midpoint of the cruise
             # move that was just queued.
             # waketime = eventtime + movetime - crustime*0.5
-            waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
+
+            # Try waking up earlier if the move is very short.
+            if movetime < self.NEXT_CMD_ANTICIP_TIME:
+                waketime = eventtime + movetime/2
+            else:    
+                waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
             
             # waketime = eventtime + movetime  # This works but cannot be stopped immediately.
             # waketime = self.reactor.monotonic() + self.spin_move_delay
@@ -262,7 +340,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
                                                  sync=self.spin_params[3])     # SYNC
                                 
             
-            # Calculate the time the current move takes,
+            # Calculate the time the current move will take,
             # directly from the "do_x" functions.
             movetime = crustime
 
@@ -275,6 +353,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # In this way the next move will be issued during the current move
             # but also before it finishes.
             # waketime = eventtime + time_to_next_move*0.8
+            
+            # Calculate the time between this timer event triggered,
+            # and the time of the move's physical execution happens.
+            # The move will happen "time_to_next_move" seconds after 
+            # the event's time (in system units).
+            time_to_next_move = self.next_cmd_time - est_event_print_time
+            movetime = time_to_next_move
 
             # Add a fraction of the move duration to the current system time (actually
             # the time at which this callback was triggered).
@@ -282,10 +367,22 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # move that was just queued.
             # waketime = eventtime + movetime - crustime*0.5
             # waketime = eventtime + movetime*0.5
-            waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
+
+            # Try waking up earlier if the move is very short.
+            if movetime < self.NEXT_CMD_ANTICIP_TIME:
+                # waketime = self.reactor.NOW
+                waketime = eventtime + movetime/2
+            else:    
+                waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
 
             # Update the speed
             self.spin_speed = self.spin_params[1]
+
+            # Queue another cruise if none are left
+            # TODO: this might not be "thread-safe". This cruise could be queued after a brake GCODE command, causing trouble.
+            # if self.cmd_queue.unfinished_tasks == 0:
+            #     logging.info(f"\n\ndo_spin_move: no tasks left, queuing a cruise with self.spin_params={self.spin_params}\n\n")
+            #     self.cmd_queue.put(self.spin_params, block=False)
         
         # Brake move (decelerate).
         elif self.spin_speed and (not self.spin_params[1]):
@@ -329,7 +426,26 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # but also before it finishes.
             # waketime = eventtime + movetime*0.8
             # waketime = eventtime + movetime*1.0
-            waketime = self.reactor.NEVER
+
+            # Wait for a command to be added to the queue if it has just arrived.
+            # NOTE: might offer some thread safety.
+            self.cmd_event.wait()
+            
+            # Set the next waketime after a brake.
+            # TODO: this might not be thread-safe with the GCODE callback,
+            #       if the task is queued after this check and before
+            #       the waketime is returned (below) and updated.
+            if self.cmd_queue.unfinished_tasks <= 1:
+                # If only this task (or for ome reason no task) is left,
+                # then wake up for doomsday.
+                waketime = self.reactor.NEVER
+            else:
+                # If more tasks have been put in the queue, 
+                # wake up at print time or perhaps "NOW".
+                # Or perhaps leave it at the "current" waketime.
+                # waketime = self.time_at_print_time()
+                waketime = self.reactor.NOW
+                # waketime = self.spin_timer.waketime
 
             # Signal break complete
             self.spin_speed = 0.0
@@ -403,7 +519,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         return movetime
 
     def do_cruise_change(self, dist, speed_i, speed_f, accel, sync=True):
-        logging.info(f"\n\ndo_cruise: called with dist={dist} and speed_i={speed_i} speed_f={speed_f}")
+        logging.info(f"\n\ndo_cruise_change: called with dist={dist} and speed_i={speed_i} speed_f={speed_f}")
 
         # self.sync_print_time()
         cp = self.rail.get_commanded_position()
