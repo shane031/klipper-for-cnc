@@ -26,6 +26,8 @@ class ManualSpinner(manual_stepper.ManualStepper):
         
         # Timer delay parameters
         # # TODO: make the spin command delay configurable.
+        # Used for running the timer function a bit before the
+        # time for the next stepper move.
         self.NEXT_CMD_ANTICIP_TIME = 0.1
         self.DEFAULT_TIMER_DELAY = 1.0
         # self.spin_move_delay = 1.0
@@ -110,10 +112,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
         if self.cmd_queue.unfinished_tasks == 0:
             # Wake up the timer function "now" only if the queue is empty.
             # self.reactor.update_timer(self.spin_timer, self.reactor.NOW)
-            self.reactor.update_timer(self.spin_timer, self.time_at_print_time())
+            waketime = self.time_at_print_time()
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: All tasks done. Triggering do_spin_move at waketime={waketime}.\n\n")
+            self.reactor.update_timer(self.spin_timer, waketime)
             self.cmd_queue.put(spin_params, block=False)
         else:
             # Let the timer update itself.
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: letting do_spin_move trigger itself.\n\n")
             self.cmd_queue.put(spin_params, block=False)
 
         # # If the speed is not set, then the stepper must be idling.
@@ -178,10 +183,6 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # the timer's "present" event time time (system time).
         est_event_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
 
-        # Used for running the timer function a bit before the
-        # time for the next stepper move.
-        # self.NEXT_CMD_ANTICIP_TIME = 0.1
-
         # NOTE: On the different times here:
         #       -   self.next_cmd_time is in "print time" seconds (i.e. MCU time).
         #       -   self.reactor.monotonic is in "system time" seconds (i.e. the Pi's time).
@@ -213,12 +214,12 @@ class ManualSpinner(manual_stepper.ManualStepper):
             
             # Calculate the time the current move takes,
             # directly from the "do_x" functions.
-            # movetime = starttime + crustime
+            movetime = starttime + crustime
             
             # Calculate the time the current move takes,
             # based on the value of self.next_cmd_time, 
             # updated by "gen_stps_fin_moves".
-            movetime = self.next_cmd_time - est_event_print_time
+            # movetime = self.next_cmd_time - est_event_print_time
             
             # Add a fraction of the move duration to the current system time (actually
             # the time at which this callback was triggered).
@@ -240,23 +241,35 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # Track current status: mark the acceleration sequence as done.
             self.spin_speed = self.spin_params[1]
         
-        # Cruise move (uniform motion).
+        # Cruise move (sustain motion).
         elif self.spin_speed and self.spin_params[1]:
             # If the requested speed is not 0, and the stepper is "spinning", cruise.
             # NOTE: This step is triggered "~crustime/2" seconds before the end of the 
             #       startup move.
             logging.info(f"\n\ndo_spin_move: cruising with self.spin_params={self.spin_params}\n\n")
 
-            # Do the break
-            crustime = self.do_cruise(dist=self.spin_params[0],     # MOVE
-                                      speed=self.spin_params[1],    # SPEED
-                                      sync=self.spin_params[3])     # SYNC
+            # Do the move
+            if self.spin_speed == self.spin_params[1]:
+                crustime = self.do_cruise(dist=self.spin_params[0],   # MOVE
+                                          speed=self.spin_params[1],  # SPEED
+                                          sync=self.spin_params[3])   # SYNC
+            else:
+                # A speed change was requested
+                crustime = self.do_cruise_change(dist=self.spin_params[0],     # MOVE 
+                                                 speed_i=self.spin_speed,      # SPEED (old)
+                                                 speed_f=self.spin_params[1],  # SPEED (new)
+                                                 accel=self.spin_params[2],    # ACCEL
+                                                 sync=self.spin_params[3])     # SYNC
+                                
             
-            
+            # Calculate the time the current move takes,
+            # directly from the "do_x" functions.
+            movetime = crustime
+
             # Calculate the time the current move takes,
             # based on the value of self.next_cmd_time, 
             # updated by "gen_stps_fin_moves".
-            movetime = self.next_cmd_time - est_event_print_time
+            # movetime = self.next_cmd_time - est_event_print_time
             
             # Add the move duration to the current system time.
             # In this way the next move will be issued during the current move
@@ -274,7 +287,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # Update the speed
             self.spin_speed = self.spin_params[1]
         
-        # Break move (decelerate).
+        # Brake move (decelerate).
         elif self.spin_speed and (not self.spin_params[1]):
             # If the requested speed is zero, but
             # the state is still "spinning", then
@@ -304,8 +317,12 @@ class ManualSpinner(manual_stepper.ManualStepper):
                                      decel=break_accel,
                                      sync=self.spin_params[3])
             
+            # Calculate the time the current move takes,
+            # directly from the "do_x" functions.
+            movetime = brketime + crustime
+
             # Calculate the time the current move takes.
-            movetime = self.next_cmd_time - est_event_print_time
+            # movetime = self.next_cmd_time - est_event_print_time
             
             # Add a large fraction of it to the current system time.
             # In this way the next move will be issued during the current move
@@ -385,6 +402,45 @@ class ManualSpinner(manual_stepper.ManualStepper):
         logging.info(f"\n\ndo_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
 
+    def do_cruise_change(self, dist, speed_i, speed_f, accel, sync=True):
+        logging.info(f"\n\ndo_cruise: called with dist={dist} and speed_i={speed_i} speed_f={speed_f}")
+
+        # self.sync_print_time()
+        cp = self.rail.get_commanded_position()
+        
+        # Acceleration parameters
+        accel_t = abs(speed_f-speed_i)/accel
+        accel_d = accel_t*(speed_f+speed_i)/2
+        
+        # Cruising parameters
+        cruise_d = dist-accel_d
+        cruise_t = cruise_d/speed_f
+        # No cruising if acceleration is slow and covers the whole move
+        if cruise_d < 0.0:
+            cruise_d, cruise_t = 0.0, 0.0
+        
+        # Append move to the trapq
+        if speed_f > speed_i:
+            # Speeding up
+            self.trapq_append_move(print_time=self.next_cmd_time, start_pos_x=cp,
+                                   start_v=speed_i, cruise_v=speed_f, accel=accel,
+                                   accel_t=accel_t, cruise_t=cruise_t)
+            
+        elif speed_f < speed_i:
+            # Slowing down
+            self.trapq_append_move(print_time=self.next_cmd_time, start_pos_x=cp,
+                                   start_v=speed_i, cruise_v=speed_i, accel=accel,
+                                   cruise_t=cruise_t, decel_t=accel_t)
+            
+        # Calculate total move time
+        movetime = accel_t + cruise_t  # + decel_t
+
+        # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
+        self.gen_stps_fin_moves(movetime, sync)
+
+        logging.info(f"\n\ndo_cruise: sent at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
+        return movetime
+
     def do_break(self, speed, decel, sync=True):
         logging.info(f"\n\ndo_break: called with decel={decel} and speed={speed}")
 
@@ -421,7 +477,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # generate_steps_up_to = self.next_cmd_time - movetime*0.1
         # generate_steps_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1  # NOTE: worse step interval peaks
         # generate_steps_up_to = self.next_cmd_time + self.NEXT_CMD_ANTICIP_TIME  # NOTE: stepcompress o=2 i=0 c=39 a=0: Invalid sequence
-        generate_steps_up_to = self.next_cmd_time + 0.005
+        # generate_steps_up_to = self.next_cmd_time + 0.005
         self.rail.generate_steps(generate_steps_up_to)
         
         # Expire any moves older than `print_time` from the 
