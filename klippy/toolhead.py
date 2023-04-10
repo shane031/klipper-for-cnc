@@ -536,37 +536,51 @@ class ToolHead:
         logging.info(f"\n\nToolHead: _update_move_time triggered with next_print_time={next_print_time}\n\n")
 
         kin_flush_delay = self.kin_flush_delay
+        # TODO: what is "fft"? It used to be named "last_kin_flush_time".
         fft = self.force_flush_time
         # TODO: I don't yet understand what the loop is meant to accomplish.
         while 1:
+            # NOTE: Start by incrementing "print_time" by "batch_time", unless
+            #       "next_print_time" is smaller.
             self.print_time = min(self.print_time + batch_time, next_print_time)
+            
+            # NOTE: Generate steps before the "sg_flush_time" time. That time is defined as
+            #       "self.force_flush_time", unless it is after "print_time-kin_flush_delay".
             sg_flush_time = max(fft, self.print_time - kin_flush_delay)
             for sg in self.step_generators:
-                # NOTE: this list has been populated with "generate_steps" functions,
-                #       one per stepper. Those in turn end up calling "ffi_lib.itersolve_generate_steps"
-                #       which it meant to "Generate step times for a range of moves on the trapq".
+                # NOTE: "self.step_generators" has been populated with "generate_steps" functions,
+                #       one per stepper, by each kinematic class (including the extruder class).
+                #       Those functions in turn end up calling "ffi_lib.itersolve_generate_steps"
+                #       which are meant to "Generate step times for a range of moves on the trapq".
                 sg(sg_flush_time)
                 
+            # NOTE: Expire moves in the trapq before the "free_time" time.
+            #       This is defined as "self.force_flush_time", unless it is
+            #       less than "print_time-kin_flush_delay*2" (equivalent in the
+            #       case that "fft < self.print_time - kin_flush_delay" avobe).
             free_time = max(fft, sg_flush_time - kin_flush_delay)
             # NOTE: Update move times on the toolhead's trapqs, meaning:
-            #           "Expire any moves older than `free_time` from
-            #           the trapezoid velocity queue" (see trapq.c).
+            #       "Expire any moves older than `free_time` from
+            #       the trapezoid velocity queue" (see trapq.c).
             for axes in list(self.kinematics):
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]
                 logging.info(f"\n\nToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}\n\n")
                 self.trapq_finalize_moves(kin.trapq, free_time)
             
+            # NOTE: "free_time" is smaller than "sg_flush_time" by "kin_flush_delay",
+            #       which is defined from "SDS_CHECK_TIME".
+            
+            # TODO: remove old (pre 6-axis) stuff.
             # # NOTE: Update move times on the toolhead, meaning:
             # #           "Expire any moves older than `free_time` from
             # #           the trapezoid velocity queue" (see trapq.c).
             # self.trapq_finalize_moves(self.trapq, free_time)
-            
             # # NOTE: Setup "self.trapq_finalize_moves" on the ABC trapq as well.
             # self.trapq_finalize_moves(self.abc_trapq, free_time)
             
-            # NOTE: Update move times on the extruder
-            #       by calling "trapq_finalize_moves" in PrinterExtruder.
+            # NOTE: Update move times on the extruder by calling
+            #       "trapq_finalize_moves" in PrinterExtruder.
             self.extruder.update_move_time(free_time)
 
             mcu_flush_time = max(fft, sg_flush_time - self.move_flush_time)
@@ -700,7 +714,8 @@ class ToolHead:
                 #       parameter in the call.
                 self.extruder.move(print_time=next_move_time, move=move)
             
-            # NOTE: The time for the next move is calculated here.
+            # NOTE: The start MCU time for the next move in 
+            #       the move queue is calculated here.
             next_move_time = (next_move_time + move.accel_t
                               + move.cruise_t + move.decel_t)
             
@@ -768,6 +783,8 @@ class ToolHead:
             self._update_move_time(flush_time)
         
         # Flush kinematic scan windows and step buffers
+        # NOTE: This is the one place where "self.force_flush_time" can 
+        #       be incremented, up to "flush_time".
         self.force_flush_time = max(self.force_flush_time, flush_time)
         self._update_move_time(next_print_time=max(self.print_time,
                                                    self.force_flush_time))

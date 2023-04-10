@@ -586,6 +586,9 @@ class ManualSpinner(manual_stepper.ManualStepper):
     
     def gen_stps_fin_moves(self, movetime, sync):
         self.next_cmd_time = self.next_cmd_time + movetime
+
+        # NOTE: In toolhead.py, the (drip) moves use a finalize move time smaller
+        #       than the generate step time, which makes sense.
         
         # Calls "itersolve_generate_steps" which "Generates 
         # step times for a range of moves on the trapq" (itersolve.c).
@@ -604,6 +607,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # finalize_moves_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1
         # finalize_moves_up_to = self.next_cmd_time - movetime*0.5
         # finalize_moves_up_to = self.next_cmd_time - 2*movetime  # NOTE: original self.next_cmd_time, no effect.
+        # TODO: Perhaps in this case not all moves should be flushed, as intentended for a "manual_stepper".
         self.trapq_finalize_moves(self.trapq, finalize_moves_up_to)
         
         self.toolhead.note_kinematic_activity(self.next_cmd_time)
