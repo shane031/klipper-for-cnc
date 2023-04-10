@@ -546,8 +546,8 @@ class ToolHead:
                 #       one per stepper. Those in turn end up calling "ffi_lib.itersolve_generate_steps"
                 #       which it meant to "Generate step times for a range of moves on the trapq".
                 sg(sg_flush_time)
-            free_time = max(fft, sg_flush_time - kin_flush_delay)
                 
+            free_time = max(fft, sg_flush_time - kin_flush_delay)
             # NOTE: Update move times on the toolhead's trapqs, meaning:
             #           "Expire any moves older than `free_time` from
             #           the trapezoid velocity queue" (see trapq.c).
@@ -821,7 +821,9 @@ class ToolHead:
             # In main state - defer stall checking until needed
             self.need_check_stall = (est_print_time + self.buffer_time_high
                                      + 0.100)
+    
     def _flush_handler(self, eventtime):
+        """Callback function for the 'self.flush_timer' reactor timer"""
         try:
             print_time = self.print_time
             buffer_time = print_time - self.mcu.estimated_print_time(eventtime)
@@ -1153,7 +1155,7 @@ class ToolHead:
             #       - Expire any moves older than `print_time` from the trapezoid velocity queue
             #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
             #       I am guessing here that "older" means "with a smaller timestamp",
-            #       otherwise it does not make sense.
+            #       or "previous". Otherwise it would not make sense.
             for axes in list(self.kinematics):
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]

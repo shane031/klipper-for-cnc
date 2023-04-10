@@ -417,16 +417,21 @@ class ManualSpinner(manual_stepper.ManualStepper):
         
         # Calls "itersolve_generate_steps" which "Generates 
         # step times for a range of moves on the trapq" (itersolve.c).
+        generate_steps_up_to = self.next_cmd_time
         # generate_steps_up_to = self.next_cmd_time - movetime*0.1
-        # generate_steps_up_to = self.next_cmd_time
-        generate_steps_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1
+        # generate_steps_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1  # NOTE: worse step interval peaks
+        # generate_steps_up_to = self.next_cmd_time + self.NEXT_CMD_ANTICIP_TIME  # NOTE: stepcompress o=2 i=0 c=39 a=0: Invalid sequence
+        generate_steps_up_to = self.next_cmd_time + 0.005
         self.rail.generate_steps(generate_steps_up_to)
         
         # Expire any moves older than `print_time` from the 
         # trapezoid velocity queue (e.g. flush all moves from 
         # trapq if print_time is very large ~99999.9).
-        # finalize_moves_up_to = self.next_cmd_time  # - movetime*0.01 # stepcompress error
         finalize_moves_up_to = self.next_cmd_time + 99999.9
+        # finalize_moves_up_to = self.next_cmd_time  # - movetime*0.01 # stepcompress error
+        # finalize_moves_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1
+        # finalize_moves_up_to = self.next_cmd_time - movetime*0.5
+        # finalize_moves_up_to = self.next_cmd_time - 2*movetime  # NOTE: original self.next_cmd_time, no effect.
         self.trapq_finalize_moves(self.trapq, finalize_moves_up_to)
         
         self.toolhead.note_kinematic_activity(self.next_cmd_time)
