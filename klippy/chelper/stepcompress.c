@@ -350,7 +350,7 @@ add_move(struct stepcompress *sc, uint64_t first_clock, struct step_move *move)
 
     // Log all incoming queue_step commands
     // errorf("start=%lld end=%lld: o=%d i=%d c=%d a=%d", (long long)(first_clock - move->interval), (long long)last_clock, sc->oid, move->interval, move->count, move->add);
-    errorf("queuelog %lld %lld %d %d %d %d", (long long)(first_clock - move->interval), (long long)last_clock, sc->oid, move->interval, move->count, move->add);
+    // errorf("queuelog %lld %lld %d %d %d %d", (long long)(first_clock - move->interval), (long long)last_clock, sc->oid, move->interval, move->count, move->add);
 
     // Create and queue a queue_step command
     uint32_t msg[5] = {
