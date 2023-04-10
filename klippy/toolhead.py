@@ -787,8 +787,8 @@ class ToolHead:
         #       - move_queue.flush: also ends up updating "self.print_time".
         self._flush_lookahead()
 
-        # NOTE: the "_calc_print_time" function also updates "self.print_time"
         if self.special_queuing_state:
+            # NOTE: the "_calc_print_time" function also updates "self.print_time"
             self._calc_print_time()
         
         return self.print_time

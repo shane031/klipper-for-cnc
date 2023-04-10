@@ -63,17 +63,21 @@ class ManualStepper:
         self.rail.set_position([setpos, 0., 0.])
     
     def trapq_append_move(self, print_time, 
-                          accel_t, cruise_t, decel_t,
-                          start_v, cruise_v, accel,
-                          start_pos_x, axes_r_x=1.0,
+                          accel_t=0.0, cruise_t=0.0, decel_t=0.0,
+                          start_v=0.0, cruise_v=0.0, accel=0.0,
+                          start_pos_x=0.0, axes_r_x=1.0,
                           start_pos_y=0.0, axes_r_y=0.0,
                           start_pos_z=0.0, axes_r_z=0.0):
         self.trapq_append(
-            self.trapq, 
-            print_time,
+            # struct trapq *tq, double print_time
+            self.trapq, print_time,
+            # double accel_t, double cruise_t, double decel_t
             accel_t, cruise_t, decel_t,
+            # double start_pos_x, double start_pos_y, double start_pos_z
             start_pos_x, start_pos_y, start_pos_z,
+            # double axes_r_x, double axes_r_y, double axes_r_z
             axes_r_x, axes_r_y, axes_r_z,
+            # double start_v, double cruise_v, double accel);
             start_v, cruise_v, accel)
 
         logging.info(f"\n\ntrapq_append_move: sent move at print_time={print_time}")
