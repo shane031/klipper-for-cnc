@@ -10,7 +10,7 @@ import logging
 class ManualSpinner(manual_stepper.ManualStepper):
     def __init__(self, config):
         self.printer = config.get_printer()
-        
+        self.toolhead = None  # NOTE: Set to toolhead on printer handle_ready.
         # NOTE: save the "reactor" object, I need it for timers/spinning.
         self.reactor = self.printer.get_reactor()
         # NOTE: Need this to register the spin move callback appropriately.
@@ -20,6 +20,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
         self.spin_move_delay = 1.0
         self.spin_speed = 0.0
         self.spinning = 0.0
+        self.NEXT_CMD_ANTICIP_TIME = 0.1
 
         if config.get('endstop_pin', None) is not None:
             self.can_home = True
@@ -78,12 +79,34 @@ class ManualSpinner(manual_stepper.ManualStepper):
         """Register timer callback for continuous stepper rotation.
         Logic borrowed from "delayed_gcode.py".
         """
+        self.toolhead = self.printer.lookup_object('toolhead')
         logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
         self.spin_timer = self.reactor.register_timer(
             # Callback function.
             self.do_spin_move,
             # Initially the timer should be inactive.
             self.reactor.NEVER)
+
+    def gen_stps_fin_moves(self, movetime, sync):
+        self.next_cmd_time = self.next_cmd_time + movetime
+        
+        # Calls "itersolve_generate_steps" which "Generates 
+        # step times for a range of moves on the trapq" (itersolve.c).
+        # generate_steps_up_to = self.next_cmd_time - movetime*0.1
+        # generate_steps_up_to = self.next_cmd_time
+        generate_steps_up_to = self.next_cmd_time - self.NEXT_CMD_ANTICIP_TIME*0.1
+        self.rail.generate_steps(generate_steps_up_to)
+        
+        # Expire any moves older than `print_time` from the 
+        # trapezoid velocity queue (e.g. flush all moves from 
+        # trapq if print_time is very large ~99999.9).
+        # finalize_moves_up_to = self.next_cmd_time  # - movetime*0.01 # stepcompress error
+        finalize_moves_up_to = self.next_cmd_time + 99999.9
+        self.trapq_finalize_moves(self.trapq, finalize_moves_up_to)
+        
+        self.toolhead.note_kinematic_activity(self.next_cmd_time)
+        if sync:
+            self.sync_print_time()
 
     def do_start(self, speed, accel, sync=True):
         self.sync_print_time()
@@ -103,7 +126,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
 
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
-        self.do_final_updates(movetime, sync)
+        self.gen_stps_fin_moves(movetime, sync)
 
         logging.info(f"\n\ndo_spin_move: sent do_start at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
@@ -126,13 +149,13 @@ class ManualSpinner(manual_stepper.ManualStepper):
             start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
 
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
-        self.do_final_updates(movetime, sync)
+        self.gen_stps_fin_moves(movetime, sync)
 
         logging.info(f"\n\ndo_spin_move: sent do_cruise at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
 
     def do_break(self, speed, decel, sync=True):
-        self.sync_print_time()
+        # self.sync_print_time()
         cp = self.rail.get_commanded_position()
 
         # Breaking parameters
@@ -152,7 +175,7 @@ class ManualSpinner(manual_stepper.ManualStepper):
             start_pos_x=cp, start_v=start_v, cruise_v=cruise_v, accel=accel)
 
         # Increment "self.next_cmd_time", call "generate_steps" and "trapq_finalize_moves".
-        self.do_final_updates(movetime, sync)
+        self.gen_stps_fin_moves(movetime, sync)
 
         logging.info(f"\n\ndo_spin_move: sent do_break at next_cmd_time={self.next_cmd_time} and movetime={movetime}")
         return movetime
@@ -160,17 +183,16 @@ class ManualSpinner(manual_stepper.ManualStepper):
     # Continuous rotation (move repeat) timer callback function.
     def do_spin_move(self, eventtime):
         logging.info(f"\n\ndo_spin_move: called at eventtime={eventtime} with next_cmd_time={self.next_cmd_time}\n\n")
-        toolhead = self.printer.lookup_object('toolhead')
 
         # The default is to never run the timer.
         waketime = self.reactor.NEVER
 
         # Get the print_time associated with the timer's "present" time.
-        est_print_eventtime = toolhead.mcu.estimated_print_time(eventtime)
+        est_event_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
 
         # Used for running the timer function a bit before the
         # time for the next stepper move.
-        # NEXT_CMD_ANTICIP_TIME = 0.01
+        # self.NEXT_CMD_ANTICIP_TIME = 0.1
 
         # NOTE: On the different times here:
         #       -   self.next_cmd_time is in "print time" seconds (i.e. MCU time).
@@ -199,10 +221,10 @@ class ManualSpinner(manual_stepper.ManualStepper):
                                       sync=self.spin_params[3])   # SYNC
             
             # Total move time.
-            movetime = starttime + crustime
+            # movetime = starttime + crustime
 
             # Calculate the time the current move takes.
-            time_to_next_move = self.next_cmd_time - est_print_eventtime
+            movetime = self.next_cmd_time - est_event_print_time
             
             # Add a fraction of the move duration to the current system time (actually
             # the time at which this callback was triggered).
@@ -214,7 +236,8 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # the time at which this callback was triggered).
             # In this way the next move will be queued at the midpoint of the cruise
             # move that was just queued.
-            waketime = eventtime + time_to_next_move - crustime/2.0
+            # waketime = eventtime + movetime - crustime*0.5
+            waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
             
             # waketime = eventtime + movetime  # This works but cannot be stopped immediately.
             # waketime = self.reactor.monotonic() + self.spin_move_delay
@@ -226,15 +249,17 @@ class ManualSpinner(manual_stepper.ManualStepper):
         # Cruise move (uniform motion).
         elif self.spin_speed and self.spinning:
             # If the requested speed is not 0, and the stepper is "spinning", cruise.
+            # NOTE: This step is triggered "~crustime/2" seconds before the end of the 
+            #       startup move.
 
             # Do the break
-            movetime = self.do_cruise(dist=self.spin_params[0], 
+            crustime = self.do_cruise(dist=self.spin_params[0], 
                                       speed=self.spin_params[1],
                                       sync=self.spin_params[3])
             
             
             # Calculate the time the current move takes.
-            time_to_next_move = self.next_cmd_time - est_print_eventtime
+            movetime = self.next_cmd_time - est_event_print_time
             
             # Add the move duration to the current system time.
             # In this way the next move will be issued during the current move
@@ -245,7 +270,9 @@ class ManualSpinner(manual_stepper.ManualStepper):
             # the time at which this callback was triggered).
             # In this way the next move will be queued at the midpoint of the cruise
             # move that was just queued.
-            waketime = eventtime + time_to_next_move - movetime*0.75
+            # waketime = eventtime + movetime - crustime*0.5
+            # waketime = eventtime + movetime*0.5
+            waketime = eventtime + movetime - self.NEXT_CMD_ANTICIP_TIME
         
         # Break move (decelerate).
         elif not self.spin_speed and self.spinning:
@@ -261,19 +288,18 @@ class ManualSpinner(manual_stepper.ManualStepper):
             crustime = self.do_cruise(dist=movedist - break_dist, 
                                       speed=initial_speed,
                                       sync=self.spin_params[3])
-            movetime = self.do_break(speed=initial_speed,
+            brketime = self.do_break(speed=initial_speed,
                                      decel=break_accel,
                                      sync=self.spin_params[3])
             
             # Calculate the time the current move takes.
-            time_to_next_move = self.next_cmd_time - est_print_eventtime
+            movetime = self.next_cmd_time - est_event_print_time
             
             # Add a large fraction of it to the current system time.
             # In this way the next move will be issued during the current move
             # but also before it finishes.
-            # waketime = eventtime + time_to_next_move*0.8
-            
-            waketime = eventtime + time_to_next_move*1.0
+            # waketime = eventtime + movetime*0.8
+            waketime = eventtime + movetime*1.0
 
             # Signal break complete
             self.spinning = 0.0
