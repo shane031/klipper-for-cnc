@@ -60,8 +60,7 @@ class ToolHead:
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
-        self.all_mcus = [
-            m for n, m in self.printer.lookup_objects(module='mcu')]
+        self.all_mcus = [m for n, m in self.printer.lookup_objects(module='mcu')]
         self.mcu = self.all_mcus[0]
         self.can_pause = True
         if self.mcu.is_fileoutput():
@@ -74,9 +73,10 @@ class ToolHead:
                                             self._handle_shutdown)
         
         # Prefix for event names
-        self.event_prefix = "toolhead:"
+        self.event_prefix = "toolhead_stepper:" # NOTE: originally "toolhead:"
         
         # Velocity and acceleration control
+        # NOTE: from the "[printer]" config section.
         self.max_velocity = config.getfloat('max_velocity', above=0.)
         self.max_accel = config.getfloat('max_accel', above=0.)
         self.requested_accel_to_decel = config.getfloat(
@@ -88,6 +88,7 @@ class ToolHead:
         self._calc_junction_deviation()
         
         # Print time tracking
+        # NOTE: Uncertain config section, parameters not documented.
         self.buffer_time_low = config.getfloat(
             'buffer_time_low', 1.000, above=0.)
         self.buffer_time_high = config.getfloat(
@@ -116,16 +117,6 @@ class ToolHead:
         self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
         self.step_generators = []
         
-        # NOTE: check TRAPQ for the extra ABC axes here.
-        # TODO: rewite this part to setup an arbitrary amount of axis, relying on the specification (XYZABC).
-        if len(self.axis_names) == 6:
-            logging.info(f"\n\nToolHead: setting up additional ABC trapq.\n\n")
-        elif len(self.axis_names) > 3:
-            msg = f"Error loading toolhead with '{self.axis_names}' ({len(self.axis_names)}) axes is unsupported."
-            msg += " Use either XYZ (3) or XYZABC (6) axes."
-            logging.exception(msg)
-            raise config.error(msg)
-        
         # NOTE: load the gcode objects (?)
         gcode = self.printer.lookup_object('gcode')
         self.Coord = gcode.Coord
@@ -139,18 +130,12 @@ class ToolHead:
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
         
         # Register commands
-        gcode.register_command('G4', self.cmd_G4)
-        gcode.register_command('M400', self.cmd_M400)
-        gcode.register_command('SET_VELOCITY_LIMIT',
+        gcode.register_mux_command('G4', 'EXTRUDER', self.cmd_G4)
+        gcode.register_mux_command('M400', 'EXTRUDER', self.cmd_M400)
+        gcode.register_mux_command('SET_VELOCITY_LIMIT', 'EXTRUDER',
                                self.cmd_SET_VELOCITY_LIMIT,
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_command('M204', self.cmd_M204)
-        
-        # Load some default modules
-        modules = ["gcode_move", "homing", "idle_timeout", "statistics",
-                   "manual_probe", "tuning_tower"]
-        for module_name in modules:
-            self.printer.load_object(config, module_name)
+        gcode.register_mux_command('M204', 'EXTRUDER', self.cmd_M204)
     
     # Load axes abstraction
     def load_axes(self, config):
