@@ -31,7 +31,7 @@ Within the host code, print times are generally stored in variables named print_
 """
 
 # Main code to track events (and their timing) on the printer toolhead
-class ToolHead:
+class ToolHeadStepper:
     """Main toolhead class.
 
     Example config:
@@ -1048,6 +1048,6 @@ class ToolHead:
         self.max_accel = accel
         self._calc_junction_deviation()
 
-def add_printer_objects(config):
-    config.get_printer().add_object('toolhead', ToolHead(config))
+def load_config_prefix(config):
+    config.get_printer().add_object('toolhead_stepper', ToolHeadStepper(config))
     kinematics.extruder.add_printer_objects(config)
