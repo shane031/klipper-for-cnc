@@ -23,19 +23,38 @@ class CartKinematicsABC(CartKinematics):
     TODO:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
-    """
-    def __init__(self, toolhead, config, trapq=None):
+    """    
+    def __init__(self, toolhead, config, trapq=None,
+                 axes_ids=(3, 4), axis_set_letters="AB"):
+        """Cartesian kinematics.
+        
+        Configures up to 3 cartesian axes, or less.
+
+        Args:
+            toolhead (_type_): Toolhead-like object.
+            config (_type_): Toolhead-like config object.
+            trapq (_type_, optional): Trapq object. Defaults to None.
+            axes_ids (tuple, optional): Configured set of integer axes IDs. Can have length less than 3. Defaults to (3, 4).
+            axis_set_letters (str, optional): Configured set of letter axes IDs. Can have length less than 3. Defaults to "AB".
+        """
         self.printer = config.get_printer()
         
+        
+        # Configured set of axes and their letter IDs. Can have length less than 3.
+        self.axis_config = axes_ids.copy()  # list of length <= 3: [0, 1, 3], [3, 4]
+        self.axis_names = axis_set_letters  # char of length <= 3: "XYZ", "AB"
+        
+        # Full set of axes
+        # axis examples: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
+        self.axis = list(range(self.axis[0], self.axis[0] + 3))  # Length 3
+        
         # Axis names
-        self.axis = [3, 4, 5]
-        self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "ABC" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
         
         # Get the trapq
         if trapq is None:
-            self.trapq = toolhead.get_abc_trapq()
+            self.trapq = toolhead.get_trapq(axes=self.axis_names)
         else:
             self.trapq = trapq
         
@@ -52,7 +71,9 @@ class CartKinematicsABC(CartKinematics):
         
         # NOTE: this must be "xyz" and not "abc", see "cartesian_stepper_alloc" in C code.
         # for rail, axis in zip(self.rails, self.axis_names.lower()):
-        for rail, axis in zip(self.rails, "xyz"):
+        # TODO: Check if it needs to be length 3 every time.
+        xyz_axis_names = "xyz"[:len(self.axis_names)]  # Can be "xyz", "xy", or "x".
+        for rail, axis in zip(self.rails, xyz_axis_names):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         
         for s in self.get_steppers():
@@ -64,6 +85,7 @@ class CartKinematicsABC(CartKinematics):
             #       This object is used by "toolhead._update_move_time".
             toolhead.register_step_generator(s.generate_steps)
         
+        # Register a handler for turning off the steppers.
         self.printer.register_event_handler("stepper_enable:motor_off",
                                             self._motor_off)
         # Setup boundary checks
@@ -74,8 +96,13 @@ class CartKinematicsABC(CartKinematics):
                                               above=0., maxval=max_velocity)
         self.max_z_accel = config.getfloat('max_z_accel', max_accel,
                                            above=0., maxval=max_accel)
-        self.limits = [(1.0, -1.0)] * 3
         ranges = [r.get_range() for r in self.rails]
+        # TODO: Should this have length < 3 if less axes are configured, or not?
+        #       CartKinematics methods like "get_status" will expect length-3 limits.
+        #       That one has been replaced here, there may be others though I think
+        #       I've got all of the (internal) calls covered.
+        # self.limits = [(1.0, -1.0)] * 3
+        self.limits = [(1.0, -1.0)] * len(self.axis_config)
         
         # TODO: check if this works with ABC axes, it will result in 
         #       Coord(x=0.0, y=0.0, z=0.0, e=0.0, a=None, b=None, c=None)
@@ -127,7 +154,10 @@ class CartKinematicsABC(CartKinematics):
     
     def note_z_not_homed(self):
         # Helper for Safe Z Home
-        self.limits[2] = (1.0, -1.0)
+        # self.limits[2] = (1.0, -1.0)
+        # TODO: reconsider ignoring the call, it can be produced by "safe_z_home".
+        logging.info(f"\n\nCartKinematicsABC WARNING: call to note_z_not_homed ignored.\n\n")
+        pass
     
     def _home_axis(self, homing_state, axis, rail):
         # Determine movement
@@ -152,7 +182,7 @@ class CartKinematicsABC(CartKinematics):
             self._home_axis(homing_state, axis, self.rails[toolhead.axes_to_xyz(axis)])
     
     def _motor_off(self, print_time):
-        self.limits = [(1.0, -1.0)] * 3
+        self.limits = [(1.0, -1.0)] * len(self.axis)
     
     def _check_endstops(self, move):
         logging.info("\n\n" + f"cartesian_abc._check_endstops: triggered on {self.axis_names}/{self.axis} move.\n\n")
@@ -163,7 +193,10 @@ class CartKinematicsABC(CartKinematics):
                      or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
-                    logging.info(f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first, limits={self.limits[i]} end_pos[axis]={end_pos[axis]} move.axes_d[axis]={move.axes_d[axis]}")
+                    msg = "".join([f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first,",
+                                   f"limits={self.limits[i]} end_pos[axis]={end_pos[axis]} ",
+                                   f"move.axes_d[axis]={move.axes_d[axis]}"])
+                    logging.info(msg)
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()
     
@@ -178,26 +211,35 @@ class CartKinematicsABC(CartKinematics):
         Args:
             move (tolhead.Move): Instance of the Move class.
         """
-        
-        limits = self.limits
-        apos, bpos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[3:6]
-        logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on apos={apos} and bpos={bpos}.\n\n")
-        if (apos < limits[0][0] or apos > limits[0][1]
-            or bpos < limits[1][0] or bpos > limits[1][1]):
+        limit_checks = []
+        for axis in self.axis:
+            pos = move.end_pos[axis]
+            checks.append(pos < self.limits[axis][0] or pos > self.limits[axis][1])
+        if any(limit_checks):
             self._check_endstops(move)
         
-        # NOTE: check if the move involves the Z axis, to limit the speed.
-        if not move.axes_d[self.axis[2]]:
-            # Normal XY move - use defaults
-            return
-        else:
-            self._check_endstops(move)
-            # NOTE: removed the "Z" logic here, as it is implemented in 
-            #       the XYZ cartesian kinematic check already.
-            # Move with Z - update velocity and accel for slower Z axis
-            # z_ratio = move.move_d / abs(move.axes_d[2])
-            # move.limit_speed(
-            #     self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
+        # limits = self.limits
+        # apos, bpos = [move.end_pos[axis] for axis in self.axis[:2]]  # move.end_pos[3:6]
+        # logging.info("\n\n" + f"cartesian_abc.check_move: checking move ending on apos={apos} and bpos={bpos}.\n\n")
+        # if (apos < limits[0][0] or apos > limits[0][1]
+        #     or bpos < limits[1][0] or bpos > limits[1][1]):
+        #     self._check_endstops(move)
+        
+        self._check_endstops(move)
+        
+        # TODO: Reconsider adding Z-axis speed limiting.
+        # # NOTE: check if the move involves the Z axis, to limit the speed.
+        # if not move.axes_d[self.axis[2]]:
+        #     # Normal XY move, no Z axis movements - use default speed.
+        #     return
+        # else:
+        #     pass
+        #     # NOTE: removed the "Z" logic here, as it is implemented in 
+        #     #       the XYZ cartesian kinematic check already.
+        #     # Move with Z - update velocity and accel for slower Z axis
+        #     # z_ratio = move.move_d / abs(move.axes_d[2])
+        #     # move.limit_speed(
+        #     #     self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
         return
     
     def get_status(self, eventtime):
@@ -227,5 +269,5 @@ class CartKinematicsABC(CartKinematics):
     #     carriage = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
     #     self._activate_carriage(carriage)
 
-def load_kinematics(toolhead, config, trapq=None):
-    return CartKinematicsABC(toolhead, config, trapq)
+def load_kinematics(toolhead, config, trapq=None, axes_ids=(3, 4), axis_set_letters="AB"):
+    return CartKinematicsABC(toolhead, config, trapq, axes_ids, axis_set_letters)

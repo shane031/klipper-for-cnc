@@ -49,12 +49,18 @@ class ToolHeadStepper:
       - Homing is not implemented for ABC.
     """
     def __init__(self, config):
+        
+        # NOTE: get name of the probe from the config.
+        # TODO: consider getting axis names from here.
+        self.config_name = config.get_name().split()[1]
+        
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_letters = "XYZABCUVW"
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
         # TODO: support more kinematics.
-        self.supported_kinematics = ["cartesian", "cartesian_abc", "none"]
+        self.supported_kinematics = ["cartesian_abc"]
         
         logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
         
@@ -148,30 +154,36 @@ class ToolHeadStepper:
             config (_type_): Klipper configuration object.
         """
         
-        # Setup XYZ axes
-        if "XYZ" in self.axis_names:
-            # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
-            self.kin, self.trapq = self.load_kinematics(config=config, 
-                                                        config_name='kinematics',
-                                                        axes_ids = [0, 1, 2])
-            # Save the kinematics to the dict.
-            self.kinematics["XYZ"] = self.kin
-        else:
-            self.kin, self.trapq = None, None
+        # Get the minimum amount of "axis sets" (each with 3 elements, because
+        # that's what fits on a cartesian trapq).
+        axes = list(range(self.axis_count))
+        min_axis_sets = ceil(self.axis_count / 3)
+        # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
+        # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
+        # and so on.
+        self.axis_sets = [[] for i in range(min_axis_sets)]
+        _ = [self.axis_sets[i // 3].append(i) for i in axes]        # [0,1,2], [3,4], ...
+        # _ = [self.axis_sets[i // 3].append(i % 3) for i in axes]  # [0,1,2], ...
         
-        # Setup ABC axes
-        if "ABC" in self.axis_names:
-            # Create ABC kinematics class, and its ABC trapq (iterative solver).
-            self.kin_abc, self.abc_trapq = self.load_kinematics(config=config, 
-                                                                config_name='kinematics_abc',
-                                                                axes_ids=[3, 4 ,5])
+        for set_idx, axis_set in enumerate(self.axis_sets):
+            
+            # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
+            kin, trapq = self.load_kinematics(config=config, 
+                                              # Parameter name from "[toolhead_stepper]"
+                                              config_name='axis_kinematics',
+                                              # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
+                                              axes_ids = axis_set,
+                                              axis_set_letters=axis_set_letters)
+            
+            # axis_set_letters examples: ["XYZ"], ["AB"], ...
+            axis_set_letters = " ".join([self.axis_letters[i] for i in axis_set])
+            
             # Save the kinematics to the dict.
-            self.kinematics["ABC"] = self.kin_abc
-        else:
-            self.kin_abc, self.abc_trapq = None, None
+            self.kinematics[axis_set_letters] = kin
     
     # Load kinematics object
-    def load_kinematics(self, config, axes_ids, config_name='kinematics'):
+    def load_kinematics(self, config, axes_ids=(0,1,2), axis_set_letters="XYZ",
+                        config_name='kinematics'):
         """Load kinematics for a set of axes.
 
         Note: this requires the Kinematics module to accept a "trapq" object,
@@ -182,13 +194,16 @@ class ToolHeadStepper:
 
         Args:
             config (_type_): Klipper configuration object.
-            axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
+            axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic. Example: [0, 1, 2], [3, 4].
+            axis_set_letters (str): Letters corresponding to 'axes_ids'. Example: "XYZ".
             config_name (str, optional): Name of the kinematics in the config. Defaults to 'kinematics'.
 
         Returns:
             CartKinematics: Kinematics object.
         """
+                
         # NOTE: get the "kinematics" type from "[printer]".
+        # Example "cartesian_abc" (must match a module name in "kinematics/").
         kin_name = config.get(config_name)
 
         # TODO: Support other kinematics is due. Error out for now.
@@ -206,9 +221,10 @@ class ToolHeadStepper:
             # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
             # Run the modules setup function.
-            kin = mod.load_kinematics(self, config, trapq)
+            kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq,
+                                      axes_ids=axes_ids, axis_set_letters=axis_set_letters)
             # Specify which of the toolhead position elements correspon to the axis.
-            kin.axis = axes_ids.copy()
+            kin.set_axis(axes_ids)
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
@@ -947,31 +963,14 @@ class ToolHeadStepper:
         self.move_queue.reset()
     
     def get_kinematics(self, axes="XYZ"):
-        if axes == "XYZ":
-            return self.kinematics[axes]
-        elif axes == "ABC":
-            return self.kinematics[axes]
-        else:
-            logging.info("No kinematics matched to axes={axes} returning toolhead.kin (legacy behaviour)")
-            return self.kin
-    def get_kinematics_abc(self):
-        # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
-        return self.kin_abc
+        return self.kinematics[axes]
     
     def get_trapq(self, axes="XYZ"):
-        if axes == "XYZ":
-            return self.kinematics[axes].trapq
-        elif axes == "ABC":
-            return self.kinematics[axes].trapq
-        else:
-            logging.info("No kinematics matched to axes={axes} returning toolhead.trapq (legacy behaviour)")
-            return self.trapq
-    def get_abc_trapq(self):
-        # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
-        return self.abc_trapq
+        return self.kinematics[axes].trapq
     
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
+    
     def note_step_generation_scan_time(self, delay, old_delay=0.):
         self.flush_step_generation()
         cur_delay = self.kin_flush_delay
@@ -981,21 +980,27 @@ class ToolHeadStepper:
             self.kin_flush_times.append(delay)
         new_delay = max(self.kin_flush_times + [SDS_CHECK_TIME])
         self.kin_flush_delay = new_delay
+    
     def register_lookahead_callback(self, callback):
         last_move = self.move_queue.get_last()
         if last_move is None:
             callback(self.get_last_move_time())
             return
         last_move.timing_callbacks.append(callback)
+    
     def note_kinematic_activity(self, kin_time):
         self.last_kin_move_time = max(self.last_kin_move_time, kin_time)
+    
     def get_max_velocity(self):
         return self.max_velocity, self.max_accel
+    
     def _calc_junction_deviation(self):
         scv2 = self.square_corner_velocity**2
         self.junction_deviation = scv2 * (math.sqrt(2.) - 1.) / self.max_accel
         self.max_accel_to_decel = min(self.requested_accel_to_decel,
                                       self.max_accel)
+        
+    # GCODE command handlers
     def cmd_G4(self, gcmd):
         # Dwell
         delay = gcmd.get_float('P', 0., minval=0.) / 1000.
