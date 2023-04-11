@@ -1243,18 +1243,35 @@ class ToolHead:
                      'max_accel_to_decel': self.requested_accel_to_decel,
                      'square_corner_velocity': self.square_corner_velocity})
         return res
+    
     def _handle_shutdown(self):
         self.can_pause = False
         self.move_queue.reset()
-    def get_kinematics(self):
-        return self.kin
+    
+    def get_kinematics(self, axes="XYZ"):
+        if axes == "XYZ":
+            return self.kinematics[axes]
+        elif axes == "ABC":
+            return self.kinematics[axes]
+        else:
+            logging.info("No kinematics matched to axes={axes} returning toolhead.kin (legacy behaviour)")
+            return self.kin
     def get_kinematics_abc(self):
-        # NOTE: equivalent to "get_kinematics" for ABC kinematics. 
+        # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
         return self.kin_abc
-    def get_trapq(self):
-        return self.trapq
+    
+    def get_trapq(self, axes="XYZ"):
+        if axes == "XYZ":
+            return self.kinematics[axes].trapq
+        elif axes == "ABC":
+            return self.kinematics[axes].trapq
+        else:
+            logging.info("No kinematics matched to axes={axes} returning toolhead.trapq (legacy behaviour)")
+            return self.trapq
     def get_abc_trapq(self):
+        # TODO: update the rest of the code to use "get_trapq" with "axes" instead.
         return self.abc_trapq
+    
     def register_step_generator(self, handler):
         self.step_generators.append(handler)
     def note_step_generation_scan_time(self, delay, old_delay=0.):
