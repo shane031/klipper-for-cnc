@@ -68,6 +68,10 @@ class MCU_stepper:
             self._step_pulse_duration = pulse_duration
         self._req_step_both_edge = step_both_edge
     def setup_itersolve(self, alloc_func, *params):
+        # NOTE: if for example the "alloc_func" is "polar_stepper_alloc"
+        #       (from "kin_polar.c") that function will be called to
+        #       produce a "stepper_kinematics" C object of type "r" or "a"
+        #       ("radius" and "angle", respectively).
         ffi_main, ffi_lib = chelper.get_ffi()
         sk = ffi_main.gc(getattr(ffi_lib, alloc_func)(*params), ffi_lib.free)
         self.set_stepper_kinematics(sk)

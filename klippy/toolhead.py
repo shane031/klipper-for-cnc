@@ -404,6 +404,7 @@ class ToolHead:
         self.step_generators = []
         
         # NOTE: check TRAPQ for the extra ABC axes here.
+        # TODO: rewite this part to setup an arbitrary amount of axis, relying on the specification (XYZABC).
         if len(self.axis_names) == 6:
             logging.info(f"\n\nToolHead: setting up additional ABC trapq.\n\n")
         elif len(self.axis_names) > 3:

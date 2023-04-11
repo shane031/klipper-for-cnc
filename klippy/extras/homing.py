@@ -630,12 +630,27 @@ class PrinterHoming:
         axes = homing_axes
         logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes}\n\n")
         
+        # NOTE: Instance a "Homing" object
         homing_state = Homing(self.printer)
+        # NOTE: Update the "self.changed_axes" attribute, 
+        #       to indicate which axes will be homed (e.g. 0 for X, 1 for Y, ...).
         homing_state.set_axes(axes)
+        
+        # NOTE: Let the "kinematics" object decide how to home the requested axes.
         try:
-            # NOTE: In the cart kinematics, "kin.home" iterates over each 
-            #       axis calling "Homing.home_rails", which then uses
-            #       "HomingMove.homing_move" directly.
+            # NOTE: In the cart kinematics, "kin.home" which iterates over each 
+            #       requested axis, and calls "_home_axis" passing it the axis,
+            #       the "homing_state" object (of "Homing" class), and the PrinterRail
+            #       object associated to that axis (which has the associated endstop).
+            # NOTE: The, "_home_axis" decide which is the starting and end position
+            #       of the homing move (startpos=forcepos and endpos=homepos).
+            #       It then pases the positions to "Homing.home_rails", which sets the
+            #       toolhead position to forcepos, and instantiates a "HomingMove"
+            #       object using the endstops from the provided rail, and the "homepos".
+            #       "HomingMove.homing_move" is then called to issue the first homing move.
+            # NOTE: "homing_move" is responsible for issuing the "toolhead.drip_move" 
+            #       command (used specifically for homing axes), managing endstop triggers,
+            #       doing detailed positon/timing calculations, and other dirtier toolhead stuff.
             kin.home(homing_state)
         except self.printer.command_error:
             if self.printer.is_shutdown():
