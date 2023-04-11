@@ -90,7 +90,7 @@ class ToolHeadStepper:
                                             self._handle_shutdown)
         
         # Prefix for event names
-        self.event_prefix = "toolhead_stepper:" # NOTE: originally "toolhead:"
+        self.event_prefix = "toolhead:"
         
         # Velocity and acceleration control
         # NOTE: from the "[printer]" config section.
@@ -337,7 +337,10 @@ class ToolHeadStepper:
 
         if min_print_time > self.print_time:
             self.print_time = min_print_time
-            self.printer.send_event(self.event_prefix + "sync_print_time",  # "toolhead:sync_print_time"
+            # NOTE: Originally "toolhead:sync_print_time", received by "idle_timeout" only,
+            #       whose "handle_sync_print_time" method is triggered. It apparently postpones
+            #       idling the machine.
+            self.printer.send_event(self.event_prefix + "sync_print_time",
                                     curtime, est_print_time, self.print_time)
     def _process_moves(self, moves):
         """
@@ -635,10 +638,11 @@ class ToolHeadStepper:
         #       an unmodified "commanded_pos" might be important.
         self.commanded_pos[:] = newpos
         
-        # NOTE: this event is mainly recived by gcode_move.reset_last_position,
+        # NOTE: This event is mainly recived by "gcode_move.reset_last_position",
         #       which updates its "self.last_position" with (presumably) the
         #       "self.commanded_pos" above.
-        self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
+        # TODO: Reenable this once (or if) I adapt "gcode_move" to handle it.
+        # self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
         
     def set_kin_trap_position(self, trapq, newpos):
         """Abstraction of trapq_set_position for different sets of kinematics.
@@ -764,7 +768,8 @@ class ToolHeadStepper:
         # NOTE: This event is handled by "reset_last_position"
         #       (at gcode_move.py) which updates "self.last_position"
         #       in the GCodeMove class.
-        self.printer.send_event(self.event_prefix + "manual_move")  # "toolhead:manual_move"
+        # TODO: Reenable this once (or if) I adapt "gcode_move" to handle it.
+        # self.printer.send_event(self.event_prefix + "manual_move")  # "toolhead:manual_move"
     
     def dwell(self, delay):
         # NOTE: get_last_move_time runs "_flush_lookahead" which then
@@ -1006,9 +1011,11 @@ class ToolHeadStepper:
         # Dwell
         delay = gcmd.get_float('P', 0., minval=0.) / 1000.
         self.dwell(delay)
+    
     def cmd_M400(self, gcmd):
         # Wait for current moves to finish
         self.wait_moves()
+    
     cmd_SET_VELOCITY_LIMIT_help = "Set printer velocity limits"
     def cmd_SET_VELOCITY_LIMIT(self, gcmd):
         max_velocity = gcmd.get_float('VELOCITY', None, above=0.)
@@ -1033,12 +1040,14 @@ class ToolHeadStepper:
                    self.max_velocity, self.max_accel,
                    self.requested_accel_to_decel,
                    self.square_corner_velocity))
+        # TODO: Apparently this only logs using logging. Check that it is harmless.
         self.printer.set_rollover_info("toolhead", self.event_prefix + " %s" % (msg,))
         if (max_velocity is None and
             max_accel is None and
             square_corner_velocity is None and
             requested_accel_to_decel is None):
             gcmd.respond_info(msg, log=False)
+    
     def cmd_M204(self, gcmd):
         # Use S for accel
         accel = gcmd.get_float('S', None, above=0.)
