@@ -59,6 +59,17 @@ class ToolHeadStepper:
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
+        # Get the minimum amount of "axis sets" (each with 3 elements, because
+        # that's what fits on a cartesian trapq).
+        self.axes = list(range(self.axis_count))
+        self.min_axis_sets = ceil(self.axis_count / 3)
+        # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
+        # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
+        # and so on.
+        self.axis_sets = [[] for i in range(self.min_axis_sets)]
+        _ = [self.axis_sets[i // 3].append(i) for i in self.axes]        # [0,1,2], [3,4], ...
+        # _ = [self.axis_sets[i // 3].append(i % 3) for i in axes]  # [0,1,2], ...
+        
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc"]
         
@@ -154,18 +165,10 @@ class ToolHeadStepper:
             config (_type_): Klipper configuration object.
         """
         
-        # Get the minimum amount of "axis sets" (each with 3 elements, because
-        # that's what fits on a cartesian trapq).
-        axes = list(range(self.axis_count))
-        min_axis_sets = ceil(self.axis_count / 3)
-        # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
-        # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
-        # and so on.
-        self.axis_sets = [[] for i in range(min_axis_sets)]
-        _ = [self.axis_sets[i // 3].append(i) for i in axes]        # [0,1,2], [3,4], ...
-        # _ = [self.axis_sets[i // 3].append(i % 3) for i in axes]  # [0,1,2], ...
-        
         for set_idx, axis_set in enumerate(self.axis_sets):
+            
+            # axis_set_letters examples: ["XYZ"], ["AB"], ...
+            axis_set_letters = " ".join([self.axis_letters[i] for i in axis_set])
             
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             kin, trapq = self.load_kinematics(config=config, 
@@ -175,10 +178,8 @@ class ToolHeadStepper:
                                               axes_ids = axis_set,
                                               axis_set_letters=axis_set_letters)
             
-            # axis_set_letters examples: ["XYZ"], ["AB"], ...
-            axis_set_letters = " ".join([self.axis_letters[i] for i in axis_set])
             
-            # Save the kinematics to the dict.
+            # Save the kinematics to the dict, with axis letters as key.
             self.kinematics[axis_set_letters] = kin
     
     # Load kinematics object
