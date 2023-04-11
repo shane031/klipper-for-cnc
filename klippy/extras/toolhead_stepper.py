@@ -130,12 +130,12 @@ class ToolHead:
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
         
         # Register commands
-        gcode.register_mux_command('G4', 'EXTRUDER', self.cmd_G4)
-        gcode.register_mux_command('M400', 'EXTRUDER', self.cmd_M400)
-        gcode.register_mux_command('SET_VELOCITY_LIMIT', 'EXTRUDER',
+        gcode.register_mux_command('G4', 'TOOLHEAD', self.cmd_G4)
+        gcode.register_mux_command('M400', 'TOOLHEAD', self.cmd_M400)
+        gcode.register_mux_command('SET_VELOCITY_LIMIT', 'TOOLHEAD',
                                self.cmd_SET_VELOCITY_LIMIT,
                                desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_mux_command('M204', 'EXTRUDER', self.cmd_M204)
+        gcode.register_mux_command('M204', 'TOOLHEAD', self.cmd_M204)
     
     # Load axes abstraction
     def load_axes(self, config):
