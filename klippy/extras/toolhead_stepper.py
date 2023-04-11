@@ -173,7 +173,7 @@ class ToolHeadStepper:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             kin, trapq = self.load_kinematics(config=config, 
                                               # Parameter name from "[toolhead_stepper]"
-                                              config_name='axis_kinematics',
+                                              config_name='kinematics',
                                               # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
                                               axes_ids = axis_set,
                                               axis_set_letters=axis_set_letters)
