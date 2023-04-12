@@ -46,7 +46,7 @@ class CartKinematicsABC(CartKinematics):
         
         # Full set of axes
         # axis examples: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
-        self.axis = list(range(self.axis[0], self.axis[0] + 3))  # Length 3
+        self.axis = list(range(self.axis_config[0], self.axis_config[0] + 3))  # Length 3
         
         # Axis names
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
@@ -214,7 +214,7 @@ class CartKinematicsABC(CartKinematics):
         limit_checks = []
         for axis in self.axis:
             pos = move.end_pos[axis]
-            checks.append(pos < self.limits[axis][0] or pos > self.limits[axis][1])
+            limit_checks.append(pos < self.limits[axis][0] or pos > self.limits[axis][1])
         if any(limit_checks):
             self._check_endstops(move)
         

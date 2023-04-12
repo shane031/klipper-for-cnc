@@ -7,11 +7,8 @@ import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 import time
 
-# Move, MoveQueue, LOOKAHEAD_FLUSH_TIME, 
-# MIN_KIN_TIME, MOVE_BATCH_TIME, SDS_CHECK_TIME,
-# DRIP_SEGMENT_TIME, DRIP_TIME, 
-# DripModeEndSignal
-from toolhead import *
+# Move
+from toolhead import MoveQueue, LOOKAHEAD_FLUSH_TIME, MIN_KIN_TIME, MOVE_BATCH_TIME, SDS_CHECK_TIME, DRIP_SEGMENT_TIME, DRIP_TIME, DripModeEndSignal
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
@@ -30,23 +27,206 @@ The high-level host code uses print times to calculate almost all physical actio
 Within the host code, print times are generally stored in variables named print_time or move_time.
 """
 
+# Class to track each move request
+class Move:
+    def __init__(self, toolhead, start_pos, end_pos, speed):
+        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}\n\n")
+        
+        self.toolhead = toolhead
+        self.start_pos = tuple(start_pos)
+        self.end_pos = tuple(end_pos)
+        self.accel = toolhead.max_accel
+        self.junction_deviation = toolhead.junction_deviation
+        self.timing_callbacks = []
+        # NOTE: "toolhead.max_velocity" contains the value from the config file.
+        #       The "speed" argument comes from the call at "toolhead.move",
+        #       which is the feedrate "F" GCODE argument times a factor:
+        #           gcode_speed * self.speed_factor
+        #       This factor is by default "1. / 60." to convert feedrate units
+        #       from mm/min to mm/sec (e.g. F600 is 10 mm/sec).
+        velocity = min(speed, toolhead.max_velocity)
+        self.is_kinematic_move = True
+        
+        # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        self.axis_names = toolhead.axis_names
+        # TODO: only this bit was changed, find a way to not need to redefine "Move" here, and import from toolhead.py instead
+        self.min_axis_sets = toolhead.min_axis_sets
+        self.axis_count = self.min_axis_sets*3 # len(self.axis_names)
+
+        # NOTE: Compute the components of the displacement vector.
+        #       The last component is now the extruder.
+        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in range(self.axis_count + 1)]
+        
+        # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
+        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
+        
+        logging.info(f"\n\nMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
+        
+        # NOTE: If the move in XYZ is very small, then parse it as an extrude-only move.
+        if move_d < .000000001:
+            # Extrude only move
+            
+            # NOTE: the main axes wont move, thus end=stop.
+            self.end_pos = tuple([start_pos[i] for i in range(self.axis_count)])
+            # NOTE: the extruder will move.
+            self.end_pos = self.end_pos + (end_pos[self.axis_count],)
+            
+            # NOTE: set axis displacement to zero.
+            for i in range(self.axis_count):
+                axes_d[i] = 0.
+            
+            # NOTE: set move distance to the extruder's displacement.
+            self.move_d = move_d = abs(axes_d[self.axis_count])
+            
+            # NOTE: set more stuff (?)
+            inv_move_d = 0.
+            if move_d:
+                inv_move_d = 1. / move_d
+            self.accel = 99999999.9
+            velocity = speed
+            self.is_kinematic_move = False
+        else:
+            inv_move_d = 1. / move_d
+        
+        # NOTE: Compute a ratio between each component of the displacement
+        #       vector and the total magnitude.
+        self.axes_r = [d * inv_move_d for d in axes_d]
+        
+        # NOTE: Compute the mimimum time that the move will take (at speed == max speed).
+        #       The time will be greater if the axes must accelerate during the move.
+        self.min_move_t = move_d / velocity
+        
+        # Junction speeds are tracked in velocity squared.  The
+        # delta_v2 is the maximum amount of this squared-velocity that
+        # can change in this move.
+        self.max_start_v2 = 0.
+        self.max_cruise_v2 = velocity**2
+        self.delta_v2 = 2.0 * move_d * self.accel
+        self.max_smoothed_v2 = 0.
+        self.smooth_delta_v2 = 2.0 * move_d * toolhead.max_accel_to_decel
+    
+    def limit_speed(self, speed, accel):
+        speed2 = speed**2
+        if speed2 < self.max_cruise_v2:
+            self.max_cruise_v2 = speed2
+            self.min_move_t = self.move_d / speed
+        self.accel = min(self.accel, accel)
+        self.delta_v2 = 2.0 * self.move_d * self.accel
+        self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
+    
+    def move_error(self, msg="Move out of range"):
+        # TODO: check if the extruder axis is always passed to "self.end_pos".
+        ep = self.end_pos
+        m = msg + ": "
+        m += " ".join(["%.3f" % i for i in tuple(ep[:-1])])     # Add XYZABC axis coords.
+        m += " [%.3f]" % tuple(ep[-1:])                         # Add extruder coord.
+        return self.toolhead.printer.command_error(m)
+    
+    def calc_junction(self, prev_move):
+        if not self.is_kinematic_move or not prev_move.is_kinematic_move:
+            return
+        
+        logging.info("\n\nMove calc_junction: function triggered.\n\n")
+        
+        # Allow extruder to calculate its maximum junction
+        # NOTE: Uses the "instant_corner_v" config parameter.
+        extruder_v2 = self.toolhead.extruder.calc_junction(prev_move, self)
+        
+        # Find max velocity using "approximated centripetal velocity"
+        axes_r = self.axes_r
+        prev_axes_r = prev_move.axes_r
+        junction_cos_theta = -sum([ axes_r[0] * prev_axes_r[0] for i in range(self.axis_count) ])
+        if junction_cos_theta > 0.999999:
+            return
+        junction_cos_theta = max(junction_cos_theta, -0.999999)
+        sin_theta_d2 = math.sqrt(0.5*(1.0-junction_cos_theta))
+        R_jd = sin_theta_d2 / (1. - sin_theta_d2)
+        
+        # Approximated circle must contact moves no further away than mid-move
+        tan_theta_d2 = sin_theta_d2 / math.sqrt(0.5*(1.0+junction_cos_theta))
+        move_centripetal_v2 = .5 * self.move_d * tan_theta_d2 * self.accel
+        prev_move_centripetal_v2 = (.5 * prev_move.move_d * tan_theta_d2
+                                    * prev_move.accel)
+        # Apply limits
+        self.max_start_v2 = min(
+            R_jd * self.junction_deviation * self.accel,
+            R_jd * prev_move.junction_deviation * prev_move.accel,
+            move_centripetal_v2, prev_move_centripetal_v2,
+            extruder_v2, self.max_cruise_v2, prev_move.max_cruise_v2,
+            prev_move.max_start_v2 + prev_move.delta_v2)
+        self.max_smoothed_v2 = min(self.max_start_v2, 
+                                   prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
+        
+        logging.info("\n\nMove calc_junction: function end.\n\n")
+    
+    def set_junction(self, start_v2, cruise_v2, end_v2):
+        """Move.set_junction() implements the "trapezoid generator" on a move.
+        
+        The "trapezoid generator" breaks every move into three parts: a constant acceleration phase, 
+        followed by a constant velocity phase, followed by a constant deceleration phase. 
+        Every move contains these three phases in this order, but some phases may be of zero duration.
+
+        Args:
+            start_v2 (_type_): _description_
+            cruise_v2 (_type_): _description_
+            end_v2 (_type_): _description_
+        """
+        
+        logging.info("\n\nMove set_junction: function triggered.\n\n")
+        
+        # Determine accel, cruise, and decel portions of the move distance
+        half_inv_accel = .5 / self.accel
+        accel_d = (cruise_v2 - start_v2) * half_inv_accel
+        decel_d = (cruise_v2 - end_v2) * half_inv_accel
+        cruise_d = self.move_d - accel_d - decel_d
+        # Determine move velocities
+        self.start_v = start_v = math.sqrt(start_v2)
+        self.cruise_v = cruise_v = math.sqrt(cruise_v2)
+        self.end_v = end_v = math.sqrt(end_v2)
+        # Determine time spent in each portion of move (time is the
+        # distance divided by average velocity)
+        self.accel_t = accel_d / ((start_v + cruise_v) * 0.5)
+        self.cruise_t = cruise_d / cruise_v
+        self.decel_t = decel_d / ((end_v + cruise_v) * 0.5)
+        
+        logging.info("\n\nMove set_junction: function end.\n\n")
+
+
 # Main code to track events (and their timing) on the printer toolhead
 class ToolHeadStepper:
-    """Main toolhead class.
-
+    """Extra ToolHead class
+    
     Example config:
-    
-    [printer]
-    kinematics: cartesian
-    axis: XYZ  # Optional: XYZ or XYZABC
-    kinematics_abc: cartesian_abc # Optional
-    max_velocity: 5000
-    max_z_velocity: 250
-    max_accel: 1000
-    
-    TODO:
-      - The "checks" still have the XYZ logic.
-      - Homing is not implemented for ABC.
+
+        [toolhead_stepper abc]
+        axis: A
+        kinematics: cartesian_abc
+        max_velocity: 5000    # F120000
+        max_z_velocity: 250   # F30000
+        max_accel: 1000
+
+        [stepper_a]
+        # Configure "A" axis of the CNC shield
+        step_pin: PB4
+        dir_pin: PB5
+        enable_pin: !PB0
+        microsteps: 8
+        rotation_distance: 40
+        endstop_pin: PC2 
+        position_endstop: 0.0
+        position_min: -1.0
+        position_max: 30.0
+        homing_positive_dir: False
+        homing_speed: 25.0
+        second_homing_speed: 25.0
+
+    Example commands:
+
+        XG0 TOOLHEAD=abc A=20 F=500
+        XG0 TOOLHEAD=abc A=20 F=250
+
+    TODO: lots, HIGHLY EXPERIMENTAL.
+
     """
     def __init__(self, config):
         
@@ -61,19 +241,25 @@ class ToolHeadStepper:
         
         # Get the minimum amount of "axis sets" (each with 3 elements, because
         # that's what fits on a cartesian trapq).
-        self.axes = list(range(self.axis_count))
-        self.min_axis_sets = ceil(self.axis_count / 3)
+        self.axes = [i for i, a in enumerate(self.axis_letters) if a in self.axis_names]
+        # self.axes = list(range(self.axis_count))
+        self.min_axis_sets = math.ceil(self.axis_count / 3)
+
+        
         # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
         # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
         # and so on.
         self.axis_sets = [[] for i in range(self.min_axis_sets)]
-        _ = [self.axis_sets[i // 3].append(i) for i in self.axes]        # [0,1,2], [3,4], ...
-        # _ = [self.axis_sets[i // 3].append(i % 3) for i in axes]  # [0,1,2], ...
+        _ = [self.axis_sets[i // 3].append(a) for i, a in enumerate(self.axes)]         # [0,1,2], [3, 4], ...
+        # _ = [self.axis_sets[i // 3].append(i % 3) for i, a in enumerate(self.axes)]     # [0,1,2], [0, 1], ...
         
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc"]
         
-        logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
+        msg = f"\n\nToolHeadStepper: starting setup with axes: "
+        msg += f"self.axis_count={self.axis_count} self.axis_names={self.axis_names} "
+        msg += f"self.axes={self.axes} self.min_axis_sets={self.min_axis_sets} axis_sets={self.axis_sets}\n\n"
+        logging.info(msg)
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
@@ -85,7 +271,7 @@ class ToolHeadStepper:
             #       see "mcu.py".
             self.can_pause = False
         self.move_queue = MoveQueue(self)
-        self.commanded_pos = [0.0 for i in range(self.axis_count + 1)]
+        self.commanded_pos = [0.0 for i in range(self.min_axis_sets*3 + 1)]  # TODO: check if this is a good idea :)
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         
@@ -147,12 +333,65 @@ class ToolHeadStepper:
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
         
         # Register commands
-        gcode.register_mux_command('G4', 'TOOLHEAD', self.cmd_G4)
-        gcode.register_mux_command('M400', 'TOOLHEAD', self.cmd_M400)
-        gcode.register_mux_command('SET_VELOCITY_LIMIT', 'TOOLHEAD',
-                               self.cmd_SET_VELOCITY_LIMIT,
-                               desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_mux_command('M204', 'TOOLHEAD', self.cmd_M204)
+        gcode.register_mux_command('XG4', 'TOOLHEAD', self.config_name, self.cmd_G4)
+        gcode.register_mux_command('XM400', 'TOOLHEAD', self.config_name, self.cmd_M400)
+        gcode.register_mux_command('XSET_VELOCITY_LIMIT', 'TOOLHEAD', self.config_name, 
+                                   self.cmd_SET_VELOCITY_LIMIT, desc=self.cmd_SET_VELOCITY_LIMIT_help)
+        gcode.register_mux_command('XM204', 'TOOLHEAD', self.config_name, self.cmd_M204)
+        gcode.register_mux_command('XG0', 'TOOLHEAD', self.config_name, self.cmd_XG0)
+
+        # TODO: move this back to GcodeMove
+        self.last_position = self.commanded_pos.copy()
+        self.speed = 25.
+        self.speed_factor = 1. / 60.
+
+    def cmd_XG0(self, gcmd):
+        # Move
+        params = gcmd.get_command_parameters()
+        logging.info(f"\n\nGCodeMove: G1 starting setup with params={params} and self.last_position={self.last_position}\n\n")
+        try:
+            # NOTE: XYZ(ABC) move coordinates.
+            for pos, axis in enumerate(self.axis_names):
+                if axis in params:
+                    v = float(params[axis])
+                    logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
+                    self.last_position[pos] += v
+                    # if not self.absolute_coord:
+                    #     # value relative to position of last move
+                    #     self.last_position[pos] += v
+                    # else:
+                    #     # value relative to base coordinate position
+                    #     self.last_position[pos] = v + self.base_position[pos]
+            # NOTE: extruder move coordinates.
+            if 'E' in params:
+                v = float(params['E']) * self.extrude_factor
+                logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
+                self.last_position[self.axis_count] += v
+                # if not self.absolute_coord or not self.absolute_extrude:
+                #     # value relative to position of last move
+                #     self.last_position[self.axis_count] += v
+                # else:
+                #     # value relative to base coordinate position
+                #     self.last_position[self.axis_count] = v + self.base_position[self.axis_count]
+            # NOTE: move feedrate.
+            if 'F' in params:
+                gcode_speed = float(params['F'])
+                if gcode_speed <= 0.:
+                    raise gcmd.error("Invalid speed in '%s'"
+                                     % (gcmd.get_commandline(),))
+                self.speed = gcode_speed * self.speed_factor
+        
+        except ValueError as e:
+            raise gcmd.error("Unable to parse move '%s'"
+                             % (gcmd.get_commandline(),))
+        
+        logging.info(f"\n\nGCodeMove: G1 sending move with final self.last_position={self.last_position}\n\n")
+
+        # NOTE: send event to handlers, like "extra_toolhead.py" 
+        self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
+        
+        # NOTE: this is just a call to "toolhead.move".
+        self.manual_move(self.last_position, self.speed)
     
     # Load axes abstraction
     def load_axes(self, config):
@@ -170,17 +409,22 @@ class ToolHeadStepper:
             # axis_set_letters examples: ["XYZ"], ["AB"], ...
             axis_set_letters = " ".join([self.axis_letters[i] for i in axis_set])
             
+            # axis_set_idxs examples: [0,1,2], [0, 1], ...
+            axis_set_idxs = [i % 3 for i in axis_set]
+            
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
             kin, trapq = self.load_kinematics(config=config, 
                                               # Parameter name from "[toolhead_stepper]"
                                               config_name='kinematics',
                                               # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
-                                              axes_ids = axis_set,
+                                              axes_ids = axis_set_idxs,
                                               axis_set_letters=axis_set_letters)
             
             
             # Save the kinematics to the dict, with axis letters as key.
             self.kinematics[axis_set_letters] = kin
+
+            self.kinematics_names = list(self.kinematics)
     
     # Load kinematics object
     def load_kinematics(self, config, axes_ids=(0,1,2), axis_set_letters="XYZ",
@@ -224,8 +468,6 @@ class ToolHeadStepper:
             # Run the modules setup function.
             kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq,
                                       axes_ids=axes_ids, axis_set_letters=axis_set_letters)
-            # Specify which of the toolhead position elements correspon to the axis.
-            kin.set_axis(axes_ids)
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
@@ -411,7 +653,7 @@ class ToolHeadStepper:
             logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
             
             for axes in list(self.kinematics):
-                # Iterate over["XYZ", "ABC"]
+                # Iterate over["XYZ", "A"]
                 logging.info("\n\n" + f"toolhead._process_moves: appending move to {axes} trapq.\n\n")
                 kin = self.kinematics[axes]
                 # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
@@ -723,7 +965,7 @@ class ToolHeadStepper:
         # NOTE: Kinematic move checks for XYZ and ABC axes.
         #       The check is skipped if the displacement vector is "small"
         #       (and thus is_kinematic_move is False, see the "Move" class above).
-        if move.is_kinematic_move:
+        if move.is_kinematic_move and False:
             # for axes in ["XYZ"]:
             for axes in list(self.kinematics):    
                 # Iterate over["XYZ", "ABC"]
@@ -949,10 +1191,16 @@ class ToolHeadStepper:
         est_print_time = self.mcu.estimated_print_time(eventtime)
         lookahead_empty = not self.move_queue.queue
         return self.print_time, est_print_time, lookahead_empty
-    def get_status(self, eventtime):
+    def get_status(self, eventtime, kin_name=None):
+
+        if kin_name is None:
+            kin_name = self.kinematics_names[0]
+            # NOTE: this is called too often, it spams the log.
+            # logging.info(f"\n\n ToolHeadStepper.get_status: called without kinematic parameter, defaulting to kin_name={kin_name}\n\n")
+
         print_time = self.print_time
         estimated_print_time = self.mcu.estimated_print_time(eventtime)
-        res = dict(self.kin.get_status(eventtime))
+        res = dict(self.kinematics[kin_name].get_status(eventtime))
         res.update({ 'print_time': print_time,
                      'stalls': self.print_stall,
                      'estimated_print_time': estimated_print_time,
