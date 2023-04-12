@@ -13,6 +13,8 @@ class CartKinematics:
         self.axis = [0, 1, 2]
         self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "XYZ" from "XYZABC"
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
+
+        logging.info(f"\n\nCartKinematics: starting setup with axes: {self.axis_names}\n\n")
         
         # Get the trapq
         if trapq is None:

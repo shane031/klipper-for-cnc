@@ -27,7 +27,7 @@ Within the host code, print times are generally stored in variables named print_
 # Class to track each move request
 class Move:
     def __init__(self, toolhead, start_pos, end_pos, speed):
-        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}.\n\n")
+        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}\n\n")
         
         self.toolhead = toolhead
         self.start_pos = tuple(start_pos)
@@ -343,7 +343,7 @@ class ToolHead:
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian", "cartesian_abc", "none"]
         
-        logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}.\n\n")
+        logging.info(f"\n\nToolHead: starting setup with axes: {self.axis_names}\n\n")
         
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()

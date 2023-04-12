@@ -32,7 +32,7 @@ class GCodeMove:
         self.axis_names = main_config.get('axis', 'XYZ')
         self.axis_count = len(self.axis_names)
         
-        logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}.\n\n")
+        logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}\n\n")
         
         self.printer = printer = config.get_printer()
         printer.register_event_handler("klippy:ready", self._handle_ready)

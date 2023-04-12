@@ -50,7 +50,7 @@ class CartKinematicsABC(CartKinematics):
         
         # Axis names
         self.axis_count = toolhead.axis_count  # len(self.axis_names)
-        logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}.\n\n")
+        logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}\n\n")
         
         # Get the trapq
         if trapq is None:
