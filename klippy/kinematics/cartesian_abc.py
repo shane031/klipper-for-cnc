@@ -6,6 +6,7 @@
 import logging
 import stepper
 from kinematics.cartesian import CartKinematics
+from copy import deepcopy
 
 class CartKinematicsABC(CartKinematics):
     """Kinematics for the ABC axes in the main toolhead class.
@@ -41,7 +42,7 @@ class CartKinematicsABC(CartKinematics):
         
         
         # Configured set of axes and their letter IDs. Can have length less than 3.
-        self.axis_config = axes_ids.copy()  # list of length <= 3: [0, 1, 3], [3, 4]
+        self.axis_config = deepcopy(axes_ids)  # list of length <= 3: [0, 1, 3], [3, 4]
         self.axis_names = axis_set_letters  # char of length <= 3: "XYZ", "AB"
         
         # Full set of axes
@@ -269,5 +270,5 @@ class CartKinematicsABC(CartKinematics):
     #     carriage = gcmd.get_int('CARRIAGE', minval=0, maxval=1)
     #     self._activate_carriage(carriage)
 
-def load_kinematics(toolhead, config, trapq=None, axes_ids=(3, 4), axis_set_letters="AB"):
+def load_kinematics(toolhead, config, trapq=None, axes_ids=(0, 1, 2), axis_set_letters="XYZ"):
     return CartKinematicsABC(toolhead, config, trapq, axes_ids, axis_set_letters)
