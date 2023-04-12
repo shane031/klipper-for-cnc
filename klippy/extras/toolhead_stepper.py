@@ -195,6 +195,11 @@ class Move:
 # Main code to track events (and their timing) on the printer toolhead
 class ToolHeadStepper:
     """Extra ToolHead class
+
+    TODO:
+        - Implement "homing" and "SET_KINEMATIC_POSITION". It spins, but only by disabling move limit checks (by hardcoding below).
+        - Implement a "gcode_move" class, or adapt the existing one to call this toolhead when required.
+        - LOTS! HIGHLY EXPERIMENTAL!!!
     
     Example config:
 
@@ -224,8 +229,6 @@ class ToolHeadStepper:
 
         XG0 TOOLHEAD=abc A=20 F=500
         XG0 TOOLHEAD=abc A=20 F=250
-
-    TODO: lots, HIGHLY EXPERIMENTAL.
 
     """
     def __init__(self, config):
@@ -965,7 +968,7 @@ class ToolHeadStepper:
         # NOTE: Kinematic move checks for XYZ and ABC axes.
         #       The check is skipped if the displacement vector is "small"
         #       (and thus is_kinematic_move is False, see the "Move" class above).
-        if move.is_kinematic_move and False:
+        if move.is_kinematic_move:
             # for axes in ["XYZ"]:
             for axes in list(self.kinematics):    
                 # Iterate over["XYZ", "ABC"]
