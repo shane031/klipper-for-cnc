@@ -164,11 +164,11 @@ class ExtruderStepper:
 
         # TODO: the "homing_axes" parameter is not used rait nau.
         # NOTE: Set limits if the axis is (being) homed.
-        if homing_e:
+        if homing_e and self.can_home:
             # NOTE: This will put the axis to a "homed" state, which means that
             #       the unhomed part of the kinematic move check will pass from
             #       now on.
-            logging.info(f"\n\nCartKinematics: setting limits={self.rail.get_range()} on stepper: {self.rail.get_name()}\n\n")
+            logging.info(f"\n\nExtruderStepper: setting limits={self.rail.get_range()} on stepper: {self.rail.get_name()}\n\n")
             self.limits[0] = self.rail.get_range()
     
     def _set_pressure_advance(self, pressure_advance, smooth_time):
