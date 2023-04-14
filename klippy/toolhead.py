@@ -362,6 +362,7 @@ class ToolHead:
         
         # Toolhead object name/ID
         self.name = "toolhead"
+        self.extra_toolheads = {}
 
         # Prefix for event names
         self.event_prefix = ""

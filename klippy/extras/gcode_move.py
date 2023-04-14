@@ -364,14 +364,14 @@ class GCodeMove:
         
         # TODO: add ABC steppers to GET_POSITION.
         if self.axis_names != 'XYZ':
-            raise gcmd.error(f'cmd_GET_POSITION: No support for {self.axis_names} axes. Only XYZ suported for now.')
+            gcmd.respond_info(f'cmd_GET_POSITION: No support for {self.axis_names} axes. Only XYZ suported for now.')
         
         toolhead = self.printer.lookup_object(self.toolhead_id, None)
         
         if toolhead is None:
             raise gcmd.error("Printer not ready")
         
-        kin = toolhead.get_kinematics()
+        kin = toolhead.get_kinematics(axes=self.axis_names)
         steppers = kin.get_steppers()
         
         # NOTE: the horror.

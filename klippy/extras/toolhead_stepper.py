@@ -271,8 +271,8 @@ class ExtraToolHead:
         # self.axes = list(range(self.axis_count))
         self.min_axis_sets = math.ceil(self.axis_count / 3)
 
-        # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
-        # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
+        # Make a list of axis sets, for 5 axes this would be: "[[0, 1, 2], [0, 1]]"
+        # for 6 axes, "[[0, 1, 2], [0, 1, 2]]", for 7 axes "[[0, 1, 2], [0, 1, 3], [0]"],
         # and so on.
         self.axis_sets = [[] for i in range(self.min_axis_sets)]
         _ = [self.axis_sets[i // 3].append(a) for i, a in enumerate(self.axes)]         # [0,1,2], [3, 4], ...
@@ -299,6 +299,9 @@ class ExtraToolHead:
         self.commanded_pos = [0.0 for i in range(self.min_axis_sets*3 + 1)]  # TODO: check if this is a good idea :)
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
+        # Stuff to register this toolhead in the main toolhead
+        self.main_toolhead = None
+        self.printer.register_event_handler("klippy:ready", self._handle_ready)
         
         # Velocity and acceleration control
         # NOTE: from the "[printer]" config section.
@@ -366,6 +369,13 @@ class ExtraToolHead:
         self.speed = 25.
         self.speed_factor = 1. / 60.
 
+
+    def _handle_ready(self):
+        # Register extra toolhead
+        self.main_toolhead = self.printer.lookup_object("toolhead")
+        # Example: {"abc": toolheadobject}
+        self.main_toolhead.extra_toolheads[self.config_name] = self
+        logging.info(f"\n\nExtraToolHead: registered extra toolhead with name={self.config_name}\n\n")
     # def cmd_XG0(self, gcmd):
     #     # Move
     #     params = gcmd.get_command_parameters()
