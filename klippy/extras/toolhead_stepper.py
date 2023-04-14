@@ -258,7 +258,8 @@ class ExtraToolHead:
         # Get the toolhead-specific GcodeMove object.
         # TODO: reconsider if it should be available as "printer object".
         self.gcode_prefix = config.get('gcode_prefix', 'U')
-        self.gcode_move = GCodeMoveMux(config, toolhead=self)
+        self.gcode_move = ExtraGCodeMove(config, toolhead=self)
+
         
         # Get the minimum amount of "axis sets" (each with 3 elements, because
         # that's what fits on a cartesian trapq).
@@ -1327,7 +1328,7 @@ class ExtraToolHead:
         self.max_accel = accel
         self._calc_junction_deviation()
 
-class GCodeMoveMux(GCodeMove):
+class ExtraGCodeMove(GCodeMove):
     """Main GCodeMove class.
 
     Example config:
