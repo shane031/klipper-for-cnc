@@ -34,7 +34,7 @@ Within the host code, print times are generally stored in variables named print_
 # Class to track each move request
 class Move:
     def __init__(self, toolhead, start_pos, end_pos, speed):
-        logging.info(f"\n\nMove: setup with start_pos={start_pos} and end_pos={end_pos}\n\n")
+        logging.info(f"\n\nExtraMove: setup with start_pos={start_pos} and end_pos={end_pos}\n\n")
         
         self.toolhead = toolhead
         self.start_pos = tuple(start_pos)
@@ -64,7 +64,7 @@ class Move:
         # NOTE: compute the euclidean magnitude of the XYZ(ABC) displacement vector.
         self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:self.axis_count]]))
         
-        logging.info(f"\n\nMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
+        logging.info(f"\n\nExtraMove: setup with axes_d={axes_d} and move_d={move_d}.\n\n")
         
         # NOTE: If the move in XYZ is very small, then parse it as an extrude-only move.
         if move_d < .000000001:
@@ -130,7 +130,7 @@ class Move:
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
             return
         
-        logging.info("\n\nMove calc_junction: function triggered.\n\n")
+        logging.info("\n\nExtraMove.calc_junction: function triggered.\n\n")
         
         # Allow extruder to calculate its maximum junction
         # NOTE: Uses the "instant_corner_v" config parameter.
@@ -161,7 +161,7 @@ class Move:
         self.max_smoothed_v2 = min(self.max_start_v2, 
                                    prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2)
         
-        logging.info("\n\nMove calc_junction: function end.\n\n")
+        logging.info("\n\nExtraMove.calc_junction: function end.\n\n")
     
     def set_junction(self, start_v2, cruise_v2, end_v2):
         """Move.set_junction() implements the "trapezoid generator" on a move.
@@ -176,7 +176,7 @@ class Move:
             end_v2 (_type_): _description_
         """
         
-        logging.info("\n\nMove set_junction: function triggered.\n\n")
+        logging.info("\n\nExtraMove.set_junction: function triggered.\n\n")
         
         # Determine accel, cruise, and decel portions of the move distance
         half_inv_accel = .5 / self.accel
@@ -193,7 +193,8 @@ class Move:
         self.cruise_t = cruise_d / cruise_v
         self.decel_t = decel_d / ((end_v + cruise_v) * 0.5)
         
-        logging.info("\n\nMove set_junction: function end.\n\n")
+        logging.info("\n\nExtraMove.set_junction: function end.\n\n")
+
 
 
 # Main code to track events (and their timing) on the printer toolhead
@@ -511,7 +512,7 @@ class ExtraToolHead:
         # NOTE: a possible "use case" in the code is to:
         #           "Generate steps for moves"
         
-        logging.info(f"\n\nToolHead: _update_move_time triggered with next_print_time={next_print_time}\n\n")
+        logging.info(f"\n\nExtraToolHead: _update_move_time triggered with next_print_time={next_print_time}\n\n")
 
         kin_flush_delay = self.kin_flush_delay
         # TODO: what is "fft"? It used to be named "last_kin_flush_time".
@@ -543,7 +544,7 @@ class ExtraToolHead:
             for axes in list(self.kinematics):
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]
-                logging.info(f"\n\nToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}\n\n")
+                logging.info(f"\n\nExtraToolHead._update_move_time calling trapq_finalize_moves on axes={axes} with free_time={free_time}\n\n")
                 self.trapq_finalize_moves(kin.trapq, free_time)
             
             # NOTE: "free_time" is smaller than "sg_flush_time" by "kin_flush_delay",
@@ -710,7 +711,7 @@ class ExtraToolHead:
         if self.special_queuing_state:
             # NOTE: this block is executed when "special_queuing_state" is not None.
             # NOTE: loging "next_move_time" for tracing.
-            logging.info("\n\nToolHead _process_moves: calling _update_drip_move_time with " +
+            logging.info("\n\nExtraToolHead _process_moves: calling _update_drip_move_time with " +
                          f"next_move_time={str(next_move_time)}\n\n")
             # NOTE: this function loops "while self.print_time < next_print_time".
             #       It "pauses before sending more steps" using "drip_completion.wait",
@@ -722,14 +723,15 @@ class ExtraToolHead:
         #       Here, it is passed to "_update_move_time" (which updates
         #       "self.print_time" and calls "trapq_finalize_moves") and
         #       to overwrite "self.last_kin_move_time".
-        logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={next_move_time}\n\n")
+        logging.info(f"\n\nExtraToolHead _process_moves: _update_move_time with next_move_time={next_move_time}\n\n")
         self._update_move_time(next_move_time)
         self.last_kin_move_time = max(self.last_kin_move_time, next_move_time)
-        logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={self.last_kin_move_time}\n\n")
+        logging.info(f"\n\nExtraToolHead _process_moves: last_kin_move_time set to next_move_time={self.last_kin_move_time}\n\n")
         
     def flush_step_generation(self):
         # Transition from "Flushed"/"Priming"/main state to "Flushed" state
         # NOTE: a "use case" for drip moves is to: 'Exit "Drip" state'
+        logging.info(f"\n\nExtraToolHead.flush_step_generation: triggered.\n\n")
 
         # NOTE: this is the "flush" method from a "MoveQueue" object.
         #       It calls "_process_moves" on the moves in the queue that
@@ -847,7 +849,7 @@ class ExtraToolHead:
         
         Has no effect on XYZ IDs
         """
-        logging.info(f"\n\ntoolhead.axes_to_xyz: input={axes}\n\n")
+        logging.info(f"\n\nExtraToolHead.axes_to_xyz: input={axes}\n\n")
         
         xyz_ids = [0, 1, 2, 0, 1, 2]
         
@@ -857,9 +859,9 @@ class ExtraToolHead:
             else:
                 result = xyz_ids[axes]
         except:
-            raise Exception(f"\n\ntoolhead.axes_to_xyz: error with input={axes}\n\n")
+            raise Exception(f"\n\nExtraToolHead.axes_to_xyz: error with input={axes}\n\n")
         
-        logging.info(f"\n\ntoolhead.axes_to_xyz: output={result}\n\n")
+        logging.info(f"\n\nExtraToolHead.axes_to_xyz: output={result}\n\n")
         
         return result
     
@@ -1160,7 +1162,7 @@ class ExtraToolHead:
             for axes in list(self.kinematics):
                 # Iterate over ["XYZ", "ABC"].
                 kin = self.kinematics[axes]
-                logging.info(f"\n\nToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})\n\n")
+                logging.info(f"\n\nExtraToolHead.drip_move calling trapq_finalize_moves on axes={axes} free_time=self.reactor.NEVER ({self.reactor.NEVER})\n\n")
                 self.trapq_finalize_moves(kin.trapq, self.reactor.NEVER)
             
             # # NOTE: This calls a function in "trapq.c", described as:

@@ -160,7 +160,8 @@ class HomingMove:
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move
         self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_begin", self)
-        
+        logging.info(f"\n\nhoming.homing_move: homing move called, starting setup.\n\n")
+
         # Note start location
         self.toolhead.flush_step_generation()
         
@@ -316,6 +317,7 @@ class HomingMove:
         #       The fourt element comes from "newpos_e" in the call to 
         #       "toolhead.set_position" above. The first element is the corrected
         #       "halt" position.
+        logging.info(f"\n\nhoming.homing_move: setting position.\n\n")
         self.toolhead.set_position(haltpos)
         
         # Signal homing/probing move complete
@@ -500,7 +502,9 @@ class Homing:
             startpos = [rp - ad * retract_r
                         for rp, ad in zip(retractpos, axes_d)]
             self.toolhead.set_position(startpos)
-            hmove = HomingMove(self.printer, endstops)
+            hmove = HomingMove(self.printer, endstops,
+                               # NOTE: Force use of a specific toolhead.
+                               toolhead=self.toolhead)
             logging.info(f"\n\nhoming.home_rails: starting second home startpos={startpos} and homepos={homepos}\n\n")
             hmove.homing_move(homepos, hi.second_homing_speed)
 
@@ -529,6 +533,8 @@ class Homing:
             for axis in homing_axes:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
+        
+        logging.info(f"\n\nhoming.home_rails: finalized.\n\n")
 
 class PrinterHoming:
     def __init__(self, config):

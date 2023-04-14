@@ -265,7 +265,7 @@ class MoveQueue:
             next_smoothed_v2 = smoothed_v2
         
         if update_flush_count or not flush_count:
-            logging.info(f"\n\nMoveQueue flush: early return due update_flush_count={update_flush_count} or not flush_count={flush_count}\n\n")
+            logging.info(f"\n\nMoveQueue flush: early return due to update_flush_count={update_flush_count} or not flush_count={flush_count}\n\n")
             return
         
         # Generate step times for all moves ready to be flushed
@@ -752,6 +752,7 @@ class ToolHead:
     def flush_step_generation(self):
         # Transition from "Flushed"/"Priming"/main state to "Flushed" state
         # NOTE: a "use case" for drip moves is to: 'Exit "Drip" state'
+        logging.info(f"\n\nToolHead.flush_step_generation: triggered.\n\n")
 
         # NOTE: this is the "flush" method from a "MoveQueue" object.
         #       It calls "_process_moves" on the moves in the queue that
