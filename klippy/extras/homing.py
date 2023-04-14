@@ -368,7 +368,7 @@ class HomingMove:
         if self.printer.get_start_args().get('debuginput') is not None:
             return None
 
-        logging.info(f"\n\n" + "check_no_movement with axes: " + str(axes) + "\n\n")
+        logging.info(f"\n\n" + f"check_no_movement with axes={axes}\n\n")
 
         # NOTE: from the StepperPosition class:
         #       -   self.start_pos = stepper.get_mcu_position()
@@ -446,9 +446,11 @@ class Homing:
         #       difference between the endstop position and the
         #       opposing limit coordinate.
         
-        # Notify of upcoming homing operation
         logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}\n\n")
+        
+        # Notify of upcoming homing operation
         self.printer.send_event(self.toolhead.event_prefix + "homing:home_rails_begin", self, rails)
+        # self.printer.send_event("homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
         axis_count = self.toolhead.axis_count
@@ -475,11 +477,12 @@ class Homing:
         # Perform second home
         if hi.retract_dist:
             # Retract
-            logging.info(f"\n\nhoming.home_rails: second home startpos={startpos} and homepos={homepos}\n\n")
             # startpos=[0.0, 0.0, 0.0, 468.0, 0.0, 0.0, 0.0] 
             # homepos=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
+
+            logging.info(f"\n\nhoming.home_rails: setting up second home startpos={startpos} and homepos={homepos}\n\n")
             
             axes_d = [hp - sp for hp, sp in zip(homepos, startpos)]
             
@@ -489,6 +492,8 @@ class Homing:
             retract_r = min(1., hi.retract_dist / move_d)
             retractpos = [hp - ad * retract_r
                           for hp, ad in zip(homepos, axes_d)]
+
+            logging.info(f"\n\nhoming.home_rails: issuing retraction move to retractpos={retractpos}\n\n")
             self.toolhead.move(retractpos, hi.retract_speed)
             
             # Home again
@@ -496,11 +501,16 @@ class Homing:
                         for rp, ad in zip(retractpos, axes_d)]
             self.toolhead.set_position(startpos)
             hmove = HomingMove(self.printer, endstops)
+            logging.info(f"\n\nhoming.home_rails: starting second home startpos={startpos} and homepos={homepos}\n\n")
             hmove.homing_move(homepos, hi.second_homing_speed)
+
+            # Check for no movement (endstop deactivation by retraction failed).
             if hmove.check_no_movement() is not None:
                 raise self.printer.command_error(
                     "Endstop %s still triggered after retract"
                     % (hmove.check_no_movement(),))
+        else:
+            logging.info(f"\n\nhoming.home_rails: homing ended with no second homing move.\n\n")
         
         # Signal home operation complete
         self.toolhead.flush_step_generation()
@@ -523,7 +533,7 @@ class Homing:
 class PrinterHoming:
     def __init__(self, config):
         self.printer = config.get_printer()
-        
+
         # Main toolhead object "id". It is used instead of loading the toolhead object,
         # because it might not be ready at this stage, but we still need the methods below
         # to be able to grab a different toolhead object when subclassing this elsewhere.
@@ -641,7 +651,7 @@ class PrinterHoming:
         #       Not useful, adapting "home_rails" would have been complicated.
         # axes = self.axes_to_xyz(homing_axes)
         axes = homing_axes
-        logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes}\n\n")
+        logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes} on toolhead={self.toolhead_id}\n\n")
         
         # NOTE: Instance a "Homing" object, passing it the toolhead of this PrinterHoming instance.
         #       This is important because subclasses of PrinterHoming might be associated to another toolhead.
@@ -664,7 +674,7 @@ class PrinterHoming:
             #       sets the toolhead position to forcepos, and instantiates a "HomingMove"
             #       object using the endstops from the provided rail, and the "homepos".
             #       "HomingMove.homing_move" is then called to issue the first homing move.
-            # NOTE: "homing_move" is responsible for issuing the "toolhead.drip_move" 
+            # NOTE: "HomingMove.homing_move" is responsible for issuing the "toolhead.drip_move" 
             #       command (used specifically for homing axes), managing endstop triggers,
             #       doing detailed positon/timing calculations, and other dirtier toolhead stuff.
             kin.home(homing_state)
