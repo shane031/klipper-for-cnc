@@ -260,6 +260,9 @@ class ExtraToolHead:
         self.gcode_prefix = config.get('gcode_prefix', 'U')
         self.gcode_move = ExtraGCodeMove(config, toolhead=self)
 
+        # Get the toolhead-specific PrinterHoming object.
+        # TODO: reconsider if it should be available as "printer object".
+        self.printer_homing = ExtraPrinterHoming(config=config, toolhead=self)
         
         # Get the minimum amount of "axis sets" (each with 3 elements, because
         # that's what fits on a cartesian trapq).
@@ -599,7 +602,8 @@ class ExtraToolHead:
             # NOTE: Originally "toolhead:sync_print_time", received by "idle_timeout" only,
             #       whose "handle_sync_print_time" method is triggered. It apparently postpones
             #       idling the machine.
-            self.printer.send_event(self.event_prefix + "sync_print_time",
+            # TODO: this might be a source of problems. Check if "self.event_prefix" or "toolhead" is better.
+            self.printer.send_event("toolhead:sync_print_time",
                                     curtime, est_print_time, self.print_time)
     def _process_moves(self, moves):
         """
@@ -901,7 +905,7 @@ class ExtraToolHead:
         #       which updates its "self.last_position" with (presumably) the
         #       "self.commanded_pos" above.
         # TODO: Reenable this once (or if) I adapt "gcode_move" to handle it.
-        # self.printer.send_event(self.event_prefix + "set_position")  # "toolhead:set_position"
+        self.printer.send_event(self.event_prefix + "toolhead:set_position")  # "toolhead:set_position"
         
     def set_kin_trap_position(self, trapq, newpos):
         """Abstraction of trapq_set_position for different sets of kinematics.
@@ -1028,7 +1032,7 @@ class ExtraToolHead:
         #       (at gcode_move.py) which updates "self.last_position"
         #       in the GCodeMove class.
         # TODO: Reenable this once (or if) I adapt "gcode_move" to handle it.
-        # self.printer.send_event(self.event_prefix + "manual_move")  # "toolhead:manual_move"
+        self.printer.send_event(self.event_prefix + "toolhead:manual_move")  # "toolhead:manual_move"
     
     def dwell(self, delay):
         # NOTE: get_last_move_time runs "_flush_lookahead" which then
@@ -1306,7 +1310,7 @@ class ExtraToolHead:
                    self.requested_accel_to_decel,
                    self.square_corner_velocity))
         # TODO: Apparently this only logs using logging. Check that it is harmless.
-        self.printer.set_rollover_info("toolhead", self.event_prefix + " %s" % (msg,))
+        self.printer.set_rollover_info("toolhead", self.event_prefix + "toolhead: %s" % (msg,))
         if (max_velocity is None and
             max_accel is None and
             square_corner_velocity is None and
