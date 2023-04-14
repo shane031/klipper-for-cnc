@@ -12,6 +12,7 @@ from toolhead import MoveQueue, LOOKAHEAD_FLUSH_TIME, MIN_KIN_TIME, MOVE_BATCH_T
 
 # GCODE
 from extras.gcode_move import GCodeMove
+from extras.homing import PrinterHoming
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
@@ -247,7 +248,7 @@ class ExtraToolHead:
 
         # Prefix for event names
         # TODO: go through this. It may need to be changed to an instance-specific name.
-        self.event_prefix = "toolhead:"
+        self.event_prefix = self.config_name + "_"  # In the main toolhead this is blank (i.e. just "").
 
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_letters = "XYZABCUVW"
