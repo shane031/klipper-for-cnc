@@ -1356,6 +1356,7 @@ class ExtraGCodeMove(GCodeMove):
         self.toolhead_id = toolhead.name  # Object ID: "toolhead_stepper abc" from the config.
         self.toolhead_name = toolhead.toolhead_name  # just the "abc" part of the config.
         self.gcode_prefix = self.toolhead.gcode_prefix  # a single letter like "X".
+        self.event_prefix = self.toolhead.event_prefix
         
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
@@ -1368,23 +1369,20 @@ class ExtraGCodeMove(GCodeMove):
         self.axis_names = self.toolhead.axis_names
         self.axis_count = len(self.axis_names)
 
-        logging.info(f"\n\nGCodeMove.{self.toolhead_name}: starting setup with axes: {self.axis_names}\n\n")
+        logging.info(f"\n\nGCodeMove.{self.toolhead_name}: starting setup with axes={self.axis_names} for toolhead_id='{self.toolhead_id}'\n\n")
         
         self.printer = printer = config.get_printer()
         printer.register_event_handler("klippy:ready", self._handle_ready)
         printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
-        printer.register_event_handler(f"{self.toolhead_name}:set_position",
+        printer.register_event_handler(self.event_prefix + "toolhead:set_position",
                                        self.reset_last_position)
-        printer.register_event_handler(f"{self.toolhead_name}:manual_move",
+        printer.register_event_handler(self.event_prefix +"toolhead:manual_move",
                                        self.reset_last_position)
-        # TODO: add multi-toolhead support to "gcode:command_error".
-        printer.register_event_handler(f"gcode:command_error_{self.toolhead_name}",
+        printer.register_event_handler(self.event_prefix + "gcode:command_error",
                                        self.reset_last_position)
-        # TODO: add multi-toolhead support to "extruder:activate_extruder".
-        printer.register_event_handler(f"extruder:activate_extruder_{self.toolhead_name}",
+        printer.register_event_handler(self.event_prefix + "extruder:activate_extruder",
                                        self._handle_activate_extruder)
-        # TODO: add multi-toolhead support to "homing:home_rails_end".
-        printer.register_event_handler(f"homing:home_rails_end_{self.toolhead_name}",
+        printer.register_event_handler(self.event_prefix + "homing:home_rails_end",
                                        self._handle_home_rails_end)
         self.is_printer_ready = False
         
@@ -1436,7 +1434,6 @@ class ExtraGCodeMove(GCodeMove):
         #       overriden later on by "_handle_ready" (which sets
         #       toolhead.get_position) or "set_move_transform".
         self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
-    
 
 def load_config_prefix(config):
     # NOTE: the name should be set by the config, and not be hardcoded here,
