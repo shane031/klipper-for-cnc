@@ -142,7 +142,7 @@ class HomingMove:
         # TODO: Check if "calc_position" should be run in the extruder kinematics too.
         # NOTE: Ditched "thpos[3:]" (from "toolhead.get_position()" above),
         #       replacing it by the equivalent for the active extruder.
-        extruder = self.printer.lookup_object('toolhead').get_extruder()
+        extruder = self.toolhead.get_extruder()
         if extruder.name is not None:
             result += [kin_spos[extruder.name]]
         else:
@@ -159,7 +159,7 @@ class HomingMove:
     def homing_move(self, movepos, speed, probe_pos=False,
                     triggered=True, check_triggered=True):
         # Notify start of homing/probing move
-        self.printer.send_event("homing:homing_move_begin", self)
+        self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_begin", self)
         
         # Note start location
         self.toolhead.flush_step_generation()
@@ -325,7 +325,7 @@ class HomingMove:
             #       - probe.py
             #       - tmc.py
             #       Probably not relevant to extruder homing.
-            self.printer.send_event("homing:homing_move_end", self)
+            self.printer.send_event(self.toolhead.event_prefix + "homing:homing_move_end", self)
         except self.printer.command_error as e:
             if error is None:
                 error = str(e)
