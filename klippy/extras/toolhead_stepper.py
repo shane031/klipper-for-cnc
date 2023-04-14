@@ -264,6 +264,9 @@ class ExtraToolHead:
         # Get the toolhead-specific PrinterHoming object.
         # TODO: reconsider if it should be available as "printer object".
         self.printer_homing = ExtraPrinterHoming(config=config, toolhead=self)
+
+        # Add a spinner :0
+        self.spinner = ToolheadSpinner(config, toolhead=self)
         
         # Get the minimum amount of "axis sets" (each with 3 elements, because
         # that's what fits on a cartesian trapq).
@@ -361,7 +364,7 @@ class ExtraToolHead:
         gcode.register_command(self.gcode_prefix + 'G4'[1:], self.cmd_G4)
         gcode.register_command(self.gcode_prefix + 'M400'[1:], self.cmd_M400)
         gcode.register_command(self.gcode_prefix + '_SET_VELOCITY_LIMIT',
-                                   self.cmd_SET_VELOCITY_LIMIT, desc=self.cmd_SET_VELOCITY_LIMIT_help)
+                               self.cmd_SET_VELOCITY_LIMIT, desc=self.cmd_SET_VELOCITY_LIMIT_help)
         gcode.register_command(self.gcode_prefix + 'M204'[1:], self.cmd_M204)
 
         # TODO: move this back to GcodeMove
@@ -1456,6 +1459,142 @@ class ExtraPrinterHoming(PrinterHoming):
         # Register g-code commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command(toolhead.gcode_prefix + 'G28'[1:], self.cmd_G28)
+
+# Support for a manual controlled stepper
+#
+# Copyright (C) 2019-2021  Kevin O'Connor <kevin@koconnor.net>
+#
+# This file may be distributed under the terms of the GNU GPLv3 license.
+import stepper, chelper
+from . import force_move, manual_stepper
+import logging
+from queue import Queue, Empty
+from threading import Event
+
+class ToolheadSpinner():
+    def __init__(self, config, toolhead = None):
+        self.printer = config.get_printer()
+        self.toolhead = toolhead  # NOTE: Set to toolhead on printer handle_ready.
+        
+        # NOTE: save the "reactor" object, I need it for timers/spinning.
+        self.reactor = self.printer.get_reactor()
+        
+        # NOTE: Need this to register the spin move callback appropriately.
+        self.printer.register_event_handler("klippy:ready", self.handle_ready)
+        self.spin_timer = None
+        
+        # Timer delay parameters
+        # # TODO: make the spin command delay configurable.
+        # Used for running the timer function a bit before the
+        # time for the next stepper move.
+        self.NEXT_CMD_ANTICIP_TIME = 0.1
+        self.DEFAULT_TIMER_DELAY = 1.0
+
+        # Default spin params: MOVE, SPEED, ACCEL, SYNC.
+        self.spin_params = (0.0, 0.0, 0.0, 1)
+
+        gcode = self.printer.lookup_object('gcode')
+        gcode.register_command('SPIN_TOOLHEAD', self.cmd_SPIN_MANUAL_STEPPER,
+                                   desc=self.cmd_SPIN_MANUAL_STEPPER_help)
+
+    # Register timer callback method for the continuous/repeated rotation move.
+    def handle_ready(self):
+        """Register timer callback for continuous stepper rotation.
+        Logic borrowed from "delayed_gcode.py".
+        """
+        if self.toolhead is None:
+            self.toolhead = self.printer.lookup_object('toolhead')
+            logging.info(f"\n\nmanual_stepper.handle_ready: registering self.spin_timer.\n\n")
+        
+        # waketime = self.time_at_print_time()
+        waketime = self.reactor.NEVER
+        self.spin_timer = self.reactor.register_timer(
+            # Callback function.
+            self.do_spin_move,
+            # Initially the timer should be inactive.
+            waketime)
+
+    def time_at_print_time(self, print_time=None):
+        # Current system time
+        eventtime = self.reactor.monotonic()
+        # Current (estimated) MCU print_time
+        est_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
+        if not print_time:
+            # Actual MCU print_time (after the last move)
+            print_time = self.toolhead.get_last_move_time()
+        # System time just after the last move
+        sys_print_time = eventtime + (print_time - est_print_time)
+        return sys_print_time
+
+    # Spin GCODE command
+    cmd_SPIN_MANUAL_STEPPER_help = "Spin a manually configured stepper continuously"
+    def cmd_SPIN_MANUAL_STEPPER(self, gcmd):
+        """Rotate continuously"""
+
+        # Save parameters
+        movedist = gcmd.get_float('MOVE', 10.0)
+        speed = gcmd.get_float('SPEED', 10.0)
+        accel = gcmd.get_float('ACCEL', 10.0, minval=0.)
+        sync = gcmd.get_int('SYNC', 1)
+        self.spin_params = (movedist, abs(speed), accel, sync)
+
+        if not speed:
+            self.reactor.update_timer(self.spin_timer, self.reactor.NEVER)
+        elif self.reactor.NEVER == self.spin_timer.waketime:
+            # Process other moves in the queue
+            self.toolhead.flush_step_generation()
+            # Trigger the timer to add moves to the queue
+            system_print_time = self.time_at_print_time()
+            self.reactor.update_timer(self.spin_timer, system_print_time)
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer dead. Triggering do_spin_move at waketime={system_print_time}.\n\n")
+        else:
+            logging.info(f"\n\ncmd_SPIN_MANUAL_STEPPER: timer alive, doing nothing.\n\n")
+
+
+    # Continuous rotation (move repeat) timer callback function.
+    def do_spin_move(self, eventtime):
+
+        # Actual MCU print_time (after the last move)
+        print_time = self.toolhead.print_time
+        
+        # Get the print_time (MCU time) associated to
+        # the timer's "present" (event) time (in system time).
+        est_print_time = self.toolhead.mcu.estimated_print_time(eventtime)
+
+        # Verbooooseeee
+        logging.info(f"\n\ndo_spin_move: called at eventtime={eventtime} est_print_time={est_print_time} with toolhead.print_time={print_time} self.spin_params={self.spin_params}\n\n")
+        
+        # Set a default waketime for this function.
+        # The default is to not run the timer again automatically.
+        waketime = self.reactor.NEVER
+        
+        # If the speed is null, just sleep.
+        if not self.spin_params[1]:
+            return waketime
+
+        # NOTE: On the different times here:
+        #       -   self.print_time is in "print time" seconds (i.e. MCU time).
+        #       -   self.reactor.monotonic is in "system time" seconds (i.e. the Pi's time).
+        
+        # NOTE: The "self.spin_speed" variable is only updated by the
+        # "cmd_SPIN_MANUAL_STEPPER" command.
+
+        speed = self.spin_params[1]
+        # while len(self.toolhead.move_queue.queue) <= 5 and speed:
+        #     # self.toolhead.get_last_move_time()
+        #     curpos = self.toolhead.get_position()
+        #     curpos[0] += 20.0  # self.spin_params[0]
+        #     self.toolhead.move(curpos, speed)
+        #     waketime = eventtime + (20.0/speed)*0.1
+        curpos = self.toolhead.get_position()
+        curpos[0] += 20.0  # self.spin_params[0]
+        self.toolhead.move(curpos, speed)
+        waketime = eventtime + (20.0/speed)*0.1
+
+        # Update the timer's next firing time.
+        logging.info(f"\n\ndo_spin_move: function ended with waketime={waketime}\n\n")
+        return waketime
+
 
 def load_config_prefix(config):
     # NOTE: the name should be set by the config, and not be hardcoded here,
