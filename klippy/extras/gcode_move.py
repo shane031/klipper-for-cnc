@@ -22,9 +22,9 @@ class GCodeMove:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
-    toolhead_id = "toolhead"
-
-    def __init__(self, config):
+    def __init__(self, config, toolhead_id="toolhead"):
+        self.toolhead_id = toolhead_id
+        
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
         # TODO: find a way to get the axis value from the config, this does not work.
@@ -37,6 +37,9 @@ class GCodeMove:
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}\n\n")
         
         self.printer = printer = config.get_printer()
+        # NOTE: Event prefixes are not neeeded here, because the init class
+        #       in the "extra toolhead" version of GcodeMove overrides this one.
+        #       This one will only be used by the main "klippy.py pipeline".
         printer.register_event_handler("klippy:ready", self._handle_ready)
         printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
         printer.register_event_handler("toolhead:set_position",
