@@ -919,8 +919,8 @@ class ExtraToolHead:
             # NOTE: Set the position of the toolhead's "trapq".
             logging.info("\n\n" + f"{self.name}.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
             ffi_main, ffi_lib = chelper.get_ffi()
-            ffi_lib.trapq_set_position(self.trapq, self.print_time,
-                                    newpos[0], newpos[1], newpos[2])
+            ffi_lib.trapq_set_position(trapq, self.print_time,
+                                       newpos[0], newpos[1], newpos[2])
         else:
             logging.info("\n\n" + f"{self.name}.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     
