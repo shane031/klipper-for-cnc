@@ -194,9 +194,9 @@ class CartKinematicsABC(CartKinematics):
                      or end_pos[axis] > self.limits[i][1])):
                 if self.limits[i][0] > self.limits[i][1]:
                     # NOTE: self.limits will be "(1.0, -1.0)" when not homed, triggering this.
-                    msg = "".join([f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first,",
+                    msg = "".join(["\n\n" + f"cartesian_abc._check_endstops: Must home axis {self.axis_names[i]} first,",
                                    f"limits={self.limits[i]} end_pos[axis]={end_pos[axis]} ",
-                                   f"move.axes_d[axis]={move.axes_d[axis]}"])
+                                   f"move.axes_d[axis]={move.axes_d[axis]}" + "\n\n"])
                     logging.info(msg)
                     raise move.move_error(f"Must home axis {self.axis_names[i]} first")
                 raise move.move_error()

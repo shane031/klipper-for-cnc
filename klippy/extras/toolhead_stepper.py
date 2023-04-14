@@ -10,6 +10,9 @@ import time
 # Move
 from toolhead import MoveQueue, LOOKAHEAD_FLUSH_TIME, MIN_KIN_TIME, MOVE_BATCH_TIME, SDS_CHECK_TIME, DRIP_SEGMENT_TIME, DRIP_TIME, DripModeEndSignal
 
+# GCODE
+from extras.gcode_move import GCodeMove
+
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
 #   seconds), _r is ratio (scalar between 0.0 and 1.0)
@@ -193,7 +196,7 @@ class Move:
 
 
 # Main code to track events (and their timing) on the printer toolhead
-class ToolHeadStepper:
+class ExtraToolHead:
     """Extra ToolHead class
 
     TODO:
@@ -205,6 +208,7 @@ class ToolHeadStepper:
 
         [toolhead_stepper abc]
         axis: A
+        gcode_prefix: U
         kinematics: cartesian_abc
         max_velocity: 5000    # F120000
         max_z_velocity: 250   # F30000
@@ -232,15 +236,27 @@ class ToolHeadStepper:
 
     """
     def __init__(self, config):
+        # TODO: re-enable move checking by implementing homing/force position.
+        self.check_moves = False
         
         # NOTE: get name of the probe from the config.
         # TODO: consider getting axis names from here.
+        self.name = config.get_name()
         self.config_name = config.get_name().split()[1]
-        
+        self.toolhead_name = "toolhead_" + self.config_name
+
+        # Prefix for event names
+        # TODO: go through this. It may need to be changed to an instance-specific name.
+        self.event_prefix = "toolhead:"
+
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         self.axis_letters = "XYZABCUVW"
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
+        
+        # Get the "mux-type" GcodeMove object.
+        self.gcode_prefix = config.get('gcode_prefix', 'U')
+        self.gcode_move = GCodeMoveMux(config, toolhead=self)
         
         # Get the minimum amount of "axis sets" (each with 3 elements, because
         # that's what fits on a cartesian trapq).
@@ -248,7 +264,6 @@ class ToolHeadStepper:
         # self.axes = list(range(self.axis_count))
         self.min_axis_sets = math.ceil(self.axis_count / 3)
 
-        
         # Make a list of axis sets, for 5 axis this would be: "[[0, 1, 2], [0, 1]]"
         # for 6 axis, "[[0, 1, 2], [0, 1, 2]]", for 7 axus "[[0, 1, 2], [0, 1, 3], [0]"],
         # and so on.
@@ -259,7 +274,7 @@ class ToolHeadStepper:
         # TODO: support more kinematics.
         self.supported_kinematics = ["cartesian_abc"]
         
-        msg = f"\n\nToolHeadStepper: starting setup with axes: "
+        msg = f"\n\nExtraToolHead: starting setup with axes: "
         msg += f"self.axis_count={self.axis_count} self.axis_names={self.axis_names} "
         msg += f"self.axes={self.axes} self.min_axis_sets={self.min_axis_sets} axis_sets={self.axis_sets}\n\n"
         logging.info(msg)
@@ -277,9 +292,6 @@ class ToolHeadStepper:
         self.commanded_pos = [0.0 for i in range(self.min_axis_sets*3 + 1)]  # TODO: check if this is a good idea :)
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
-        
-        # Prefix for event names
-        self.event_prefix = "toolhead:"
         
         # Velocity and acceleration control
         # NOTE: from the "[printer]" config section.
@@ -336,65 +348,64 @@ class ToolHeadStepper:
         self.extruder = kinematics.extruder.DummyExtruder(self.printer)
         
         # Register commands
-        gcode.register_mux_command('XG4', 'TOOLHEAD', self.config_name, self.cmd_G4)
-        gcode.register_mux_command('XM400', 'TOOLHEAD', self.config_name, self.cmd_M400)
-        gcode.register_mux_command('XSET_VELOCITY_LIMIT', 'TOOLHEAD', self.config_name, 
+        gcode.register_command(self.gcode_prefix + 'G4'[1:], self.cmd_G4)
+        gcode.register_command(self.gcode_prefix + 'M400'[1:], self.cmd_M400)
+        gcode.register_command(self.gcode_prefix + '_SET_VELOCITY_LIMIT',
                                    self.cmd_SET_VELOCITY_LIMIT, desc=self.cmd_SET_VELOCITY_LIMIT_help)
-        gcode.register_mux_command('XM204', 'TOOLHEAD', self.config_name, self.cmd_M204)
-        gcode.register_mux_command('XG0', 'TOOLHEAD', self.config_name, self.cmd_XG0)
+        gcode.register_command(self.gcode_prefix + 'M204'[1:], self.cmd_M204)
 
         # TODO: move this back to GcodeMove
         self.last_position = self.commanded_pos.copy()
         self.speed = 25.
         self.speed_factor = 1. / 60.
 
-    def cmd_XG0(self, gcmd):
-        # Move
-        params = gcmd.get_command_parameters()
-        logging.info(f"\n\nGCodeMove: G1 starting setup with params={params} and self.last_position={self.last_position}\n\n")
-        try:
-            # NOTE: XYZ(ABC) move coordinates.
-            for pos, axis in enumerate(self.axis_names):
-                if axis in params:
-                    v = float(params[axis])
-                    logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
-                    self.last_position[pos] += v
-                    # if not self.absolute_coord:
-                    #     # value relative to position of last move
-                    #     self.last_position[pos] += v
-                    # else:
-                    #     # value relative to base coordinate position
-                    #     self.last_position[pos] = v + self.base_position[pos]
-            # NOTE: extruder move coordinates.
-            if 'E' in params:
-                v = float(params['E']) * self.extrude_factor
-                logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
-                self.last_position[self.axis_count] += v
-                # if not self.absolute_coord or not self.absolute_extrude:
-                #     # value relative to position of last move
-                #     self.last_position[self.axis_count] += v
-                # else:
-                #     # value relative to base coordinate position
-                #     self.last_position[self.axis_count] = v + self.base_position[self.axis_count]
-            # NOTE: move feedrate.
-            if 'F' in params:
-                gcode_speed = float(params['F'])
-                if gcode_speed <= 0.:
-                    raise gcmd.error("Invalid speed in '%s'"
-                                     % (gcmd.get_commandline(),))
-                self.speed = gcode_speed * self.speed_factor
+    # def cmd_XG0(self, gcmd):
+    #     # Move
+    #     params = gcmd.get_command_parameters()
+    #     logging.info(f"\n\nGCodeMove: G1 starting setup with params={params} and self.last_position={self.last_position}\n\n")
+    #     try:
+    #         # NOTE: XYZ(ABC) move coordinates.
+    #         for pos, axis in enumerate(self.axis_names):
+    #             if axis in params:
+    #                 v = float(params[axis])
+    #                 logging.info(f"\n\nGCodeMove: parsed axis={axis} with value={v}\n\n")
+    #                 self.last_position[pos] += v
+    #                 # if not self.absolute_coord:
+    #                 #     # value relative to position of last move
+    #                 #     self.last_position[pos] += v
+    #                 # else:
+    #                 #     # value relative to base coordinate position
+    #                 #     self.last_position[pos] = v + self.base_position[pos]
+    #         # NOTE: extruder move coordinates.
+    #         if 'E' in params:
+    #             v = float(params['E']) * self.extrude_factor
+    #             logging.info(f"\n\nGCodeMove: parsed axis=E with value={v}\n\n")
+    #             self.last_position[self.axis_count] += v
+    #             # if not self.absolute_coord or not self.absolute_extrude:
+    #             #     # value relative to position of last move
+    #             #     self.last_position[self.axis_count] += v
+    #             # else:
+    #             #     # value relative to base coordinate position
+    #             #     self.last_position[self.axis_count] = v + self.base_position[self.axis_count]
+    #         # NOTE: move feedrate.
+    #         if 'F' in params:
+    #             gcode_speed = float(params['F'])
+    #             if gcode_speed <= 0.:
+    #                 raise gcmd.error("Invalid speed in '%s'"
+    #                                  % (gcmd.get_commandline(),))
+    #             self.speed = gcode_speed * self.speed_factor
         
-        except ValueError as e:
-            raise gcmd.error("Unable to parse move '%s'"
-                             % (gcmd.get_commandline(),))
+    #     except ValueError as e:
+    #         raise gcmd.error("Unable to parse move '%s'"
+    #                          % (gcmd.get_commandline(),))
         
-        logging.info(f"\n\nGCodeMove: G1 sending move with final self.last_position={self.last_position}\n\n")
+    #     logging.info(f"\n\nGCodeMove: G1 sending move with final self.last_position={self.last_position}\n\n")
 
-        # NOTE: send event to handlers, like "extra_toolhead.py" 
-        self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
+    #     # NOTE: send event to handlers, like "extra_toolhead.py" 
+    #     self.printer.send_event("gcode_move:parsing_move_command", gcmd, params)
         
-        # NOTE: this is just a call to "toolhead.move".
-        self.manual_move(self.last_position, self.speed)
+    #     # NOTE: this is just a call to "toolhead.move".
+    #     self.manual_move(self.last_position, self.speed)
     
     # Load axes abstraction
     def load_axes(self, config):
@@ -630,7 +641,7 @@ class ToolHeadStepper:
         #       The "moves" argument receives a "queue" of moves "ready to be flushed".
         
         # NOTE: logging for tracing activity
-        logging.info("\n\nToolHead _process_moves: function triggered.\n\n")
+        logging.info("\n\n" + f"{self.name}._process_moves: function triggered.\n\n")
         
         # Resync print_time if necessary
         if self.special_queuing_state:
@@ -644,7 +655,7 @@ class ToolHeadStepper:
             # NOTE Update "self.print_time".
             self._calc_print_time()
             # NOTE: Also sends a "toolhead:sync_print_time" event.
-            logging.info(f"\n\nToolHead _process_moves: self.print_time={str(self.print_time)}\n\n")
+            logging.info("\n\n" + f"{self.name}._process_moves: self.print_time={str(self.print_time)}\n\n")
         
         # Queue moves into trapezoid motion queue (trapq)
         # NOTE: the "trapq" is possibly something like a CFFI object.
@@ -653,11 +664,11 @@ class ToolHeadStepper:
         #       the MCUs.
         next_move_time = self.print_time
         for move in moves:
-            logging.info(f"ToolHead _process_moves: next_move_time={str(next_move_time)}")
+            logging.info("\n\n" + f"{self.name}._process_moves: next_move_time={str(next_move_time)}")
             
             for axes in list(self.kinematics):
                 # Iterate over["XYZ", "A"]
-                logging.info("\n\n" + f"toolhead._process_moves: appending move to {axes} trapq.\n\n")
+                logging.info("\n\n" + f"{self.name}._process_moves: appending move to {axes} trapq.\n\n")
                 kin = self.kinematics[axes]
                 # NOTE: The moves are first placed on a "trapezoid motion queue" with trapq_append.
                 if move.is_kinematic_move:
@@ -849,33 +860,33 @@ class ToolHeadStepper:
         return [toolhead_pos[axis] for axis in axes]
     
     def set_position(self, newpos, homing_axes=()):
-        logging.info("\n\n" + f"toolhead.set_position: setting newpos={newpos} and homing_axes={homing_axes}\n\n")
+        logging.info("\n\n" + f"{self.name}.set_position: setting newpos={newpos} and homing_axes={homing_axes}\n\n")
         self.flush_step_generation()
             
         # NOTE: Set the position of the axes "trapq".
         for axes in list(self.kinematics):
             # Iterate over["XYZ", "ABC"]
-            logging.info("\n\n" + f"toolhead.set_position: setting {axes} trapq position.\n\n")
+            logging.info("\n\n" + f"{self.name}.set_position: setting {axes} trapq position.\n\n")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_position: using newpos={new_kin_pos}\n\n")
             self.set_kin_trap_position(kin.trapq, new_kin_pos)
         
         # NOTE: Also set the position of the extruder's "trapq".
         #       Runs "trapq_set_position" and "rail.set_position".
-        logging.info("\n\n" + f"toolhead.set_position: setting E trapq pos.\n\n")
+        logging.info("\n\n" + f"{self.name}.set_position: setting E trapq pos.\n\n")
         self.set_position_e(newpos_e=newpos[self.axis_count], homing_axes=homing_axes)
         
         # NOTE: Set the position of the axes "kinematics".
         for axes in list(self.kinematics):
             # Iterate over["XYZ", "ABC"]
-            logging.info("\n\n" + f"toolhead.set_position: setting {axes} kinematic position.\n\n")
+            logging.info("\n\n" + f"{self.name}.set_position: setting {axes} kinematic position.\n\n")
             kin = self.kinematics[axes]
             # Filter the axis IDs according to the current kinematic, and convert them to the "0,1,2" range.
             kin_homing_axes = self.axes_to_xyz([axis for axis in homing_axes if axis in kin.axis])
             new_kin_pos = self.get_elements(newpos, kin.axis)
-            logging.info("\n\n" + f"toolhead.set_position: using newpos={new_kin_pos} and kin_homing_axes={kin_homing_axes}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_position: using newpos={new_kin_pos} and kin_homing_axes={kin_homing_axes}\n\n")
             self.set_kinematics_position(kin=kin, newpos=new_kin_pos, homing_axes=tuple(kin_homing_axes))
             
         # NOTE: "set_position_e" was inserted above and not after 
@@ -899,12 +910,12 @@ class ToolHeadStepper:
         
         if trapq is not None:
             # NOTE: Set the position of the toolhead's "trapq".
-            logging.info("\n\n" + f"toolhead.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_kin_trap_position: setting trapq pos to newpos={newpos}\n\n")
             ffi_main, ffi_lib = chelper.get_ffi()
             ffi_lib.trapq_set_position(self.trapq, self.print_time,
                                     newpos[0], newpos[1], newpos[2])
         else:
-            logging.info("\n\n" + f"toolhead.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_kin_trap_position: trapq was None, skipped setting to newpos={newpos}\n\n")
     
     def set_kinematics_position(self, kin, newpos, homing_axes):
         """Abstraction of kin.set_position for different sets of kinematics.
@@ -921,14 +932,14 @@ class ToolHeadStepper:
         #       calls "itersolve_set_position" from "itersolve.c".
         # NOTE: Passing only the first three elements (XYZ) to this set_position.
         if kin is not None:
-            logging.info("\n\n" + f"toolhead.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_kinematics_position: setting kinematic position with newpos={newpos} and homing_axes={homing_axes}\n\n")
             kin.set_position(newpos, homing_axes=tuple(homing_axes))
         else:
-            logging.info("\n\n" + f"toolhead.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
+            logging.info("\n\n" + f"{self.name}.set_kinematics_position: kin was None, skipped setting to newpos={newpos} and homing_axes={homing_axes}\n\n")
 
     def set_position_e(self, newpos_e, homing_axes=()):
         """Extruder version of set_position."""
-        logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
+        logging.info("\n\n" + f"{self.name}.set_position_e: setting E to newpos={newpos_e}.\n\n")
         
         # Get the active extruder
         extruder = self.get_extruder()  # PrinterExtruder
@@ -950,7 +961,7 @@ class ToolHeadStepper:
             newpos (_type_): _description_
             speed (_type_): _description_
         """
-        logging.info(f"\n\ntoolhead.move: moving to newpos={newpos}.\n\n")
+        logging.info(f"\n\n"+ f"{self.name}.move: moving to newpos={newpos}.\n\n")
         move = Move(toolhead=self, 
                     start_pos=self.commanded_pos,
                     end_pos=newpos, 
@@ -962,17 +973,17 @@ class ToolHeadStepper:
 
         # NOTE: Move checks.
         if not move.move_d:
-            logging.info(f"\n\ntoolhead.move: early return, nothing to move. move.move_d={move.move_d}\n\n")
+            logging.info(f"\n\n"+ f"{self.name}.move: early return, nothing to move. move.move_d={move.move_d}\n\n")
             return
         
         # NOTE: Kinematic move checks for XYZ and ABC axes.
         #       The check is skipped if the displacement vector is "small"
         #       (and thus is_kinematic_move is False, see the "Move" class above).
-        if move.is_kinematic_move:
+        if move.is_kinematic_move and self.check_moves:
             # for axes in ["XYZ"]:
             for axes in list(self.kinematics):    
                 # Iterate over["XYZ", "ABC"]
-                logging.info("\n\n" + f"toolhead.move: check_move on {axes} move.\n\n")
+                logging.info("\n\n" + f"{self.name}.move: check_move on {axes} move.\n\n")
                 kin = self.kinematics[axes]
                 kin.check_move(move)
             # self.kin.check_move(move)
@@ -982,7 +993,7 @@ class ToolHeadStepper:
             
         # NOTE: Kinematic move checks for E axis.
         if move.axes_d[self.axis_count]:
-            logging.info("\n\n" + f"toolhead.move: check_move on E move to {move.axes_d[self.axis_count]}.\n\n")
+            logging.info("\n\n" + f"{self.name}.move: check_move on E move to {move.axes_d[self.axis_count]}.\n\n")
             self.extruder.check_move(move, e_axis=self.axis_count)
         
         # NOTE: Update "commanded_pos" with the "end_pos"
@@ -1199,7 +1210,7 @@ class ToolHeadStepper:
         if kin_name is None:
             kin_name = self.kinematics_names[0]
             # NOTE: this is called too often, it spams the log.
-            # logging.info(f"\n\n ToolHeadStepper.get_status: called without kinematic parameter, defaulting to kin_name={kin_name}\n\n")
+            # logging.info(f"\n\nExtraToolHead.get_status: called without kinematic parameter, defaulting to kin_name={kin_name}\n\n")
 
         print_time = self.print_time
         estimated_print_time = self.mcu.estimated_print_time(eventtime)
@@ -1314,6 +1325,117 @@ class ToolHeadStepper:
         self.max_accel = accel
         self._calc_junction_deviation()
 
+class GCodeMoveMux(GCodeMove):
+    """Main GCodeMove class.
+
+    Example config:
+    
+    [printer]
+    kinematics: cartesian
+    axis: XYZ  # Optional: XYZ or XYZABC
+    kinematics_abc: cartesian_abc # Optional
+    max_velocity: 5000
+    max_z_velocity: 250
+    max_accel: 1000
+    
+    TODO:
+      - The "checks" still have the XYZ logic.
+      - Homing is not implemented for ABC.
+    """
+    def __init__(self, config, toolhead):
+        
+        # Get the "toolhead name" from the toolhead
+        self.toolhead = toolhead  # The extra toolhead object.
+        self.toolhead_id = toolhead.name  # Object ID: "toolhead_stepper abc" from the config.
+        self.toolhead_name = toolhead.toolhead_name  # just the "abc" part of the config.
+        self.gcode_prefix = self.toolhead.gcode_prefix  # a single letter like "X".
+        
+        # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
+        # TODO: cmd_M114 only supports 3 or 6 for now.
+        # TODO: find a way to get the axis value from the config, this does not work.
+        # self.axis_names = config.get('axis', 'XYZABC')  # "XYZ" / "XYZABC"
+        # self.axis_names = kwargs.get("axis", "XYZ")  # "XYZ" / "XYZABC"
+        # main_config = config.getsection("printer")
+        # self.axis_names = main_config.get('axis', 'XYZ')
+        # self.axis_count = len(self.axis_names)
+        self.axis_names = self.toolhead.axis_names
+        self.axis_count = len(self.axis_names)
+
+        logging.info(f"\n\nGCodeMove.{self.toolhead_name}: starting setup with axes: {self.axis_names}\n\n")
+        
+        self.printer = printer = config.get_printer()
+        printer.register_event_handler("klippy:ready", self._handle_ready)
+        printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
+        printer.register_event_handler(f"{self.toolhead_name}:set_position",
+                                       self.reset_last_position)
+        printer.register_event_handler(f"{self.toolhead_name}:manual_move",
+                                       self.reset_last_position)
+        # TODO: add multi-toolhead support to "gcode:command_error".
+        printer.register_event_handler(f"gcode:command_error_{self.toolhead_name}",
+                                       self.reset_last_position)
+        # TODO: add multi-toolhead support to "extruder:activate_extruder".
+        printer.register_event_handler(f"extruder:activate_extruder_{self.toolhead_name}",
+                                       self._handle_activate_extruder)
+        # TODO: add multi-toolhead support to "homing:home_rails_end".
+        printer.register_event_handler(f"homing:home_rails_end_{self.toolhead_name}",
+                                       self._handle_home_rails_end)
+        self.is_printer_ready = False
+        
+        # Register "conventional" g-code commands.
+        gcode = printer.lookup_object('gcode')
+        handlers = ['G1', 'G20', 'G21', 'M82', 'M83', 
+                    'G90', 'G91', 'G92', 'M220', 'M221']
+        # NOTE: this iterates over the commands above and finds the functions
+        #       and description strings by their names (as they appear in "handlers").
+        for cmd in handlers:
+            func = getattr(self, 'cmd_' + cmd)
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            # NOTE: replace the first letter of "conventional" GCODEs with the specified prefix.
+            #       For example, replace "G1" with "X1".
+            gcode.register_command(self.gcode_prefix + cmd[1:], func, when_not_ready=False, desc=desc)
+        
+        # Repeat for non-traditional GCODE commands.
+        handlers = ['SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE']
+        for cmd in handlers:
+            func = getattr(self, 'cmd_' + cmd)
+            desc = getattr(self, 'cmd_' + cmd + '_help', None)
+            # NOTE: replace the first letter of "conventional" GCODEs with the specified prefix.
+            gcode.register_command(f"{self.gcode_prefix}_{cmd}", func, when_not_ready=False, desc=desc)
+        
+        gcode.register_command(self.gcode_prefix + 'G0'[1:], self.cmd_G1, f"G0 for {self.toolhead.name}")
+        gcode.register_command(self.gcode_prefix + 'M114'[1:], self.cmd_M114, True)
+        gcode.register_command(self.gcode_prefix + '_GET_POSITION', self.cmd_GET_POSITION, True,
+                               desc=self.cmd_GET_POSITION_help)
+        
+        self.Coord = gcode.Coord
+        
+        # G-Code coordinate manipulation
+        self.absolute_coord = self.absolute_extrude = True
+        self.base_position = [0.0 for i in range(self.axis_count + 1)]
+        self.last_position = [0.0 for i in range(self.axis_count + 1)]
+        self.homing_position = [0.0 for i in range(self.axis_count + 1)]
+        self.speed = 25.
+        # TODO: This 1/60 by default, because "feedrates" 
+        #       provided by the "F" GCODE are in "mm/min",
+        #       which contrasts with the usual "mm/sec" unit
+        #       used throughout Klipper.
+        self.speed_factor = 1. / 60.
+        self.extrude_factor = 1.
+        
+        # G-Code state
+        self.saved_states = {}
+        self.move_transform = self.move_with_transform = None
+        # NOTE: Default function for "position_with_transform", 
+        #       overriden later on by "_handle_ready" (which sets
+        #       toolhead.get_position) or "set_move_transform".
+        self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
+    
+
 def load_config_prefix(config):
-    config.get_printer().add_object('toolhead_stepper', ToolHeadStepper(config))
-    kinematics.extruder.add_printer_objects(config)
+    # NOTE: the name should be set by the config, and not be hardcoded here,
+    #       because this is loaded as an "extras", and should not bypass that mechanism.
+    # config.get_printer().add_object('toolhead_stepper', ExtraToolHead(config))
+    return ExtraToolHead(config)
+    
+    # TODO: let extruders be added by the main toolhead for now.
+    # kinematics.extruder.add_printer_objects(config)

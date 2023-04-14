@@ -122,25 +122,31 @@ class GCodeDispatch:
             return cmd[0].isupper() and cmd[1].isdigit()
         except:
             return False
+    
     def register_command(self, cmd, func, when_not_ready=False, desc=None):
+        # logging.info("\n" + f"gcode: registering command: {cmd}")
         if func is None:
             old_cmd = self.ready_gcode_handlers.get(cmd)
             if cmd in self.ready_gcode_handlers:
                 del self.ready_gcode_handlers[cmd]
             if cmd in self.base_gcode_handlers:
                 del self.base_gcode_handlers[cmd]
+            # logging.info("\n" + f"gcode: command '{cmd}' deleted.")
             return old_cmd
         if cmd in self.ready_gcode_handlers:
             raise self.printer.config_error(
                 "gcode command %s already registered" % (cmd,))
         if not self.is_traditional_gcode(cmd):
+            # logging.info("\n" + f"gcode: command '{cmd}' is an extended command.")
             origfunc = func
             func = lambda params: origfunc(self._get_extended_params(params))
         self.ready_gcode_handlers[cmd] = func
         if when_not_ready:
+            # logging.info("\n" + f"gcode: command '{cmd}' registered as base command 'when not ready'.")
             self.base_gcode_handlers[cmd] = func
         if desc is not None:
             self.gcode_help[cmd] = desc
+
     def register_mux_command(self, cmd, key, value, func, desc=None):
         prev = self.mux_commands.get(cmd)
         if prev is None:
@@ -157,6 +163,7 @@ class GCodeDispatch:
                 "mux command %s %s %s already registered (%s)" % (
                     cmd, key, value, prev_values))
         prev_values[value] = func
+    
     def get_command_help(self):
         return dict(self.gcode_help)
     def register_output_handler(self, cb):
@@ -356,6 +363,15 @@ class GCodeDispatch:
         for cmd in sorted(self.gcode_handlers):
             if cmd in self.gcode_help:
                 cmdhelp.append("%-10s: %s" % (cmd, self.gcode_help[cmd]))
+        # NOTE: Also append GCODE commands with no help.
+        for cmd in sorted(self.gcode_handlers):
+            if cmd not in self.gcode_help:
+                cmdhelp.append("%-10s: %s" % (cmd, "no description."))
+        # NOTE: Also append "basic" GCODE commands (i.e. G1, G28, etc.).
+        # NOTE: Commented out because it seems that base commands are also in ready commands.
+        # cmdhelp.append("\nAvailable basic commands:")
+        # for cmd in sorted(self.base_gcode_handlers):
+        #     cmdhelp.append("%-10s: %s" % (cmd, self.gcode_help.get(cmd, "no description.")))
         gcmd.respond_info("\n".join(cmdhelp), log=False)
 
 # Support reading gcode from a pseudo-tty interface

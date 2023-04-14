@@ -22,6 +22,8 @@ class GCodeMove:
       - The "checks" still have the XYZ logic.
       - Homing is not implemented for ABC.
     """
+    toolhead_id = "toolhead"
+
     def __init__(self, config):
         # NOTE: amount of non-extruder axes: XYZ=3, XYZABC=6.
         # TODO: cmd_M114 only supports 3 or 6 for now.
@@ -94,7 +96,7 @@ class GCodeMove:
     def _handle_ready(self):
         self.is_printer_ready = True
         if self.move_transform is None:
-            toolhead = self.printer.lookup_object('toolhead')
+            toolhead = self.printer.lookup_object(self.toolhead_id)
             self.move_with_transform = toolhead.move
             self.position_with_transform = toolhead.get_position
         self.reset_last_position()
@@ -147,7 +149,7 @@ class GCodeMove:
                 "G-Code move transform already specified")
         old_transform = self.move_transform
         if old_transform is None:
-            old_transform = self.printer.lookup_object('toolhead', None)
+            old_transform = self.printer.lookup_object(self.toolhead_id, None)
         self.move_transform = transform
         self.move_with_transform = transform.move
         self.position_with_transform = transform.get_position
@@ -361,7 +363,7 @@ class GCodeMove:
         if self.axis_names != 'XYZ':
             raise gcmd.error(f'cmd_GET_POSITION: No support for {self.axis_names} axes. Only XYZ suported for now.')
         
-        toolhead = self.printer.lookup_object('toolhead', None)
+        toolhead = self.printer.lookup_object(self.toolhead_id, None)
         
         if toolhead is None:
             raise gcmd.error("Printer not ready")
