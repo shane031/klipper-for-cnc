@@ -59,6 +59,7 @@ class PrinterProbe:
         self.printer.lookup_object('pins').register_chip(self.mcu_probe_name, self)
         
         # Register homing event handlers
+        # TODO: these will not be triggered by extra toolheads, consider updating.
         self.printer.register_event_handler("homing:homing_move_begin",
                                             self._handle_homing_move_begin)
         self.printer.register_event_handler("homing:homing_move_end",
