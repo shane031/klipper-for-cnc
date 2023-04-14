@@ -1435,6 +1435,16 @@ class ExtraGCodeMove(GCodeMove):
         #       toolhead.get_position) or "set_move_transform".
         self.position_with_transform = (lambda: [0.0 for i in range(self.axis_count + 1)])
 
+class ExtraPrinterHoming(PrinterHoming):
+    def __init__(self, config, toolhead):
+        # A string like "toolhead_stepper abc" from the config (the object name/ID).
+        self.toolhead_id = toolhead.name
+
+        self.printer = config.get_printer()
+        # Register g-code commands
+        gcode = self.printer.lookup_object('gcode')
+        gcode.register_command(toolhead.gcode_prefix + 'G28'[1:], self.cmd_G28)
+
 def load_config_prefix(config):
     # NOTE: the name should be set by the config, and not be hardcoded here,
     #       because this is loaded as an "extras", and should not bypass that mechanism.
