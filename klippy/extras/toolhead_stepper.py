@@ -241,9 +241,9 @@ class ExtraToolHead:
         
         # NOTE: get name of the probe from the config.
         # TODO: consider getting axis names from here.
-        self.name = config.get_name()
-        self.config_name = config.get_name().split()[1]
-        self.toolhead_name = "toolhead_" + self.config_name
+        self.name = config.get_name()  # Full config name, used as the object's "ID", such as "toolhead_stepper abc".
+        self.config_name = config.get_name().split()[1] # The second part in the config's name: "abc" in "[toolhead_stepper abc]"
+        self.toolhead_name = "toolhead_" + self.config_name  # A new and nice looking name for the toolhead.
 
         # Prefix for event names
         # TODO: go through this. It may need to be changed to an instance-specific name.
@@ -254,7 +254,8 @@ class ExtraToolHead:
         self.axis_names = config.get('axis', 'XYZ')  # "XYZ" / "XYZABC"
         self.axis_count = len(self.axis_names)
         
-        # Get the "mux-type" GcodeMove object.
+        # Get the toolhead-specific GcodeMove object.
+        # TODO: reconsider if it should be available as "printer object".
         self.gcode_prefix = config.get('gcode_prefix', 'U')
         self.gcode_move = GCodeMoveMux(config, toolhead=self)
         
