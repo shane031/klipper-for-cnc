@@ -467,7 +467,9 @@ class Homing:
         # Perform first home
         endstops = [es for rail in rails for es in rail.get_endstops()]
         hi = rails[0].get_homing_info()
-        hmove = HomingMove(self.printer, endstops)
+        hmove = HomingMove(printer=self.printer, endstops=endstops,
+                           # NOTE: Force use of a specific toolhead.
+                           toolhead=self.toolhead)
         hmove.homing_move(homepos, hi.speed)
         
         # Perform second home
