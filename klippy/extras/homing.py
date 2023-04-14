@@ -523,6 +523,12 @@ class Homing:
 class PrinterHoming:
     def __init__(self, config):
         self.printer = config.get_printer()
+        
+        # Main toolhead object "id". It is used instead of loading the toolhead object,
+        # because it might not be ready at this stage, but we still need the methods below
+        # to be able to grab a different toolhead object when subclassing this elsewhere.
+        self.toolhead_id = 'toolhead'
+        
         # Register g-code commands
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command('G28', self.cmd_G28)
@@ -591,7 +597,7 @@ class PrinterHoming:
     def cmd_G28(self, gcmd):
         logging.info(f"\n\nPrinterHoming.cmd_G28: homing with command={gcmd.get_commandline()}\n\n")
         
-        toolhead = self.printer.lookup_object('toolhead')
+        toolhead = self.printer.lookup_object(self.toolhead_id)
         # Move to origin
         axes = []
         for pos, axis in enumerate(toolhead.axis_names):
@@ -637,10 +643,10 @@ class PrinterHoming:
         axes = homing_axes
         logging.info(f"\n\nPrinterHoming.home_axes: homing axis={homing_axes}\n\n")
         
-        # NOTE: Instance a "Homing" object
-        homing_state = Homing(self.printer)
-        # NOTE: Update the "self.changed_axes" attribute, 
-        #       to indicate which axes will be homed (e.g. 0 for X, 1 for Y, ...).
+        # NOTE: Instance a "Homing" object, passing it the toolhead of this PrinterHoming instance.
+        #       This is important because subclasses of PrinterHoming might be associated to another toolhead.
+        toolhead = self.printer.lookup_object(self.toolhead_id)
+        homing_state = Homing(printer=self.printer, toolhead=toolhead)
         
         # NOTE: Update the "self.changed_axes" attribute, to indicate
         #       which axes will be homed (e.g. 0 for X, 1 for Y, ...).
