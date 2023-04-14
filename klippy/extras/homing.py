@@ -404,9 +404,13 @@ class HomingMove:
 # State tracking of homing requests
 # NOTE: used here only by the cmd_G28 method from PrinterHoming. 
 class Homing:
-    def __init__(self, printer):
+    def __init__(self, printer, toolhead=None):
+        # NOTE: Copied over toolhead loading code from "HomingMove".
+        if toolhead is None:
+            toolhead = printer.lookup_object("toolhead")
+        self.toolhead = toolhead
+        # NOTE: The normal setup continues.
         self.printer = printer
-        self.toolhead = printer.lookup_object('toolhead')
         self.changed_axes = []
         self.trigger_mcu_pos = {}
         self.adjust_pos = {}
@@ -444,7 +448,7 @@ class Homing:
         
         # Notify of upcoming homing operation
         logging.info(f"\n\nhoming.home_rails: homing begins with forcepos={forcepos} and movepos={movepos}\n\n")
-        self.printer.send_event("homing:home_rails_begin", self, rails)
+        self.printer.send_event(self.toolhead.event_prefix + "homing:home_rails_begin", self, rails)
         
         # Alter kinematics class to think printer is at forcepos
         axis_count = self.toolhead.axis_count
@@ -501,7 +505,7 @@ class Homing:
         self.trigger_mcu_pos = {sp.stepper_name: sp.trig_pos
                                 for sp in hmove.stepper_positions}
         self.adjust_pos = {}
-        self.printer.send_event("homing:home_rails_end", self, rails)
+        self.printer.send_event(self.toolhead.event_prefix + "homing:home_rails_end", self, rails)
         if any(self.adjust_pos.values()):
             # Apply any homing offsets
             kin = self.toolhead.get_kinematics()
