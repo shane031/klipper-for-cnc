@@ -360,6 +360,9 @@ class ToolHead:
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
         
+        # Toolhead object name/ID
+        self.name = "toolhead"
+
         # Prefix for event names
         self.event_prefix = "toolhead:"
         
