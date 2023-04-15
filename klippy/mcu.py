@@ -997,7 +997,7 @@ class MCU:
         #       prior to the given 'clock' (see stepcompress.c).
         ret = self._ffi_lib.steppersync_flush(self._steppersync, clock)
         
-        # NOTE: causing "invalid sequence" error in stepcompress,
+        # NOTE: Sometimes causing "invalid sequence" error in stepcompress,
         #       due to an "i=0" argument in "o=11 i=0 c=70 a=0".
         if ret:
             raise error("Internal error in MCU '%s' stepcompress"

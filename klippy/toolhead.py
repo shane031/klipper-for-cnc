@@ -443,6 +443,17 @@ class ToolHead:
             'buffer_time_high', 2.000, above=self.buffer_time_low)
         self.buffer_time_start = config.getfloat(
             'buffer_time_start', 0.250, above=0.)
+        # NOTE: comments from Kevin (at ab1eb70):
+        # Change the lookahead queue so that it attempts to buffer at least
+        # buffer_time_high amount of moves when first starting a print.  This
+        # helps ensure the buffer is normally always full.
+        # If the buffer falls below buffer_time_low then it is either due to the
+        # end of a print or because octoprint/klippy is unable to keep up.
+        # Change the code so that in this case the lookahead queue will attempt
+        # to gather buffer_time_high amount of moves before restarting movement.
+        # Update the default buffer_time_low to 1 second and buffer_time_high to
+        # 2 seconds.  With the above changes a smaller buffer_time_high and a
+        # larger buffer_time_low are more practical.
         self.move_flush_time = config.getfloat(
             'move_flush_time', 0.050, above=0.)
         self.print_time = 0.
@@ -586,15 +597,20 @@ class ToolHead:
     
     # Print time tracking
     def _update_move_time(self, next_print_time):
+        """Flush steps from itersolve and update print_time
+        It should have a better name, because it is the function that actually sends the steps.
+        """
         batch_time = MOVE_BATCH_TIME
-        # NOTE: called by "flush_step_generation", "_process_moves", 
-        #       "dwell", and "_update_drip_move_time".
-        # NOTE: This function updates "self.print_time" directly.
+        # NOTE: This function updates "self.print_time" directly, periodically
+        #       flushing moves until it is greater than the requested "next_print_time".
         #       It updates "self.print_time" until it is greater than
-        #       the provided "next_print_time".
-        # NOTE: It also calls "trapq_finalize_moves" on the extruder and toolhead.
-        # NOTE: a possible "use case" in the code is to:
-        #           "Generate steps for moves"
+        #       the provided "next_print_time", flushing moves in the
+        #       "itersolve" queue in small time chunks (probably to 
+        #       "Generate steps for moves" )
+        # NOTE: It also calls "trapq_finalize_moves" on the extruder and toolhead,
+        #       "flush_moves" on all MCUs, and "generate_steps" on all steppers.
+        # NOTE: Called by "flush_step_generation", "_process_moves", 
+        #       "dwell", and "_update_drip_move_time".
         
         logging.info(f"\n\nToolHead: _update_move_time triggered with next_print_time={next_print_time}\n\n")
 
@@ -608,7 +624,7 @@ class ToolHead:
             self.print_time = min(self.print_time + batch_time, next_print_time)
             
             # NOTE: Generate steps before the "sg_flush_time" time. That time is defined as
-            #       "self.force_flush_time", unless it is after "print_time-kin_flush_delay".
+            #       "self.force_flush_time", unless it is later than "print_time-kin_flush_delay".
             sg_flush_time = max(fft, self.print_time - kin_flush_delay)
             for sg in self.step_generators:
                 # NOTE: "self.step_generators" has been populated with "generate_steps" functions,
@@ -652,6 +668,9 @@ class ToolHead:
                 #       prior to the given 'mcu_flush_time' (see stepcompress.c
                 #       and "flush_moves" in mcu.py).
                 m.flush_moves(mcu_flush_time)
+            
+            # NOTE: The loop breaks when the update print_time is 
+            #       greater than the requested update time.
             if self.print_time >= next_print_time:
                 break
     
@@ -793,9 +812,11 @@ class ToolHead:
             # NOTE: loging "next_move_time" for tracing.
             logging.info("\n\nToolHead _process_moves: calling _update_drip_move_time with " +
                          f"next_move_time={str(next_move_time)}\n\n")
-            # NOTE: this function loops "while self.print_time < next_print_time".
+            # NOTE: This function loops "while self.print_time < next_print_time".
             #       It "pauses before sending more steps" using "drip_completion.wait",
-            #       and calls "_update_move_time". 
+            #       and calls "_update_move_time" with small increments in "next_move_time". 
+            #       If the "DripModeEndSignal" is raised, the code below is skipped, and 
+            #       returns to "drip_move".
             self._update_drip_move_time(next_move_time)
         
         # NOTE: "next_move_time" is the last "self.print_time" plus the
@@ -805,17 +826,24 @@ class ToolHead:
         #       to overwrite "self.last_kin_move_time".
         logging.info(f"\n\nToolHead _process_moves: _update_move_time with next_move_time={next_move_time}\n\n")
         self._update_move_time(next_move_time)
+
+        # NOTE: "last_kin_move_time" may only be increased to "next_move_time" or stay the same.
+        logging.info(f"\n\nToolHead _process_moves: update last_kin_move_time={self.last_kin_move_time} set to next_move_time={next_move_time} if the former is greater.\n\n")
         self.last_kin_move_time = max(self.last_kin_move_time, next_move_time)
-        logging.info(f"\n\nToolHead _process_moves: last_kin_move_time set to next_move_time={self.last_kin_move_time}\n\n")
         
     def flush_step_generation(self):
-        # Transition from "Flushed"/"Priming"/main state to "Flushed" state
-        # NOTE: a "use case" for drip moves is to: 'Exit "Drip" state'
+        """Transition from "Flushed"/"Priming"/main state to "Flushed" state
+        
+        This function is used a lot. For example, it is the main effect of "self.flush_timer" triggers.
+
+        It is a "use case" for drip moves is to: 'Exit "Drip" state'
+        """ 
         logging.info(f"\n\nToolHead.flush_step_generation: triggered.\n\n")
 
-        # NOTE: this is the "flush" method from a "MoveQueue" object.
+        # NOTE: This is the "flush" method from a "MoveQueue" object.
         #       It calls "_process_moves" on the moves in the queue that
-        #       are "ready to be flushed", and removes them from the queue.
+        #       are "ready to be flushed", and likely removing them all 
+        #       from the "move_queue".
         self.move_queue.flush()
 
         # NOTE: the state is set to "Flushed" which is still a
@@ -823,28 +851,44 @@ class ToolHead:
         self.special_queuing_state = "Flushed"
         self.need_check_stall = -1.
 
+        # NOTE: Prevent the "flush_timer" from running this function.
         # NOTE: updates the "self._next_timer" object in the "reactor",
         #       and sets "flush_timer.waketime" to "self.reactor.NEVER".
         self.reactor.update_timer(self.flush_timer, self.reactor.NEVER)
 
-        # NOTE: sets "self.junction_flush" to "self.buffer_time_high"
+        # NOTE: Sets "self.junction_flush" to "self.buffer_time_high"
         #       in the MoveQueue class. Note that the "junction_flush"
         #       is reset when the "flush" method is called. Not sure
-        #       what this accomplishes.
+        #       what this accomplishes, but it may be setting a time 
+        #       (2 seconds by default) for buffering moves that is higher
+        #       than the usual 0.25 seconds from "LOOKAHEAD_FLUSH_TIME".
         self.move_queue.set_flush_time(self.buffer_time_high)
 
+        # TODO: I have no idea what this is.
         self.idle_flush_print_time = 0.
         
         # Determine actual last "itersolve" flush time
+        # NOTE: This means that "self.kin_flush_delay" is the
+        #       the time difference between print_time and the
+        #       last "itersolve flush".
         lastf = self.print_time - self.kin_flush_delay
         
         # Calculate flush time that includes kinematic scan windows
+        # TODO: what is a "kinematic scan window"?
         flush_time = max(lastf, self.last_kin_move_time + self.kin_flush_delay)
         if flush_time > self.print_time:
-            # Flush in small time chunks
-            # NOTE: the following updates "self.print_time" and
-            #       calls "trapq_finalize_moves".
-            self._update_move_time(flush_time)
+            # NOTE: From the above I gather that this only happens if:
+            #       "self.last_kin_move_time + self.kin_flush_delay" > "self.print_time - self.kin_flush_delay"
+            # TODO:  Pity I yet have no idea what "last_kin_move_time" is.
+            
+            # Flush in small time chunks from flush_step_generation(). Kevin (commit bca2671):
+            #   If note_kinematic_activity() has a time far in the future it could
+            #   result in a single flush attempt of that time range.  Be sure to break
+            #   up that range into small chunks using the normal _update_move_time()
+            #   mechanism.
+            # NOTE: "_update_move_time" updates "self.print_time" (and 
+            #       flushes itersolve moves) until it is greater than "flush_time".
+            self._update_move_time(next_print_time=flush_time)
         
         # Flush kinematic scan windows and step buffers
         # NOTE: This is the one place where "self.force_flush_time" can 
@@ -854,14 +898,30 @@ class ToolHead:
                                                    self.force_flush_time))
     
     def _flush_lookahead(self):
+        # NOTE: Skip the call to "move_queue.flush" if the machine
+        #       is in a "special_queuing_state" (e.g. on a "drip_move").
         if self.special_queuing_state:
+            # NOTE: In  case, call "flush_step_generation" instead.
+            #       Skipping "move_queue.flush" is not the idea though, because 
+            #       it is the first thing called by this function.
+            # NOTE: It changes "special_queuing_state" to "Flushing", and then
+            #       also flushes moves in the "itersolve queue", sending them
+            #       to the MCUs for execution.
             return self.flush_step_generation()
+        
+        # NOTE: This is the "flush" method from a "MoveQueue" object.
+        #       Llikely sending all moves and removing them from the "move_queue".
         self.move_queue.flush()
     
     def get_last_move_time(self):
         # NOTE: this method probably returns a "safe" time
         #       which can be used to schedule a new move,
         #       after others have finished.
+        # NOTE: If not in a "special_queuing_state" it will only
+        #       call "move_queue.flush" and return "self.print_time".
+        #       This would cause a print_time update if any moves in
+        #       the queue are casued to be sent to "_process_moves".
+        #       On a special state it will also flush the "itersolve queue".
 
         # NOTE: The "_flush_lookahead" method calls either:
         #       - flush_step_generation: which updates "self.print_time" through "_update_move_time".
@@ -1089,6 +1149,7 @@ class ToolHead:
         self.commanded_pos[:] = move.end_pos
         
         # NOTE: Add the Move object to the MoveQueue.
+        #       This can trigger "_process_moves".
         self.move_queue.add_move(move)
         
         if self.print_time > self.need_check_stall:
@@ -1125,6 +1186,9 @@ class ToolHead:
         self._check_stall()
     
     def wait_moves(self):
+        # NOTE: This function waits until print_time is in sync with the present
+        #       time (i.e. the current time of the host computer). The waiting
+        #       is skipped if the toolhead enters a special state.
         
         # NOTE: Calls "move_queue.flush" unless in "special queuing state"
         #       (e.g. drip mode).
@@ -1186,9 +1250,12 @@ class ToolHead:
                 # Pause before sending more steps
                 self.drip_completion.wait(curtime + wait_time)
                 continue
+            
+            # Send more steps
             npt = min(self.print_time + DRIP_SEGMENT_TIME, next_print_time)
-            # NOTE: this updates "self.print_time" and calls "trapq_finalize_moves",
-            #       possibly to "Generate steps for moves".
+            # NOTE: Call "_update_move_time" with a small time in the future, updating 
+            #       "self.print_time", generating steps, calling "trapq_finalize_moves",
+            #       and calling "MCU.flush_moves".
             self._update_move_time(next_print_time=npt)
             # NOTE: because how "print_time" is updated, the while loop will end
             #       before "self.print_time >= next_print_time" by "MOVE_BATCH_TIME".
@@ -1219,19 +1286,21 @@ class ToolHead:
         
         # Transmit move in "drip" mode
         try:
-            # NOTE: Because the flush function is called with a 
+            # NOTE: Summary: because the flush function is called with a 
             #       not None "special_queuing_state", the "_process_moves" 
-            #       call will use "_update_drip_move_time". That method 
-            #       will raise "DripModeEndSignal" when the result of 
-            #       "drip_completion.test()" is True, thereby ending the move.
+            #       call (from "flush") will use "_update_drip_move_time".
+            #       That method will raise "DripModeEndSignal" when the result of 
+            #       "drip_completion.test()" is True, thereby ending the move,
+            #       and returning here.
             logging.info("\n\ndrip_move: flushing move queue / transmitting move.\n\n")
             self.move_queue.flush()
         except DripModeEndSignal as e:
             logging.info("\n\ndrip_move: resetting move queue / DripModeEndSignal caught.\n\n")
             
-            # NOTE: deletes al moves in the queue
+            # NOTE: deletes al moves in the queue and resets "junction_flush" time.
             self.move_queue.reset()
             
+            # NOTE: Expire all pending moves in every "trapq".
             # NOTE: "trapq_finalize_moves" calls a function in "trapq.c", described as:
             #       - Expire any moves older than `print_time` from the trapezoid velocity queue
             #       - Flush all moves from trapq (in the case of print_time=NEVER_TIME)
@@ -1272,10 +1341,10 @@ class ToolHead:
         #       - "reactor.update_timer"
         #       - "move_queue.set_flush_time"
         #       - "_update_move_time"
-        # NOTE: pausing the program here prevented the "second home" move
-        #       issue during homing the extruder with a drip move. The solution
-        #       was to also call "trapq_finalize_moves" on the extruder's "trapq"
-        #       above, and just before "flush_step_generation" below.
+        # NOTE: Pausing the program here prevented a "residual home move" issue
+        #       during homing the extruder with a drip move. The solution was
+        #       to also call "trapq_finalize_moves" on the extruder's "trapq"
+        #       above, and before the following call to "flush_step_generation".
         self.flush_step_generation()
     
     # Misc commands
@@ -1295,6 +1364,8 @@ class ToolHead:
     def get_status(self, eventtime):
         print_time = self.print_time
         estimated_print_time = self.mcu.estimated_print_time(eventtime)
+        # TODO: Update get_status to use info from all kinematics.
+        # res = {k: v for k,v in self.kinematics}
         res = dict(self.kin.get_status(eventtime))
         res.update({ 'print_time': print_time,
                      'stalls': self.print_stall,
