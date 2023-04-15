@@ -210,36 +210,63 @@ class MoveQueue:
         Args:
             lazy (bool, optional): _description_. Defaults to False.
         """
+        # NOTE: logging for tracing activity
+        logging.info("\n\nMoveQueue flush: function triggered.\n\n")
         # NOTE: called by "add_move" when: 
         #       "Enough moves have been queued to reach the target flush time."
         #       Also called by "flush_step_generation".
         
-        self.junction_flush = LOOKAHEAD_FLUSH_TIME
+        self.junction_flush = LOOKAHEAD_FLUSH_TIME  # Hardcoded value of "0.250"
         
-        # NOTE: logging for tracing activity
-        logging.info("\n\nMoveQueue flush: function triggered.\n\n")
-        
+        # NOTE: True when "flush" was called by "add_move", in which case
+        #       "junction_flush" used to be negative (and was just reset above).
         update_flush_count = lazy
+        
         queue = self.queue
+        
+        # NOTE: 
         flush_count = len(queue)
+
         # Traverse queue from last to first move and determine maximum
         # junction speed assuming the robot comes to a complete stop
         # after the last move.
         delayed = []
         next_end_v2 = next_smoothed_v2 = peak_cruise_v2 = 0.
-        for i in range(flush_count-1, -1, -1):
+        for i in range(flush_count-1, -1, -1):  # i.e.: "start", "stop", "step".
             move = queue[i]
+            
+            # NOTE: "delta_v2" is the maximum amount of this squared-velocity that
+            #       can change in this move. "next_end_v2" is initialized to "0" and then
+            #       holds "start_v2" of the move that follows (for the remaining iterations).
+            # NOTE: Calculate the abosolute maximum (square) speed that can be reached,
+            #       by adding the speed change of this move to the start speed of the ¿next?
             reachable_start_v2 = next_end_v2 + move.delta_v2
+            # NOTE: "max_start_v2" of the current move is a "speed limit" for the junction
+            #       between the moves. Here "start_v2" is set to the minimum between this
+            #       maximum juction speed, and the reachable junction speed (makes sense).
             start_v2 = min(move.max_start_v2, reachable_start_v2)
+            
+            # NOTE: The math above is now repeated for the 
+            #       "smoothed versions" of the speeds.
             reachable_smoothed_v2 = next_smoothed_v2 + move.smooth_delta_v2
             smoothed_v2 = min(move.max_smoothed_v2, reachable_smoothed_v2)
+
+            # NOTE: Check if the "max_smoothed_v2" junction speed
+            #       was smaller that "reachable_smoothed_v2" just now.
             if smoothed_v2 < reachable_smoothed_v2:
                 # It's possible for this move to accelerate
                 if (smoothed_v2 + move.smooth_delta_v2 > next_smoothed_v2
                     or delayed):
-                    # This move can decelerate or this is a full accel
-                    # move after a full decel move
+                    # This move can either decelerate 
+                    # and/or is a "full accel" move after a "full decel" move (¿delayed?).
                     if update_flush_count and peak_cruise_v2:
+                        # NOTE: The above "update_flush_count" is "True" if the "lazy"
+                        #       argument to this function was "True" (as when called
+                        #       by "add_move" due to a negative "junction_flush" time).
+                        # NOTE: The condition on "peak_cruise_v2" is weird. It will only
+                        #       pass when "peak_cruise_v2" is not zero (and this is its
+                        #       initialization value). From the comments below it may mean
+                        #       that this will trigger "when peak_cruise_v2 is known".
                         flush_count = i
                         update_flush_count = False
                     peak_cruise_v2 = min(move.max_cruise_v2, (
@@ -247,32 +274,50 @@ class MoveQueue:
                     if delayed:
                         # Propagate peak_cruise_v2 to any delayed moves
                         if not update_flush_count and i < flush_count:
+                            # NOTE: "i < flush_count" is true by initialization, but may
+                            #       be false if "flush_count" was equated to "i" above.
                             mc_v2 = peak_cruise_v2
                             for m, ms_v2, me_v2 in reversed(delayed):
                                 mc_v2 = min(mc_v2, ms_v2)
                                 m.set_junction(min(ms_v2, mc_v2), mc_v2
                                                , min(me_v2, mc_v2))
+                        # NOTE: Moves are removed from the "delayed" list when
+                        #       "peak_cruise_v2" is "propagated".
                         del delayed[:]
+                
+                # TODO: what is this?
                 if not update_flush_count and i < flush_count:
                     cruise_v2 = min((start_v2 + reachable_start_v2) * .5
                                     , move.max_cruise_v2, peak_cruise_v2)
                     move.set_junction(min(start_v2, cruise_v2), cruise_v2
                                       , min(next_end_v2, cruise_v2))
+                    # NOTE: "i < flush_count" is true by initialization, but may
+                    #       be false if "flush_count" was equated to "i" above.
             else:
                 # Delay calculating this move until peak_cruise_v2 is known
                 delayed.append((move, start_v2, next_end_v2))
             next_end_v2 = start_v2
             next_smoothed_v2 = smoothed_v2
         
+        # NOTE: Here "update_flush_count" is checked to trigger an "early return",
+        #       which would skip sending moves to _process_moves (and removing them
+        #       from this MoveQueue). "update_flush_count" is True when "lazy=True",
+        #       and it remains True if "peak_cruise_v2" is not yet known.
+        # NOTE: The other sufficient condition is that the "flush_count" is zero,
+        #       which can happen if the queue was originally empty (¿or perhaps if
+        #       the peak cruise speed was found on the second move?).
         if update_flush_count or not flush_count:
-            logging.info(f"\n\nMoveQueue flush: early return due to update_flush_count={update_flush_count} or not flush_count={flush_count}\n\n")
+            logging.info(f"\n\nMoveQueue flush: _process_moves skipped due to update_flush_count={update_flush_count} or not flush_count={flush_count}\n\n")
             return
         
         # Generate step times for all moves ready to be flushed
-        # NOTE: The clock time when this move will be executed is not yet explicit,
+        # NOTE: The clock time when these moves will be executed is not yet explicit,
         #       it will be calculated  by "_process_moves", and then updated with
         #       a call to "_update_move_time".
         logging.info("\n\nMoveQueue flush: calling _process_moves.\n\n")
+        # NOTE: "flush_count" can only have been made possibly smaller by 
+        #       setting "lazy=True" from the start. This means that a "regular"
+        #       call to flush will try to remove all
         self.toolhead._process_moves(moves=queue[:flush_count])
 
         # Remove processed moves from the queue
@@ -282,16 +327,29 @@ class MoveQueue:
         """MoveQueue.add_move() places the move object on the "look-ahead" queue.
 
         Args:
-            move (_type_): _description_
+            move (Move): A new Move object.
         """
         logging.info(f"\n\nMoveQueue.add_move: adding move.\n\n")
         self.queue.append(move)
+        
+        # NOTE: The move queue is not flushed automatically when the 
+        #       new move is the only move in the queue.
         if len(self.queue) == 1:
             return
+        
+        # NOTE: "calc_junction" is called on the move, and passed the previous move,
+        #       to calculate the values of "max_start_v2" and "max_smoothed_v2" of the
+        #       new move.
         move.calc_junction(self.queue[-2])
+        # NOTE: "junction_flush" is initialized at 0.250 (see LOOKAHEAD_FLUSH_TIME),
+        #       here it is decremented by "min_move_t" of the arriving move. If the
+        #       result is less than zero, this signals a "flush" automatically.
         self.junction_flush -= move.min_move_t
         if self.junction_flush <= 0.:
             # Enough moves have been queued to reach the target flush time.
+            # NOTE: The "lazy" argument is passed to set "update_flush_count",
+            #       to True, which to my surprise, is checked to see if the
+            #       "flush_count" variable should be updated (lol).
             self.flush(lazy=True)
 
 # TODO: this quantity is undocumented.
@@ -1152,8 +1210,7 @@ class ToolHead:
         
         # Submit move
         try:
-            # NOTE: uses "add_move", to add a move to the "move_queue".
-            # NOTE: logging for tracing activity
+            # NOTE: Uses "add_move", to add a move to the "move_queue".
             logging.info("\n\ndrip_move: sending move to the queue.\n\n")
             self.move(newpos, speed)
         except self.printer.command_error as e:
@@ -1162,10 +1219,11 @@ class ToolHead:
         
         # Transmit move in "drip" mode
         try:
-            # NOTE: because the flush function is called with a 
+            # NOTE: Because the flush function is called with a 
             #       not None "special_queuing_state", the "_process_moves" 
-            #       call will use "_update_drip_move_time".
-            # NOTE: logging for tracing activity
+            #       call will use "_update_drip_move_time". That method 
+            #       will raise "DripModeEndSignal" when the result of 
+            #       "drip_completion.test()" is True, thereby ending the move.
             logging.info("\n\ndrip_move: flushing move queue / transmitting move.\n\n")
             self.move_queue.flush()
         except DripModeEndSignal as e:
