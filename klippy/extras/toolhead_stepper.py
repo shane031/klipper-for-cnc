@@ -1553,6 +1553,9 @@ class ToolheadSpinner():
 
     # Continuous rotation (move repeat) timer callback function.
     def do_spin_move(self, eventtime):
+        # Get the parameters for the current move
+        move = self.spin_params[0]
+        speed = self.spin_params[1]
 
         # Actual MCU print_time (after the last move)
         print_time = self.toolhead.print_time
@@ -1569,7 +1572,7 @@ class ToolheadSpinner():
         waketime = self.reactor.NEVER
         
         # If the speed is null, just sleep.
-        if not self.spin_params[1]:
+        if not speed:
             return waketime
 
         # NOTE: On the different times here:
@@ -1579,17 +1582,17 @@ class ToolheadSpinner():
         # NOTE: The "self.spin_speed" variable is only updated by the
         # "cmd_SPIN_MANUAL_STEPPER" command.
 
-        speed = self.spin_params[1]
+        
         # while len(self.toolhead.move_queue.queue) <= 5 and speed:
         #     # self.toolhead.get_last_move_time()
         #     curpos = self.toolhead.get_position()
-        #     curpos[0] += 20.0  # self.spin_params[0]
+        #     curpos[0] += 20.0  # move
         #     self.toolhead.move(curpos, speed)
         #     waketime = eventtime + (20.0/speed)*0.1
         curpos = self.toolhead.get_position()
-        curpos[0] += 20.0  # self.spin_params[0]
+        curpos[0] += speed*2.0 # 20.0  # move
         self.toolhead.move(curpos, speed)
-        waketime = eventtime + (20.0/speed)*0.1
+        waketime = eventtime + 1.0
 
         # Update the timer's next firing time.
         logging.info(f"\n\ndo_spin_move: function ended with waketime={waketime}\n\n")
