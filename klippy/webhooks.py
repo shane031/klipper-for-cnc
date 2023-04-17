@@ -27,7 +27,12 @@ if sys.version_info.major < 3:
         return data
 
 class WebRequestError(gcode.CommandError):
+    # NOTE: "gcode.CommandError" inherits from "Exception",
+    #       which means that this does as well.
+    
     def __init__(self, message,):
+        # This runs the "__init__" function from "Exception"
+        # on the "WebRequestError" instance object (self).
         Exception.__init__(self, message)
 
     def to_dict(self):
@@ -82,6 +87,8 @@ class WebRequest:
 
     def set_error(self, error):
         self.is_error = True
+        # NOTE: "to_dict" is a method from "WebRequestError" and
+        #       returns a dictionary.
         self.response = error.to_dict()
 
     def send(self, data):
@@ -256,6 +263,21 @@ class ClientConnection:
             func(web_request)
         except self.printer.command_error as e:
             web_request.set_error(WebRequestError(str(e)))
+            # TODO: Get the "unknown command" error through as a dict, for now it arrives as a string:
+            #       'message': '{\'error\': \'WebRequestError\', \'message\': \'Unknown command:"P200"\'}'
+            # NOTE: The error is raised and the exception message converted
+            #       to a string, which is passed to initialize "WebRequestError",
+            #       and then to Exception.__init__ internally (what is that?).
+            #           def set_error(self, error):
+            #               self.is_error = True
+            #               self.response = error.to_dict()
+            # NOTE: As shown just above, the "set_error" method from "web_request" then 
+            #       calls "to_dict" on the "WebRequestError", which in turn returns the 
+            #       following. Note the "str(self)" in the "message" key.
+            #           def to_dict(self):
+            #               return {
+            #                   'error': 'WebRequestError',
+            #                   'message': str(self)}
         except Exception as e:
             msg = ("Internal Error on WebRequest: %s"
                    % (web_request.get_method()))
@@ -265,6 +287,10 @@ class ClientConnection:
         result = web_request.finish()
         if result is None:
             return
+        # NOTE: Up to now, the error dict is not serialized,
+        #       and it isnt broken either by "send" below.
+        #       It is likely that Moonraker breaks the object.
+        # logging.info(f"Sending data to socket: data={result}")
         self.send(result)
 
     def send(self, data):
