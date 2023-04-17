@@ -114,6 +114,7 @@ class GCodeDispatch:
             func = getattr(self, 'cmd_' + cmd)
             desc = getattr(self, 'cmd_' + cmd + '_help', None)
             self.register_command(cmd, func, True, desc)
+    
     def is_traditional_gcode(self, cmd):
         # A "traditional" g-code command is a letter and followed by a number
         try:
@@ -207,6 +208,8 @@ class GCodeDispatch:
             try:
                 handler(gcmd)
             except self.error as e:
+                # NOTE: "self.error" is an instance of "CommandError",
+                #       a simple subclass of "Exception".
                 self._respond_error(str(e))
                 self.printer.send_event("gcode:command_error")
                 if not need_ack:
@@ -302,7 +305,16 @@ class GCodeDispatch:
                 not gcmd.get_float('S', 1.) or self.is_fileinput)):
             # Don't warn about requests to turn off fan when fan not present
             return
-        gcmd.respond_info('Unknown command:"%s"' % (cmd,))
+        
+        # NOTE: Now raising an error on unknown command, it is strange to me
+        #       that this should be simply ignored. A missed command can have
+        #       bad consequences. 
+        # NOTE: "gcmd" is of class GCodeCommand, and the "error" attribute 
+        #       is "CommandError" (which is a subclass of Exception). Long
+        #       story short, this raises a custom exception.
+        raise gcmd.error('Unknown command:"%s"' % (cmd,))
+        # gcmd.respond_info('Unknown command:"%s"' % (cmd,))
+    
     def _cmd_mux(self, command, gcmd):
         key, values = self.mux_commands[command]
         if None in values:
