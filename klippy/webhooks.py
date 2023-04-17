@@ -36,9 +36,16 @@ class WebRequestError(gcode.CommandError):
         Exception.__init__(self, message)
 
     def to_dict(self):
-        return {
-            'error': 'WebRequestError',
-            'message': str(self)}
+        return {'error': 'WebRequestError',
+                # NOTE: It appears that this receives the "message"
+                #       passed when the exception was raised.
+                'message': str(self),
+                # NOTE: "args[0]" contains the Exception's message object,
+                #       perhaps because this is the first "arg" it was passed.
+                # NOTE: Adding the following was unhelpful, the whole dict is
+                #       converted to "str" elsewhere.
+                'message_object': self.args[0]
+        }
 
 class Sentinel:
     pass
