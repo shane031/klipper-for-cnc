@@ -122,10 +122,10 @@ class ExtruderStepper:
 
     def check_move_limits(self, move, e_axis=3):
         """ExtruderStepper version of check_move_limits in toolhead.py"""
+        epos = move.end_pos[e_axis]
 
         if self.can_home:
             # NOTE: Software limit checks, borrowed from "cartesian.py".
-            epos = move.end_pos[e_axis]
             logging.info("\n\n" + f"extruder_stepper.check_move_limits: checking move ending on epos={epos}" + "\n\n")
             if (epos < self.limits[0][0] or epos > self.limits[0][1]):
                 self._check_endstops(move, e_axis)
