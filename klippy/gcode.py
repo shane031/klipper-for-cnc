@@ -13,7 +13,7 @@ Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'e', 'a', 'b', 'c'),
 
 class GCodeCommand:
     error = CommandError
-    def __init__(self, gcode, command, commandline, params, need_ack):
+    def __init__(self, gcode, command, commandline, params, need_ack: bool):
         self._command = command
         self._commandline = commandline
         self._params = params
@@ -45,7 +45,14 @@ class GCodeCommand:
     def ack(self, msg=None):
         # NOTE: response messages appear to start with "ok",
         #       but may have more content to the right.
+        #       They can be sent using "respond_raw", ultimately
+        #       a method from GCodeDispatch.
+        # NOTE: Response messages are only built if GCodeCommand
+        #       was setup with "need_ack=True".
         if not self._need_ack:
+            # NOTE: Early return, no message response sent. This
+            #       Is the case for commands coming from 
+            #       GCodeDispatch.run_script.
             return False
         ok_msg = "ok"
         if msg:
@@ -184,6 +191,7 @@ class GCodeDispatch:
     # Parse input into commands
     args_r = re.compile('([A-Z_]+|[A-Z*/])')
     def _process_commands(self, commands, need_ack=True):
+        # NOTE: "run_script" calls this method with "need_ack=False".
         for line in commands:
             # Ignore comments and leading/trailing spaces
             line = origline = line.strip()
@@ -202,10 +210,11 @@ class GCodeDispatch:
             # Build gcode "params" dictionary
             params = { parts[i]: parts[i+1].strip()
                        for i in range(1, numparts, 2) }
-            gcmd = GCodeCommand(self, cmd, origline, params, need_ack)
+            gcmd = GCodeCommand(gcode=self, command=cmd, commandline=origline, params=params, need_ack=need_ack)
             # Invoke handler for command
             handler = self.gcode_handlers.get(cmd, self.cmd_default)
             try:
+                # The default is to call "cmd_default" as a "handler".
                 handler(gcmd)
             except self.error as e:
                 # NOTE: "self.error" is an instance of "CommandError",
@@ -233,6 +242,10 @@ class GCodeDispatch:
         return GCodeCommand(self, command, commandline, params, False)
     # Response handling
     def respond_raw(self, msg):
+        # NOTE: Functions in "self.output_callbacks" were registered
+        #       by calls to "self.register_output_handler()". That
+        #       method can be called by GcodeIO (pseudo-tty interface)
+        #       or GCodeHelper.
         for cb in self.output_callbacks:
             cb(msg)
     def respond_info(self, msg, log=True):
@@ -275,7 +288,9 @@ class GCodeDispatch:
             raise self.error("Malformed command '%s' (value error)"
                              % (gcmd.get_commandline(),))
     # G-Code special command handlers
-    def cmd_default(self, gcmd):
+    def cmd_default(self, gcmd: GCodeCommand):
+        # NOTE: This is the default GCODE command handler, called by
+        #       "self._process_commands".
         cmd = gcmd.get_command()
         if cmd == 'M105':
             # Don't warn about temperature requests when not ready

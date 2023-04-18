@@ -3,7 +3,8 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging
+import logging, klippy
+from gcode import GCodeDispatch
 
 class GCodeMove:
     """Main GCodeMove class.
@@ -36,7 +37,8 @@ class GCodeMove:
         
         logging.info(f"\n\nGCodeMove: starting setup with axes: {self.axis_names}\n\n")
         
-        self.printer = printer = config.get_printer()
+        printer = config.get_printer()
+        self.printer: klippy.Printer = printer
         # NOTE: Event prefixes are not neeeded here, because the init class
         #       in the "extra toolhead" version of GcodeMove overrides this one.
         #       This one will only be used by the main "klippy.py pipeline".
@@ -55,7 +57,7 @@ class GCodeMove:
         self.is_printer_ready = False
         
         # Register g-code commands
-        gcode = printer.lookup_object('gcode')
+        gcode: GCodeDispatch = printer.lookup_object('gcode')
         handlers = [
             'G1', 'G20', 'G21',
             'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
@@ -146,7 +148,8 @@ class GCodeMove:
     def set_move_transform(self, transform, force=False):
         # NOTE: This method is called by bed_mesh, bed_tilt,
         #       skewcorrection, etc. to set a special move 
-        #       transformation function.
+        #       transformation function. By default the 
+        #       "move_with_transform" function is "toolhead.move".
         if self.move_transform is not None and not force:
             raise self.printer.config_error(
                 "G-Code move transform already specified")
