@@ -321,14 +321,19 @@ class GCodeDispatch:
             # Don't warn about requests to turn off fan when fan not present
             return
         
+        # NOTE: "respond_info" uses "GCodeDispatch.respond_info" to prepare a
+        #       response, and then sends it through "GCodeDispatch.respond_raw".
+        gcmd.respond_info('Unknown command:"%s"' % (cmd,))
         # NOTE: Now raising an error on unknown command, it is strange to me
-        #       that this should be simply ignored. A missed command can have
-        #       bad consequences. 
+        #       that this should be simply ignored. A missed command can also
+        #       damage the hardware. "respond_info" is not enough.
         # NOTE: "gcmd" is of class GCodeCommand, and the "error" attribute 
-        #       is "CommandError" (which is a subclass of Exception). Long
-        #       story short, this raises a custom exception.
-        raise gcmd.error('Unknown command:"%s"' % (cmd,))
-        # gcmd.respond_info('Unknown command:"%s"' % (cmd,))
+        #       is "CommandError" (which is a subclass of Exception). The 
+        #       exception will be caught by "_process_commands", and handled
+        #       by calling "GCodeDispatch._respond_error" (which calls "respond_raw"
+        #       and the downstream "output_callbacks") and then sends an event:
+        #       "printer.send_event("gcode:command_error")".
+        raise gcmd.error('Unknown command error:"%s"' % (cmd,))
     
     def _cmd_mux(self, command, gcmd):
         key, values = self.mux_commands[command]
