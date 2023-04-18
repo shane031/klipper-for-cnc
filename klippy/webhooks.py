@@ -455,7 +455,9 @@ class GCodeHelper:
     def _handle_help(self, web_request):
         web_request.send(self.gcode.get_command_help())
     def _handle_script(self, web_request):
-        self.gcode.run_script(web_request.get_str('script'))
+        cmd = web_request.get_str('script')
+        logging.info(f"GCodeHelper sending cmd={cmd} to 'GCodeDispatch.run_script'.")
+        self.gcode.run_script(cmd)
     def _handle_restart(self, web_request):
         self.gcode.run_script('restart')
     def _handle_firmware_restart(self, web_request):
