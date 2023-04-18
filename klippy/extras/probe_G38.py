@@ -312,6 +312,8 @@ class ProbeG38:
             # NOTE: I had to add a "check_triggered" argument to 
             #       "probing_move" for G38.3 to work properly.
             logging.info(f"\n\n" + "probe_g38 probing with axes: " + str(probe_axes) + "\n\n")
+            
+            # NOTE: "epos" is "trigpos" from the "homing_move" method.
             epos = phoming.probing_move(mcu_probe=self.probe.mcu_probe,
                                         pos=pos,
                                         speed=speed,
@@ -349,7 +351,8 @@ class ProbeG38:
         else:
             raise self.printer.command_error(f"Can't respond with info for toolhead.axis_count={toolhead.axis_count}")
         
-        # TODO: find out why it returns the fourth position.
+        # TODO: find out why it only returns the fourth (extruder) position.
+        # TODO: update this to work with 6-axis klippy.
         return epos[:3]
 
 

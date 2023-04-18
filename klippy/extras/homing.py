@@ -608,6 +608,7 @@ class PrinterHoming:
             raise self.printer.command_error(
                 "Probe triggered prior to movement")
         
+        # NOTE: "epos" is "trigpos" from the "homing_move" method.
         return epos
 
     def cmd_G28(self, gcmd):
