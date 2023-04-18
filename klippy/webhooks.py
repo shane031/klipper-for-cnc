@@ -4,7 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license
 import logging, socket, os, sys, errno, json, collections
-import gcode
+import gcode, klippy
 
 REQUEST_LOG_SIZE = 20
 
@@ -116,7 +116,7 @@ class WebRequest:
         return {"id": self.id, rtype: self.response}
 
 class ServerSocket:
-    def __init__(self, webhooks, printer):
+    def __init__(self, webhooks, printer: klippy.Printer):
         self.printer = printer
         self.webhooks = webhooks
         self.reactor = printer.get_reactor()
@@ -328,7 +328,7 @@ class ClientConnection:
         self.send_buffer = self.send_buffer[sent:]
 
 class WebHooks:
-    def __init__(self, printer):
+    def __init__(self, printer: klippy.Printer):
         self.printer = printer
         self._endpoints = {"list_endpoints": self._handle_list_endpoints}
         self._remote_methods = {}
@@ -437,14 +437,14 @@ class WebHooks:
         self._remote_methods[method] = valid_conns
 
 class GCodeHelper:
-    def __init__(self, printer):
+    def __init__(self, printer: klippy.Printer):
         self.printer = printer
-        self.gcode = printer.lookup_object("gcode")
+        self.gcode: gcode.GCodeDispatch = printer.lookup_object("gcode")
         # Output subscription tracking
         self.is_output_registered = False
         self.clients = {}
         # Register webhooks
-        wh = printer.lookup_object('webhooks')
+        wh: WebHooks = printer.lookup_object('webhooks')
         wh.register_endpoint("gcode/help", self._handle_help)
         wh.register_endpoint("gcode/script", self._handle_script)
         wh.register_endpoint("gcode/restart", self._handle_restart)
@@ -479,7 +479,7 @@ class GCodeHelper:
 SUBSCRIPTION_REFRESH_TIME = .25
 
 class QueryStatusHelper:
-    def __init__(self, printer):
+    def __init__(self, printer: klippy.Printer):
         self.printer = printer
         self.clients = {}
         self.pending_queries = []
@@ -570,7 +570,7 @@ class QueryStatusHelper:
     def _handle_subscribe(self, web_request):
         self._handle_query(web_request, is_subscribe=True)
 
-def add_early_printer_objects(printer):
+def add_early_printer_objects(printer: klippy.Printer):
     printer.add_object('webhooks', WebHooks(printer))
     GCodeHelper(printer)
     QueryStatusHelper(printer)
