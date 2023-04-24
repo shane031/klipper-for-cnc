@@ -525,12 +525,32 @@ class Homing:
         self.printer.send_event(self.toolhead.event_prefix + "homing:home_rails_end", self, rails)
         if any(self.adjust_pos.values()):
             # Apply any homing offsets
-            kin = self.toolhead.get_kinematics()
             homepos = self.toolhead.get_position()
-            kin_spos = {s.get_name(): (s.get_commanded_position()
-                                       + self.adjust_pos.get(s.get_name(), 0.))
-                        for s in kin.get_steppers()}
-            newpos = kin.calc_position(kin_spos)
+            kin_spos = {}
+            newpos = []
+            # Iterate over["XYZ", "ABC"]
+            for axes in list(self.toolhead.kinematics):
+                # NOTE: the "get_kinematics" method is defined in the ToolHead 
+                #       class at "toolhead.py". It apparently returns the kinematics
+                #       object, as loaded from a module in the "kinematics/" directory,
+                #       during the class's __init__.
+                kin: CartKinematicsABC = self.toolhead.kinematics[axes]
+                # NOTE: this step calls the "get_steppers" method on the provided
+                #       kinematics, which returns a dict of "MCU_stepper" objects,
+                #       with names as "stepper_x", "stepper_y", etc.
+                kin_spos.update({s.get_name(): (s.get_commanded_position() + self.adjust_pos.get(s.get_name(), 0.))
+                                for s in kin.get_steppers()})
+                # NOTE: Build the "newpos" list with elements from each kinematic.
+                newpos.extend(kin.calc_position(kin_spos))
+                                
+            # Apply any homing offsets
+            # TODO: replaced the following with the above. Must test if it worked.
+            # kin: CartKinematicsABC = self.toolhead.get_kinematics()
+            # homepos = self.toolhead.get_position()
+            # kin_spos = {s.get_name(): (s.get_commanded_position() + self.adjust_pos.get(s.get_name(), 0.))
+            #             for s in kin.get_steppers()}
+            # newpos = kin.calc_position(kin_spos)
+            
             for axis in homing_axes:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
