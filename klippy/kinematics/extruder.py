@@ -41,6 +41,10 @@ class ExtruderStepper:
         # TODO: Check if this works as expected for extruder limit checking.
         self.limits = [(1.0, -1.0)]
         self.axes_min, self.axes_max = None, None
+
+        # Register a handler for turning off the steppers.
+        self.printer.register_event_handler("stepper_enable:motor_off",
+                                            self._motor_off)
         
         ffi_main, ffi_lib = chelper.get_ffi()
         self.sk_extruder = ffi_main.gc(ffi_lib.extruder_stepper_alloc(),
@@ -80,6 +84,12 @@ class ExtruderStepper:
             range = self.rail.get_range()
             self.axes_min = toolhead.Coord(e=range[0])
             self.axes_max = toolhead.Coord(e=range[1])
+
+    def _motor_off(self, print_time):
+        # Handler for "turning off" the steppers (borrowed from "cartesian").
+        # NOTE: The effect is that move checks will never pass, and an error
+        #       indicating "homing is needed" will end up being raised.
+        self.limits = [(1.0, -1.0)]
     
     def get_status(self, eventtime):
 
