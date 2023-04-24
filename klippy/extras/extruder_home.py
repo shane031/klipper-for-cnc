@@ -302,8 +302,13 @@ class ExtruderHoming:
             e_startpos = position_min
         else:
             e_startpos = position_max
-        startpos = th_orig_pos[:3] + [e_startpos]
-        toolhead.set_position(startpos)
+        
+        # NOTE: Get the initial position from all non-E elements in the toolhead's 
+        #       position by using its "axis count" (this can be 3 or 6).
+        startpos = th_orig_pos[:toolhead.axis_count] + [e_startpos]
+        # NOTE: Set the initial position, also permitting limit checks of the extruder axis
+        #       to pass (see "homing_axes" argument), which otherwise block homing moves too.
+        toolhead.set_position(startpos, homing_axes)
 
         # NOTE: flag homing start
         self.homing = True
