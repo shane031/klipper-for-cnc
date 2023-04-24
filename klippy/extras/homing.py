@@ -4,6 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, math
+from kinematics.cartesian_abc import CartKinematicsABC
 
 # NOTE:
 #   -   https://github.com/Klipper3d/klipper/commit/78f4c25a14099564cf731bdaf5b97492a3a6fb47
@@ -100,7 +101,7 @@ class HomingMove:
         # NOTE: Update XYZ and ABC steppers position.
         for axes in list(self.toolhead.kinematics):
             # Iterate over["XYZ", "ABC"]
-            kin = self.toolhead.kinematics[axes]
+            kin: CartKinematicsABC = self.toolhead.kinematics[axes]
             for stepper in kin.get_steppers():
                 sname = stepper.get_name()  # NOTE: Example: "stepper_x", "stepper_a", etc.
                 # NOTE: update the stepper positions by converting the "offset" steps
@@ -126,7 +127,7 @@ class HomingMove:
         # NOTE: Run "calc_position" for the XYZ and ABC axes.
         for axes in list(self.toolhead.kinematics):
             # Iterate over["XYZ", "ABC"]
-            kin = self.toolhead.kinematics[axes]
+            kin: CartKinematicsABC = self.toolhead.kinematics[axes]
             # NOTE: The "calc_position" method iterates over the rails in the (cartesian)
             #       kinematics and selects "stepper_positions" with matching names.
             #       Perhaps other kinematics do something more elaborate.
@@ -172,7 +173,7 @@ class HomingMove:
             #       class at "toolhead.py". It apparently returns the kinematics
             #       object, as loaded from a module in the "kinematics/" directory,
             #       during the class's __init__.
-            kin = self.toolhead.kinematics[axes]
+            kin: CartKinematicsABC = self.toolhead.kinematics[axes]
             # NOTE: this step calls the "get_steppers" method on the provided
             #       kinematics, which returns a dict of "MCU_stepper" objects,
             #       with names as "stepper_x", "stepper_y", etc.
@@ -348,7 +349,7 @@ class HomingMove:
         halt_kin_spos = {}
         # Iterate over["XYZ", "ABC"]
         for axes in list(self.toolhead.kinematics):
-            kin = self.toolhead.kinematics[axes]
+            kin: CartKinematicsABC = self.toolhead.kinematics[axes]
             # NOTE: Uses "ffi_lib.itersolve_get_commanded_pos",
             #       probably reads the position previously set by
             #       "stepper.set_position" / "itersolve_set_position".

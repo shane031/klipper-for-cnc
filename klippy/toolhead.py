@@ -6,6 +6,7 @@
 import math, logging, importlib
 import mcu, chelper, kinematics.extruder
 import time
+from kinematics.extruder import PrinterExtruder
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
@@ -1090,7 +1091,7 @@ class ToolHead:
         logging.info("\n\n" + f"toolhead.set_position_e: setting E to newpos={newpos_e}.\n\n")
         
         # Get the active extruder
-        extruder = self.get_extruder()  # PrinterExtruder
+        extruder: PrinterExtruder = self.get_extruder()  # PrinterExtruder
         
         if extruder.get_name() is None:
             # Do nothing if the extruder is a "Dummy" extruder.

@@ -21,7 +21,11 @@
 import stepper, chelper, logging
 from toolhead import Move
 from collections import namedtuple
-from kinematics.extruder import PrinterExtruder
+from kinematics.extruder import PrinterExtruder, ExtruderStepper
+from extras.homing import PrinterHoming
+from gcode import GCodeDispatch
+from klippy import Printer
+from toolhead import ToolHead
 
 class ExtruderHoming:
     """
@@ -46,7 +50,7 @@ class ExtruderHoming:
     See commit: 8eb3366b6ee1eb74c70a715db66152b13a2d4372
     """
     def __init__(self, config):
-        self.printer = config.get_printer()
+        self.printer: Printer = config.get_printer()
         self.extruder_name = config.get_name().split()[1]
 
         self.toolhead = None
@@ -73,13 +77,12 @@ class ExtruderHoming:
         #       "HOME_EXTRUDER EXTRUDER=extruder", the extruder name
         #        passed to the EXTRUDER argument might change.
         # Register commands
-        gcode = self.printer.lookup_object('gcode')
-        gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
-                                   self.extruder_name, self.cmd_HOME_EXTRUDER,
-                                   desc=self.cmd_HOME_EXTRUDER_help)
+        self.gcode: GCodeDispatch = self.printer.lookup_object('gcode')
+        self.gcode.register_mux_command('HOME_EXTRUDER', "EXTRUDER",
+                                        self.extruder_name, self.cmd_HOME_EXTRUDER,
+                                        desc=self.cmd_HOME_EXTRUDER_help)
         
         # Register active extruder homing command.
-        self.gcode = self.printer.lookup_object('gcode')
         # First check if this is the first instance of a multi-probe object.
         if "HOME_ACTIVE_EXTRUDER" in self.gcode.ready_gcode_handlers:
             self.main_object = False
@@ -123,13 +126,13 @@ class ExtruderHoming:
         self.gcmd = gcmd
         
         # NOTE: Borrowed from extruder.py
-        self.extruder = self.printer.lookup_object(self.extruder_name, None)  # PrinterExtruder
+        self.extruder: PrinterExtruder = self.printer.lookup_object(self.extruder_name, None)  # PrinterExtruder
         if self.extruder is None or not isinstance(self.extruder, PrinterExtruder):
             raise self.printer.command_error(f"'{self.extruder_name}' is not a valid extruder.")
         
         # NOTE: Get the toolhead and its *current* extruder.
-        self.toolhead = self.printer.lookup_object("toolhead")
-        self.active_extruder = self.toolhead.get_extruder()            # PrinterExtruder
+        self.toolhead: ToolHead = self.printer.lookup_object("toolhead")
+        self.active_extruder: PrinterExtruder = self.toolhead.get_extruder()            # PrinterExtruder
         self.active_extruder_name = self.active_extruder.get_name()
         
         # NOTE: check if the active extruder is the one to be homed.
@@ -147,10 +150,10 @@ class ExtruderHoming:
         self.extruder_trapq = self.extruder.get_trapq()         # extruder trapq (from ffi)
         
         # NOTE: Get the steppers
-        self.extruder_stepper = self.extruder.extruder_stepper  # ExtruderStepper
-        self.rail = self.extruder_stepper.rail                  # PrinterRail
-        self.stepper = self.extruder_stepper.stepper            # PrinterRail or PrinterStepper
-        self.steppers = [self.stepper]                          # [PrinterRail or PrinterStepper]
+        self.extruder_stepper = self.extruder.extruder_stepper      # ExtruderStepper
+        self.rail: stepper.PrinterRail = self.extruder_stepper.rail # PrinterRail
+        self.stepper: MCU_stepper = self.extruder_stepper.stepper   # MCU_stepper
+        self.steppers = [self.stepper]                              # [MCU_stepper]
         # NOTE: in the "ExtruderStepper" class, the "rail" and the "stepper"  
         #       objects are _the same_ object.
 
@@ -161,7 +164,7 @@ class ExtruderHoming:
         endstops = self.rail.get_endstops()                 # [(mcu_endstop, name)]
         
         # NOTE: get a PrinterHoming class from extras
-        phoming = self.printer.lookup_object('homing')      # PrinterHoming
+        phoming: PrinterHoming = self.printer.lookup_object('homing')      # PrinterHoming
 
         # NOTE: Get original toolhead position 
         self.th_orig_pos = self.toolhead.get_position()
@@ -256,7 +259,7 @@ class ExtruderHoming:
     def cmd_HOME_ACTIVE_EXTRUDER(self, gcmd):
         
         # NOTE: Get the toolhead and its *current* extruder.
-        toolhead = self.printer.lookup_object("toolhead")
+        toolhead: ToolHead = self.printer.lookup_object("toolhead")
         active_extruder = toolhead.get_extruder()           # PrinterExtruder
         active_extruder_name = active_extruder.get_name()
         
@@ -278,7 +281,7 @@ class ExtruderHoming:
         endstops = rail.get_endstops()                      # [(mcu_endstop, name)]
         
         # NOTE: get a PrinterHoming class from extras
-        phoming = self.printer.lookup_object('homing')      # PrinterHoming
+        phoming: PrinterHoming = self.printer.lookup_object('homing')      # PrinterHoming
 
         # NOTE: Get original toolhead position 
         th_orig_pos = toolhead.get_position()

@@ -5,6 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, klippy
 from gcode import GCodeDispatch
+from extras.homing import Homing
 
 class GCodeMove:
     """Main GCodeMove class.
@@ -140,7 +141,7 @@ class GCodeMove:
         #       See discussion at: https://klipper.discourse.group/t/6558
         # self.base_position[3] = self.last_position[3]
     
-    def _handle_home_rails_end(self, homing_state, rails):
+    def _handle_home_rails_end(self, homing_state: Homing, rails):
         self.reset_last_position()
         for axis in homing_state.get_axes():
             self.base_position[axis] = self.homing_position[axis]
