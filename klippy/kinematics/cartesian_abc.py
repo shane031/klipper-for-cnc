@@ -48,7 +48,7 @@ class CartKinematicsABC(CartKinematics):
 
         # Just to check
         if len(self.axis_config) != self.axis_count:
-            raise Exception(f"The amount of axis indexes in '{self.axis_config}' does not match the count of axis names '{self.axis_names}'.")
+            raise Exception(f"CartKinematicsABC: The amount of axis indexes in '{self.axis_config}' does not match the count of axis names '{self.axis_names}'.")
         
         # Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
         # and ending at +3 (e.g. 3 for [0,1,2]).
@@ -58,7 +58,7 @@ class CartKinematicsABC(CartKinematics):
         # Total axis count from the toolhead.
         self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
 
-        logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}\n\n")
+        logging.info(f"\n\nCartKinematicsABC: starting setup with axes '{self.axis_names}' and indexes '{self.axis}'\n\n")
         
         # Get the "trapq" object.
         if trapq is None:
