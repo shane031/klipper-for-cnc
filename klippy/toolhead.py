@@ -585,9 +585,9 @@ class ToolHead:
             mod = importlib.import_module('kinematics.' + kin_name)
             # Run the modules setup function.
             kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq, 
+                                      # Specify which of the "toolhead position" elements correspond to the new set of axes.
+                                      axes_ids=axes_ids.copy(),
                                       axis_set_letters=axis_set_letters)
-            # Specify which of the "toolhead position" elements correspond to the new set of axes.
-            kin.axis = axes_ids.copy()
         except config.error as e:
             raise
         except self.printer.lookup_object('pins').error as e:
