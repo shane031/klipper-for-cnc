@@ -523,13 +523,13 @@ class ToolHead:
         Args:
             config (_type_): Klipper configuration object.
         """
-        
         # Setup XYZ axes
         if "XYZ" in self.axis_names:
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
-            self.kin, self.trapq = self.load_kinematics(config=config, 
-                                                        config_name='kinematics',
-                                                        axes_ids = [0, 1, 2])
+            self.kin, self.trapq = self.setup_kinematics(config=config, 
+                                                         config_name='kinematics',
+                                                         axis_set_letters="XYZ",
+                                                         axes_ids = [0, 1, 2])
             # Save the kinematics to the dict.
             self.kinematics["XYZ"] = self.kin
         else:
@@ -538,16 +538,17 @@ class ToolHead:
         # Setup ABC axes
         if "ABC" in self.axis_names:
             # Create ABC kinematics class, and its ABC trapq (iterative solver).
-            self.kin_abc, self.abc_trapq = self.load_kinematics(config=config, 
-                                                                config_name='kinematics_abc',
-                                                                axes_ids=[3, 4 ,5])
+            self.kin_abc, self.abc_trapq = self.setup_kinematics(config=config, 
+                                                                 config_name='kinematics_abc',
+                                                                 axes_ids=[3, 4 ,5],
+                                                                 axis_set_letters="ABC")
             # Save the kinematics to the dict.
             self.kinematics["ABC"] = self.kin_abc
         else:
             self.kin_abc, self.abc_trapq = None, None
     
     # Load kinematics object
-    def load_kinematics(self, config, axes_ids, config_name='kinematics'):
+    def setup_kinematics(self, config, axes_ids, config_name='kinematics', axis_set_letters="XYZ"):
         """Load kinematics for a set of axes.
 
         Note: this requires the Kinematics module to accept a "trapq" object,
@@ -559,7 +560,8 @@ class ToolHead:
         Args:
             config (_type_): Klipper configuration object.
             axes_ids (list): List of integers spevifying which of the "toolhead position" elements correspond to the axes of the new kinematic.
-            config_name (str, optional): Name of the kinematics in the config. Defaults to 'kinematics'.
+            config_name (str, optional): Name of the kinematics setting in the config. Defaults to 'kinematics'.
+            axis_set_letters (str, optional): Letters identifying each of the three axes in the set. Defaults to 'XYZ'.
 
         Returns:
             CartKinematics: Kinematics object.
@@ -582,7 +584,8 @@ class ToolHead:
             # Import the python module file for the requested kinematic.
             mod = importlib.import_module('kinematics.' + kin_name)
             # Run the modules setup function.
-            kin = mod.load_kinematics(self, config, trapq)
+            kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq, 
+                                      axis_set_letters=axis_set_letters)
             # Specify which of the toolhead position elements correspon to the axis.
             kin.axis = axes_ids.copy()
         except config.error as e:

@@ -447,12 +447,12 @@ class ExtraToolHead:
             axis_set_idxs = [i % 3 for i in axis_set]
             
             # Create XYZ kinematics class, and its XYZ trapq (iterative solver).
-            kin, trapq = self.load_kinematics(config=config, 
-                                              # Parameter name from "[toolhead_stepper]"
-                                              config_name='kinematics',
-                                              # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
-                                              axes_ids = axis_set_idxs,
-                                              axis_set_letters=axis_set_letters)
+            kin, trapq = self.setup_kinematics(config=config, 
+                                               # Parameter name from "[toolhead_stepper]"
+                                               config_name='kinematics',
+                                               # [0, 1, 2] for XYZ, [3, 4 ,5] for ABC, ...
+                                               axes_ids = axis_set_idxs,
+                                               axis_set_letters=axis_set_letters)
             
             
             # Save the kinematics to the dict, with axis letters as key.
@@ -461,8 +461,8 @@ class ExtraToolHead:
             self.kinematics_names = list(self.kinematics)
     
     # Load kinematics object
-    def load_kinematics(self, config, axes_ids=(0,1,2), axis_set_letters="XYZ",
-                        config_name='kinematics'):
+    def setup_kinematics(self, config, axes_ids=(0,1,2), axis_set_letters="XYZ",
+                         config_name='kinematics'):
         """Load kinematics for a set of axes.
 
         Note: this requires the Kinematics module to accept a "trapq" object,
