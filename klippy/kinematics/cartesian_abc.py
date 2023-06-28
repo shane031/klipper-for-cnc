@@ -49,8 +49,9 @@ class CartKinematicsABC(CartKinematics):
         # axis examples: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
         self.axis = list(range(self.axis_config[0], self.axis_config[0] + 3))  # Length 3
         
-        # Axis names
-        self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        # Total axis count from the toolhead.
+        self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
+
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}\n\n")
         
         # Get the trapq
@@ -164,7 +165,7 @@ class CartKinematicsABC(CartKinematics):
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None for i in range(self.axis_count + 1)]
+        homepos = [None for i in range(self.toolhead_axis_count + 1)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:

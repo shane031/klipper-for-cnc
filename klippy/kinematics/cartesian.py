@@ -12,7 +12,7 @@ class CartKinematics:
         # Axis names
         self.axis = [0, 1, 2]
         self.axis_names = "".join([toolhead.axis_names[i] for i in self.axis])  # Will get "XYZ" from "XYZABC"
-        self.axis_count = toolhead.axis_count  # len(self.axis_names)
+        self.toolhead_axis_count = toolhead.axis_count  # len(self.axis_names)
 
         logging.info(f"\n\nCartKinematics: starting setup with axes: {self.axis_names}\n\n")
         
@@ -109,7 +109,7 @@ class CartKinematics:
         # Determine movement
         position_min, position_max = rail.get_range()
         hi = rail.get_homing_info()
-        homepos = [None for i in range(self.axis_count + 1)]
+        homepos = [None for i in range(self.toolhead_axis_count + 1)]
         homepos[axis] = hi.position_endstop
         forcepos = list(homepos)
         if hi.positive_dir:
