@@ -278,3 +278,27 @@ using gtkwave with:
 ```
 gtkwave avrsim.vcd
 ```
+
+## Troubleshooting
+
+See Sineo's knowledgebase category and post: https://klipper.discourse.group/t/how-to-trouble-shoot/6326
+
+### Timer too close
+
+Kevin: A "timer too close" may be a communication issue, so altering the host may not be enough to reproduce it. What I do is run the log through `scripts/logextract.py`. That will rearrange the messages by time order. From that I can usually determine which message caused the shutdown, and back-track to when the message should have been sent. That often helps in figuring out why the message got delayed.
+
+Knowledgebase post: https://klipper.discourse.group/t/timer-too-close/6634
+
+### Rescheduled timer in the past
+
+Knowledgebase post: https://klipper.discourse.group/t/rescheduled-timer-in-the-past/6635
+
+### Timeout with MCU / Lost communication with MCU
+
+Knowledgebase post: https://klipper.discourse.group/t/timeout-with-mcu-lost-communication-with-mcu/6639
+
+### Internal error in MCU ‘mcu’ stepcompress
+
+Knowledgebase post: https://klipper.discourse.group/t/internal-error-in-mcu-mcu-stepcompress/6644
+
+I have seen this often when messing with the homing code, in step commands with a null interval value (i.e. `i=0` means infinite speed). The error shows up like this: `stepcompress o=2 i=0 c=19 a=0: Invalid sequence`.

@@ -111,6 +111,8 @@ trsync_clear(struct trsync *ts)
     ts->flags = ts->trigger_reason = ts->expire_reason = 0;
 }
 
+// dalegaard:   trsync_start tells the MCU to start pinging the host at the reporting interval
+//              (Which is .4*expire_timeout iirc)
 void
 command_trsync_start(uint32_t *args)
 {
