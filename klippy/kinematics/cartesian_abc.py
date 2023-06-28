@@ -41,9 +41,14 @@ class CartKinematicsABC(CartKinematics):
         self.printer = config.get_printer()
         
         
-        # Configured set of axes and their letter IDs. Can have length less than 3.
+        # Configured set of axes (indexes) and their letter IDs. Can have length less or equal to 3.
         self.axis_config = deepcopy(axes_ids)  # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
         self.axis_names = axis_set_letters  # char of length <= 3: "XYZ", "AB", "ABC", etc.
+        self.axis_count = len(self.axis_names)
+
+        # Just to check
+        if len(self.axis_config) != self.axis_count:
+            raise Exception(f"The amount of axis indexes in '{self.axis_config}' does not match the count of axis names '{self.axis_names}'.")
         
         # Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
         # and ending at +3 (e.g. 3 for [0,1,2]).
