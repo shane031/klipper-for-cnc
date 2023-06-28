@@ -36,16 +36,16 @@ An ethernet cable with shielded twisted pairs (cat5e or better) is recommended
 for signal integrity over a long distance. If you still experience signal
 integrity issues (SPI/I2C errors):
 
-  * Double check the wiring with a digital multimeter for:
-    * Correct connections when turned off (continuity)
-    * Correct power and ground voltages
-  * I2C only:
-    * Check the SCL and SDA lines' resistances to 3.3V are in the range of 900
-      ohms to 1.8K
-    * For full technical details consult [chapter 7 of the I2C-bus specification
-      and user manual UM10204](https://www.pololu.com/file/0J435/UM10204.pdf)
-      for *fast-mode*
-  * Shorten the cable
+- Double check the wiring with a digital multimeter for:
+  - Correct connections when turned off (continuity)
+  - Correct power and ground voltages
+- I2C only:
+  - Check the SCL and SDA lines' resistances to 3.3V are in the range of 900
+    ohms to 1.8K
+  - For full technical details consult [chapter 7 of the I2C-bus specification
+    and user manual UM10204](https://www.pololu.com/file/0J435/UM10204.pdf)
+    for *fast-mode*
+- Shorten the cable
 
 Connect ethernet cable shielding only to the MCU board/Pi ground.
 
@@ -66,7 +66,7 @@ Note that unlike a cable shield, GND must be connected at both ends.
 
 #### ADXL345
 
-###### Direct to Raspberry Pi
+##### Direct to Raspberry Pi
 
 **Note: Many MCUs will work with an ADXL345 in SPI mode (e.g. Pi Pico), wiring
 and configuration will vary according to your specific board and available
@@ -89,32 +89,7 @@ Fritzing wiring diagrams for some of the ADXL345 boards:
 
 ![ADXL345-Rpi](img/adxl345-fritzing.png)
 
-###### Using Raspberry Pi Pico
-
-You may connect the ADXL345 to your Raspberry Pi Pico and then connect the
-Pico to your Raspberry Pi via USB. This makes it easy to reuse the
-accelerometer on other Klipper devices, as you can connect via USB instead
-of GPIO. The Pico does not have much processing power, so make sure it is
-only running the accelerometer and not performing any other duties.
-
-In order to avoid damage to your RPi make sure to connect the ADXL345 to 3.3V
-only. Depending on the board's layout, a level shifter may be present, which
-makes 5V dangerous for your RPi.
-
-| ADXL345 pin | Pico pin | Pico pin name |
-|:--:|:--:|:--:|
-| 3V3 (or VCC) | 36 | 3.3V DC power |
-| GND | 38 | Ground |
-| CS | 2 | GP1 (SPI0_CSn) |
-| SDO | 1 | GP0 (SPI0_RX) |
-| SDA | 5 | GP3 (SPI0_TX) |
-| SCL | 4 | GP2 (SPI0_SCK) |
-
-Wiring diagrams for some of the ADXL345 boards:
-
-![ADXL345-Pico](img/adxl345-pico.png)
-
-###### Using Raspberry Pi Pico
+##### Using Raspberry Pi Pico
 
 You may connect the ADXL345 to your Raspberry Pi Pico and then connect the
 Pico to your Raspberry Pi via USB. This makes it easy to reuse the
@@ -182,7 +157,7 @@ Recommended connection scheme for I2C (i2c0a) on the RP2040:
 
 | MPU-9250 pin | RP2040 pin | RP2040 pin name |
 |:--:|:--:|:--:|
-| VCC | 39 | 3v3 |
+| VCC | 36 | 3v3 |
 | GND | 38 | Ground |
 | SDA | 01 | GP0 (I2C0 SDA) |
 | SCL | 02 | GP1 (I2C0 SCL) |
@@ -368,7 +343,7 @@ probe_points:
     100, 100, 20  # an example
 
 [static_digital_output pico_3V3pwm] # Improve power stability
-pin: pico:gpio23
+pins: pico:gpio23
 ```
 
 #### Configure MPU-9520 Compatibles with AVR
