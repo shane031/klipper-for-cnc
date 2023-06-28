@@ -220,9 +220,9 @@ class CartKinematicsABC(CartKinematics):
             move (tolhead.Move): Instance of the Move class.
         """
         limit_checks = []
-        for axis in self.axis:
+        for i, axis in enumerate(self.axis):
             pos = move.end_pos[axis]
-            limit_checks.append(pos < self.limits[axis][0] or pos > self.limits[axis][1])
+            limit_checks.append(pos < self.limits[i][0] or pos > self.limits[i][1])
         if any(limit_checks):
             self._check_endstops(move)
         
