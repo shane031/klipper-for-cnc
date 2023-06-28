@@ -586,7 +586,7 @@ class ToolHead:
             # Run the modules setup function.
             kin = mod.load_kinematics(toolhead=self, config=config, trapq=trapq, 
                                       axis_set_letters=axis_set_letters)
-            # Specify which of the toolhead position elements correspon to the axis.
+            # Specify which of the "toolhead position" elements correspond to the new set of axes.
             kin.axis = axes_ids.copy()
         except config.error as e:
             raise

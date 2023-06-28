@@ -306,7 +306,7 @@ class PrinterExtruder:
         self.instant_corner_v = config.getfloat(
             'instantaneous_corner_velocity', 1., minval=0.)
 
-        # NOTE: Get the axis ID of the extruder axis. Will
+        # NOTE: Get the axis ID (index) of the extruder axis. Will
         #       be equal to the amount of axes in the toolhead,
         #       either XYZ=3 or XYZABC=6.
         self.axis_idx = toolhead.axis_count

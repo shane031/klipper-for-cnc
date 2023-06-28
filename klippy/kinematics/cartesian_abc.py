@@ -42,11 +42,12 @@ class CartKinematicsABC(CartKinematics):
         
         
         # Configured set of axes and their letter IDs. Can have length less than 3.
-        self.axis_config = deepcopy(axes_ids)  # list of length <= 3: [0, 1, 3], [3, 4]
-        self.axis_names = axis_set_letters  # char of length <= 3: "XYZ", "AB"
+        self.axis_config = deepcopy(axes_ids)  # list of length <= 3: [0, 1, 3], [3, 4], [3, 4, 5], etc.
+        self.axis_names = axis_set_letters  # char of length <= 3: "XYZ", "AB", "ABC", etc.
         
-        # Full set of axes
-        # axis examples: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
+        # Full set of axes, forced to length 3. Starting at the first axis index (e.g. 0 for [0,1,2]),
+        # and ending at +3 (e.g. 3 for [0,1,2]).
+        # Example expected result: [0, 1, 2] for XYZ, [3, 4, 5] for ABC, [6, 7, 8] for UVW.
         self.axis = list(range(self.axis_config[0], self.axis_config[0] + 3))  # Length 3
         
         # Total axis count from the toolhead.
@@ -54,13 +55,13 @@ class CartKinematicsABC(CartKinematics):
 
         logging.info(f"\n\nCartKinematicsABC: starting setup with axes: {self.axis_names}\n\n")
         
-        # Get the trapq
+        # Get the "trapq" object.
         if trapq is None:
             self.trapq = toolhead.get_trapq(axes=self.axis_names)
         else:
             self.trapq = trapq
         
-        # Setup axis rails
+        # Setup axis rails. DISABLED!
         # self.dual_carriage_axis = None
         # self.dual_carriage_rails = []
         
