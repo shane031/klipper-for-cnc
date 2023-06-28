@@ -41,8 +41,8 @@ This fork implements:
         - Multi-probe: `MULTIPROBE2 PROBE_NAME=myprobe A=-20 B=10 F=2` (same as regular `MULTIPROBE`).
         - And so on …
     - Configuration: add ABC kinematics to `[printer]` and the corresponding `[stepper_abc]` sections (details below).
-    - Limitations: needs testing on longer GCODE programs. Limit checks not implemented. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
-    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Alternate kinematics for the XYZ axes not tested.
+    - Limitations: needs testing on longer GCODE programs. The 3 stepper sections must be configured, _partial_ extra axis is not implemented yet (i.e. XYZ+AB). Extra steppers not tested (i.e. `stepper_a1`).
+    - Module incompatibilites: probably many. Tested with `virtual_sdcard`, `pause_resume`, and `force_move`. Non-cartesian kinematics for the XYZ axes not tested.
 - Homing on the steppers of `[extruder]`s.
     - Module: [extruder_home.py](./klippy/extras/extruder_home.py)
     - Command: `HOME_ACTIVE_EXTRUDER`.
