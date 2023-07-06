@@ -6,7 +6,7 @@
 # Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import math
+import math 
 
 # Coordinates created by this are converted into G1 commands.
 #
@@ -22,6 +22,7 @@ X_AXIS = 0
 Y_AXIS = 1
 Z_AXIS = 2
 E_AXIS = 3
+A_Axis = 4
 
 
 class ArcSupport:
@@ -69,7 +70,8 @@ class ArcSupport:
         asTarget = self.Coord(x=gcmd.get_float("X", currentPos[0]),
                               y=gcmd.get_float("Y", currentPos[1]),
                               z=gcmd.get_float("Z", currentPos[2]),
-                              e=None)
+                              e=None,
+                              a=None)
 
         if gcmd.get_float("R", None) is not None:
             raise gcmd.error("G2/G3 does not support R moves")
@@ -86,8 +88,9 @@ class ArcSupport:
 
         if not (asPlanar[0] or asPlanar[1]):
             raise gcmd.error("G2/G3 requires IJ, IK or JK parameters")
-
+            
         asE = gcmd.get_float("E", None)
+        asA = gcmd.get_float("A", None)
         asF = gcmd.get_float("F", None)
 
         # Build list of linear coordinates to move
@@ -99,6 +102,11 @@ class ArcSupport:
                 e_base = currentPos[3]
             e_per_move = (asE - e_base) / len(coords)
 
+         if asA is not None:
+        a_per_move = a_base = 0.
+                a_base = currentPos[4]
+            a_per_move = (asA - a_base) / len(coords)
+
         # Convert coords into G1 commands
         for coord in coords:
             g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
@@ -106,6 +114,9 @@ class ArcSupport:
                 g1_params['E'] = e_base + e_per_move
                 if gcodestatus['absolute_extrude']:
                     e_base += e_per_move
+            if a_per_move:
+                g1_params['A'] = a_base + a_per_move
+                    a_base += a_per_move
             if asF is not None:
                 g1_params['F'] = asF
             g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
